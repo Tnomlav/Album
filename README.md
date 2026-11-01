@@ -6,13 +6,13 @@
 
 整理、编辑、播放和展示你的媒体，不把图库交给云端。
 
-[![GitHub Releases](https://img.shields.io/badge/Releases-download-181717?style=flat-square&logo=github)](https://github.com/Tnomlav/ALbum/releases)
-[![Android build](https://img.shields.io/github/actions/workflow/status/Tnomlav/ALbum/android.yml?branch=main&label=build&style=flat-square)](https://github.com/Tnomlav/ALbum/actions/workflows/android.yml)
+[![下载 APK](https://img.shields.io/badge/%E4%B8%8B%E8%BD%BD-APK-181717?style=flat-square&logo=github)](https://github.com/Tnomlav/ALbum/releases)
+[![构建状态](https://img.shields.io/github/actions/workflow/status/Tnomlav/ALbum/android.yml?branch=main&label=%E6%9E%84%E5%BB%BA&style=flat-square)](https://github.com/Tnomlav/ALbum/actions/workflows/android.yml)
 ![Android 7.0+](https://img.shields.io/badge/Android-7.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white)
 ![Kotlin + Compose](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?style=flat-square&logo=kotlin&logoColor=white)
-![MIT License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)
+![MIT 许可证](https://img.shields.io/badge/%E8%AE%B8%E5%8F%AF%E8%AF%81-MIT-blue?style=flat-square)
 
-[下载](#下载) · [功能](#功能) · [构建](#从源码构建) · [隐私](#隐私与权限) · [English overview](#english-overview)
+[下载](#下载) · [功能](#功能) · [从源码构建](#从源码构建) · [隐私与权限](#隐私与权限)
 
 </div>
 
@@ -40,7 +40,7 @@ Album 是一个开源、本地优先的 Android 媒体管理器，使用 Kotlin 
 **浏览与整理**
 
 - 图片和视频按文件夹、相册、时间轴浏览，支持搜索、排序、收藏和多选
-- 使用 MediaStore 与 Storage Access Framework 复制、移动、重命名和删除媒体
+- 使用系统媒体库与安全文件夹访问复制、移动、重命名和删除媒体
 - 回收站保留期、重复图片检测、文件夹排除
 - 接收其他应用的“分享到 Album”，导入时选择目标文件夹
 
@@ -48,7 +48,7 @@ Album 是一个开源、本地优先的 Android 媒体管理器，使用 Kotlin 
 
 - 图片裁剪、旋转、翻转、曝光与色彩调节、滤镜、涂鸦和文字
 - 保存编辑副本或替换原图，保存前明确确认
-- Media3 视频播放、播放进度记忆、后台播放、画中画与小窗
+- 基于 Media3 的视频播放，支持进度记忆、后台播放、画中画与小窗
 - AVI 等格式可通过 LibVLC 兼容路径播放，支持手势跳转和播放控制
 
 **壁纸与展示**
@@ -76,7 +76,7 @@ APK、更新清单和校验文件都通过 Releases 分发，不提交到 Git �
 
 ## 从源码构建
 
-运行构建需要 JDK 17 和 Android SDK；也可以直接用 Android Studio 打开仓库。
+本地构建需要 JDK 17 和 Android SDK，也可以直接使用 Android Studio 打开仓库。
 
 ```bash
 git clone https://github.com/Tnomlav/ALbum.git
@@ -90,9 +90,9 @@ Windows PowerShell：
 .\gradlew.bat testDebugUnitTest lintDebug assembleDebug
 ```
 
-Debug APK 位于 `app/build/outputs/apk/debug/`。项目默认按 ABI 拆分；需要单个全架构包时加上 `-PalbumUniversalApk=true`。
+调试版 APK 位于 `app/build/outputs/apk/debug/`。项目默认按 CPU 架构拆分；需要单个全架构安装包时加上 `-PalbumUniversalApk=true`。
 
-Release 签名通过本机 Gradle 属性提供，不要提交 keystore 或密码：
+正式版签名通过本机 Gradle 属性提供，请不要提交密钥库或密码：
 
 ```text
 ALBUM_STORE_FILE
@@ -119,7 +119,7 @@ Pixiv 归档是可选功能：只有主动使用时会连接 Pixiv 读取公开�
 
 ## 贡献
 
-欢迎提交 Issue 和 Pull Request。提交前请至少运行：
+欢迎提交问题反馈和代码贡献。提交前请至少运行：
 
 ```bash
 ./gradlew testDebugUnitTest lintDebug
@@ -127,10 +127,6 @@ Pixiv 归档是可选功能：只有主动使用时会连接 Pixiv 读取公开�
 
 界面和行为改动请附复现步骤、设备版本与截图。界面文案统一放在 `ui/AppLanguage.kt` 的字典中，新增中文文案时请同时补英文；关键逻辑请配单元测试。
 
-## English overview
+## 许可证
 
-Album is a local-first, open-source Android photo and video manager built with Kotlin and Jetpack Compose. It combines folder browsing, a timeline, batch organization, photo editing, video playback, a recycle bin, wallpaper queues, and optional Pixiv archiving in one app. Media processing stays on the device; Album has no cloud gallery, analytics, or advertising SDK. See [Releases](https://github.com/Tnomlav/ALbum/releases) for builds and [RELEASING.md](RELEASING.md) for the release workflow.
-
-## License
-
-Album is released under the [MIT License](LICENSE).
+Album 使用 [MIT 许可证](LICENSE) 开源发布。
