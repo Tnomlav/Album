@@ -25,12 +25,12 @@ class AppUpdateCheckerTest {
                 {
                   "versionCode": 171,
                   "versionName": "1.2.1",
-                  "downloadUrl": "https://github.com/Tnomlav/ALbum/releases/download/v1.2.1/Album-v1.2.1.apk",
+                  "downloadUrl": "https://github.com/Tnomlav/Album/releases/download/v1.2.1/Album-v1.2.1.apk",
                   "notes": "换机不再丢收藏"
                 }
                 """.trimIndent()
             ),
-            "https://github.com/Tnomlav/ALbum/releases/latest/download/album-update.json"
+            "https://github.com/Tnomlav/Album/releases/latest/download/album-update.json"
         )
 
         assertEquals(171L, release.versionCode)
@@ -48,15 +48,15 @@ class AppUpdateCheckerTest {
                   "tag_name": "v2.0.0",
                   "name": "Album 2.0.0",
                   "body": "Rewrite",
-                  "html_url": "https://github.com/Tnomlav/ALbum/releases/tag/v2.0.0",
+                  "html_url": "https://github.com/Tnomlav/Album/releases/tag/v2.0.0",
                   "assets": [
-                    {"name": "album-update.json", "browser_download_url": "https://github.com/Tnomlav/ALbum/releases/download/v2.0.0/album-update.json"},
-                    {"name": "Album-v2.0.0-arm64-v8a.apk", "browser_download_url": "https://github.com/Tnomlav/ALbum/releases/download/v2.0.0/Album-v2.0.0-arm64-v8a.apk"}
+                    {"name": "album-update.json", "browser_download_url": "https://github.com/Tnomlav/Album/releases/download/v2.0.0/album-update.json"},
+                    {"name": "Album-v2.0.0-arm64-v8a.apk", "browser_download_url": "https://github.com/Tnomlav/Album/releases/download/v2.0.0/Album-v2.0.0-arm64-v8a.apk"}
                   ]
                 }
                 """.trimIndent()
             ),
-            "https://api.github.com/repos/Tnomlav/ALbum/releases/latest"
+            "https://api.github.com/repos/Tnomlav/Album/releases/latest"
         )
 
         assertEquals(-1L, release.versionCode)
@@ -68,11 +68,11 @@ class AppUpdateCheckerTest {
     @Test
     fun fallsBackToTheReleasePageWhenNoApkAssetExists() {
         val release = AppUpdateChecker.parse(
-            JSONObject("""{"tag_name":"v1.3.0","html_url":"https://github.com/Tnomlav/ALbum/releases/tag/v1.3.0"}"""),
-            "https://api.github.com/repos/Tnomlav/ALbum/releases/latest"
+            JSONObject("""{"tag_name":"v1.3.0","html_url":"https://github.com/Tnomlav/Album/releases/tag/v1.3.0"}"""),
+            "https://api.github.com/repos/Tnomlav/Album/releases/latest"
         )
 
-        assertEquals("https://github.com/Tnomlav/ALbum/releases/tag/v1.3.0", release.downloadUrl)
+        assertEquals("https://github.com/Tnomlav/Album/releases/tag/v1.3.0", release.downloadUrl)
     }
 
     @Test

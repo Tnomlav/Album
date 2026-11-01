@@ -6,8 +6,8 @@
 
 整理、编辑、播放和展示你的媒体，不把图库交给云端。
 
-[![下载 APK](https://img.shields.io/badge/%E4%B8%8B%E8%BD%BD-APK-181717?style=flat-square&logo=github)](https://github.com/Tnomlav/ALbum/releases)
-[![构建状态](https://img.shields.io/github/actions/workflow/status/Tnomlav/ALbum/android.yml?branch=main&label=%E6%9E%84%E5%BB%BA&style=flat-square)](https://github.com/Tnomlav/ALbum/actions/workflows/android.yml)
+[![下载 APK](https://img.shields.io/badge/%E4%B8%8B%E8%BD%BD-APK-181717?style=flat-square&logo=github)](https://github.com/Tnomlav/Album/releases)
+[![构建状态](https://img.shields.io/github/actions/workflow/status/Tnomlav/Album/android.yml?branch=main&label=%E6%9E%84%E5%BB%BA&style=flat-square)](https://github.com/Tnomlav/Album/actions/workflows/android.yml)
 ![Android 7.0+](https://img.shields.io/badge/Android-7.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white)
 ![Kotlin + Compose](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?style=flat-square&logo=kotlin&logoColor=white)
 ![MIT 许可证](https://img.shields.io/badge/%E8%AE%B8%E5%8F%AF%E8%AF%81-MIT-blue?style=flat-square)
@@ -64,7 +64,7 @@ Album 相对普通 Android 相册最突出的差异，是把 **Pixiv 本地归�
 
 ## 下载
 
-前往 [GitHub Releases](https://github.com/Tnomlav/ALbum/releases) 获取已发布的 APK、更新清单与校验信息。安装包按 CPU 架构拆分：
+前往 [GitHub Releases](https://github.com/Tnomlav/Album/releases) 获取已发布的 APK、更新清单与校验信息。安装包按 CPU 架构拆分：
 
 | 文件 | 适用设备 |
 | --- | --- |
@@ -79,8 +79,8 @@ APK、更新清单和校验文件都通过 Releases 分发，不提交到 Git �
 本地构建需要 JDK 17 和 Android SDK，也可以直接使用 Android Studio 打开仓库。
 
 ```bash
-git clone https://github.com/Tnomlav/ALbum.git
-cd ALbum
+git clone https://github.com/Tnomlav/Album.git
+cd Album
 ./gradlew testDebugUnitTest lintDebug assembleDebug
 ```
 

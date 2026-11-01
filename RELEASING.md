@@ -35,7 +35,7 @@
 6. **打标签并创建 Release**：标签名 `v<versionName>`（例如 `v1.2.1`），
    附上各 ABI 的 APK、`album-update.json` 和每个文件的 SHA-256。
    更新检查读取的是
-   `https://github.com/Tnomlav/ALbum/releases/latest/download/album-update.json`，
+   `https://github.com/Tnomlav/Album/releases/latest/download/album-update.json`，
    因此 Release 资产名必须是 `album-update.json`。
 
 7. **发布后自检**：装上一个旧版本，在设置页点"应用版本"→"检查更新"，

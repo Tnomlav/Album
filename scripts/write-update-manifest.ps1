@@ -21,7 +21,7 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$Repository = "Tnomlav/ALbum",
+    [string]$Repository = "Tnomlav/Album",
     [string]$Notes = "",
     [string]$OutputPath
 )
