@@ -6,11 +6,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * Duplicate checking is exact-only: candidates are files whose size repeats, and
- * "duplicate" means the bytes are equal. These are the two pieces worth pinning,
- * because they are what makes the scan fast and correct.
- */
+/** Pins both the byte-identical path and the strict visual fallback. */
 class DuplicateScanTest {
 
     private fun stream(text: String) = ByteArrayInputStream(text.toByteArray())
@@ -79,17 +75,85 @@ class DuplicateScanTest {
         )
     }
 
+    private fun fingerprint(
+        perceptualHash: Long = 0b1010101010101010L,
+        differenceHash: Long = 0b0101010101010101L,
+        luminance: IntArray = IntArray(16 * 16) { if (it % 2 == 0) 30 else 110 },
+        red: Float = 100f,
+        green: Float = 100f,
+        blue: Float = 100f,
+        aspect: Float = 1.5f
+    ) = ImageFingerprint(
+        perceptualHash = perceptualHash,
+        differenceHash = differenceHash,
+        luminance16 = luminance,
+        red = red,
+        green = green,
+        blue = blue,
+        aspect = aspect
+    )
+
     @Test
-    fun theSamePictureMatchesOnlyWhileTheFingerprintStaysClose() {
-        val base = ImageFingerprint(hash = 0L, red = 100f, green = 100f, blue = 100f, aspect = 1.5f)
-        // A re-encode: a few hash bits and a small colour shift.
-        assertTrue(looksLikeSamePicture(base, base.copy(hash = 0b111111L, green = 104f, blue = 98f)))
-        // A different picture: many bits apart.
-        assertFalse(looksLikeSamePicture(base, base.copy(hash = 0b1111111L)))
-        // A different colour balance.
+    fun aReencodedPictureStillMatches() {
+        val base = fingerprint()
+        val reencoded = base.copy(
+            perceptualHash = base.perceptualHash xor 0b111L,
+            differenceHash = base.differenceHash xor 0b111L,
+            luminance16 = base.luminance16.copyOf().also { grid ->
+                grid.indices.forEach { grid[it] += 2 }
+            },
+            red = 102f,
+            green = 98f,
+            blue = 101f
+        )
+        assertTrue(looksLikeSamePicture(base, reencoded))
+    }
+
+    @Test
+    fun differentPicturesAndEditsDoNotMatch() {
+        val base = fingerprint()
+        assertFalse(looksLikeSamePicture(base, base.copy(perceptualHash = base.perceptualHash xor 0b11111L)))
+        assertFalse(looksLikeSamePicture(base, base.copy(differenceHash = base.differenceHash xor 0b111111L)))
         assertFalse(looksLikeSamePicture(base, base.copy(red = 200f, green = 60f, blue = 40f)))
-        // A different shape (a crop).
         assertFalse(looksLikeSamePicture(base, base.copy(aspect = 1.1f)))
+        assertFalse(
+            looksLikeSamePicture(
+                base,
+                base.copy(luminance16 = IntArray(16 * 16) { if (it % 2 == 0) 110 else 30 })
+            )
+        )
+    }
+
+    @Test
+    fun flatAndDegenerateHashesAreNeverOfferedForVisualDeletion() {
+        val flat = fingerprint(
+            perceptualHash = 0L,
+            differenceHash = -1L,
+            luminance = IntArray(16 * 16) { 80 }
+        )
+        assertFalse(looksLikeSamePicture(flat, flat.copy(perceptualHash = 1L, differenceHash = 0L)))
+        assertTrue(strictPerceptualGroups(listOf(flat, flat.copy(perceptualHash = 1L))).isEmpty())
+    }
+
+    @Test
+    fun groupingDoesNotChainWhereOnlyAdjacentPicturesMatch() {
+        val baseLuma = IntArray(16 * 16) { if (it % 2 == 0) 20 else 120 }
+        val first = fingerprint(perceptualHash = 1L, differenceHash = 3L, luminance = baseLuma)
+        val middle = fingerprint(
+            perceptualHash = 3L,
+            differenceHash = 3L,
+            luminance = IntArray(16 * 16) { baseLuma[it] + 8 }
+        )
+        val last = fingerprint(
+            perceptualHash = 7L,
+            differenceHash = 3L,
+            luminance = IntArray(16 * 16) { baseLuma[it] + 16 }
+        )
+
+        assertTrue(looksLikeSamePicture(first, middle))
+        assertTrue(looksLikeSamePicture(middle, last))
+        assertFalse(looksLikeSamePicture(first, last))
+        assertEquals(listOf(listOf(0, 1)), strictPerceptualGroups(listOf(first, middle, last)))
     }
 
     @Test
@@ -105,11 +169,33 @@ class DuplicateScanTest {
     }
 
     @Test
-    fun onlyGroupsOfTwoOrMoreSurvive() {
-        val same = ImageFingerprint(hash = 0L, red = 10f, green = 10f, blue = 10f, aspect = 1f)
-        val other = ImageFingerprint(hash = -1L, red = 200f, green = 10f, blue = 10f, aspect = 1f)
-        assertEquals(listOf(listOf(0, 1)), perceptualGroups(listOf(same, same.copy(red = 12f), other)))
-        assertTrue(perceptualGroups(listOf(same, other)).isEmpty())
+    fun pHashIgnoresAUniformBrightnessChange() {
+        val grid = IntArray(32 * 32) { index ->
+            val x = index % 32
+            val y = index / 32
+            ((x * 7 + y * 11) % 40) * 4
+        }
+        val brighter = IntArray(grid.size) { (grid[it] + 20).coerceAtMost(255) }
+        assertEquals(perceptualHashFromLuminanceGrid(grid), perceptualHashFromLuminanceGrid(brighter))
+    }
+
+    @Test
+    fun onlyStrictGroupsOfTwoOrMoreSurvive() {
+        val same = fingerprint()
+        val other = fingerprint(
+            perceptualHash = -1L,
+            differenceHash = 0L,
+            red = 220f,
+            green = 20f,
+            blue = 20f
+        )
+        val adjusted = same.copy(
+            perceptualHash = same.perceptualHash xor 1L,
+            differenceHash = same.differenceHash xor 1L,
+            green = 102f
+        )
+        assertEquals(listOf(listOf(0, 1)), strictPerceptualGroups(listOf(same, adjusted, other)))
+        assertTrue(strictPerceptualGroups(listOf(same, other)).isEmpty())
     }
 
 }
