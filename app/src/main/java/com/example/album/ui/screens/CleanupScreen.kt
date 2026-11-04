@@ -226,7 +226,10 @@ fun CleanupScreen(
         )
     }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(media.size) {
+        // The library may still be loading when the tools page first opens.
+        // Wait for its item map before hydrating saved groups from URI keys.
+        if (media.isEmpty()) return@LaunchedEffect
         val saved = try {
             loadDuplicateResults()
         } catch (_: CancellationException) {
