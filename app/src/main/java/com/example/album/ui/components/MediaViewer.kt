@@ -185,6 +185,8 @@ import com.example.album.ui.imageSearchActionText
 import com.example.album.playback.MediaPlaybackService
 import com.example.album.playback.PlaybackResumeRequest
 import com.example.album.playback.positionForPersistence
+import com.example.album.playback.NORMAL_SKIP_OPTIONS
+import com.example.album.playback.LONG_SKIP_OPTIONS
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -1025,8 +1027,8 @@ private fun VideoSettingsDialog(onDismiss: () -> Unit) {
     fun putBoolean(key: String, value: Boolean) = preferences.edit().putBoolean(key, value).apply()
     fun putString(key: String, value: String) = preferences.edit().putString(key, value).apply()
     val options = when (openChoice) {
-        "normal" -> listOf("3秒", "5秒", "10秒", "15秒", "30秒")
-        "long" -> listOf("30秒", "60秒", "90秒", "120秒")
+        "normal" -> NORMAL_SKIP_OPTIONS
+        "long" -> LONG_SKIP_OPTIONS
         "gesture" -> listOf("30秒", "60秒", "90秒", "120秒", "150秒")
         "brightnessVolume" -> listOf("1:1", "1:1:1", "1:2:1")
         "seekPause" -> listOf("1:1:1", "1:2:1", "1:0:1")

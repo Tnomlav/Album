@@ -5,6 +5,15 @@ import org.junit.Test
 
 class VideoPlaybackLogicTest {
     @Test
+    fun `skip settings support fixed seconds and percentages`() {
+        assertEquals(10_000L, skipDurationMs("10秒", 120_000L, 10L))
+        assertEquals(6_000L, skipDurationMs("5%", 120_000L, 10L))
+        assertEquals(12_000L, skipDurationMs("10%", 120_000L, 30L))
+        assertEquals(10_000L, skipDurationMs("invalid", 120_000L, 10L))
+        assertEquals(0L, skipDurationMs("5%", 0L, 10L))
+    }
+
+    @Test
     fun `resume keeps an unfinished position`() {
         assertEquals(42_000L, resumePosition(42_000L, 120_000L))
     }

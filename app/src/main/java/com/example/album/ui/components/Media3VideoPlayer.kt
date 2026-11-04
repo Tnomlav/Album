@@ -22,6 +22,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.offset
@@ -40,8 +42,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -72,10 +74,8 @@ import androidx.compose.material.icons.outlined.StopCircle
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Wallpaper
 import androidx.compose.material.icons.outlined.Settings as SettingsIcon
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -112,9 +112,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.ui.zIndex
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.viewinterop.AndroidView
@@ -138,6 +137,7 @@ import com.example.album.ui.LocalAppEnglish
 import com.example.album.ui.appSeekText
 import com.example.album.ui.appText
 import com.example.album.ui.theme.VaultDimens
+import com.example.album.playback.skipDurationMs
 import com.example.album.ui.editor.EditorPrototypeIcons
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
@@ -395,8 +395,10 @@ internal fun Media3VideoPlayer(
     var temporaryFastPlayback by remember { mutableStateOf(false) }
     var gestureWidth by remember { mutableIntStateOf(0) }
     var gestureHeight by remember { mutableIntStateOf(0) }
-    val normalSkip = (preferences.getString("normal_skip", "10秒")?.filter(Char::isDigit)?.toLongOrNull() ?: 10L) * 1000L
-    val longSkip = (preferences.getString("long_skip_length", "30秒")?.filter(Char::isDigit)?.toLongOrNull() ?: 30L) * 1000L
+    val normalSkipSetting = preferences.getString("normal_skip", "10秒")
+    val longSkipSetting = preferences.getString("long_skip_length", "30秒")
+    val normalSkip = skipDurationMs(normalSkipSetting, duration, defaultSeconds = 10L)
+    val longSkip = skipDurationMs(longSkipSetting, duration, defaultSeconds = 30L)
     val longSkipEnabled = preferences.getBoolean("long_skip", false)
     val gestureSkip = (preferences.getString("gesture_seek", "90秒")?.filter(Char::isDigit)?.toLongOrNull() ?: 90L) * 1000L
     val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager }
@@ -1307,6 +1309,34 @@ internal fun Media3VideoPlayer(
                 Modifier.fillMaxSize()
                     .zIndex(1f)
                     .onSizeChanged { gestureWidth = it.width; gestureHeight = it.height }
+                    .pointerInput(controlsLocked, brightnessVolumeRatio) {
+                        var zone = 0
+                        detectVerticalDragGestures(
+                            onDragStart = { start ->
+                                zone = verticalGestureZone(
+                                    start.x / gestureWidth.coerceAtLeast(1),
+                                    brightnessVolumeRatio
+                                )
+                            },
+                            onVerticalDrag = { change, dragAmount ->
+                                if (controlsLocked || temporaryFastPlayback) return@detectVerticalDragGestures
+                                change.consume()
+                                when (zone) {
+                                    2 -> {
+                                        setBrightness(brightness - dragAmount / gestureHeight.coerceAtLeast(1) * 0.5f)
+                                        gestureHud = "${appText("亮度", english)} ${(brightness * 100).roundToInt()}%"
+                                    }
+                                    3 -> {
+                                        setVolume(volume - dragAmount / gestureHeight.coerceAtLeast(1) * 0.5f)
+                                        gestureHud = "${appText("音量", english)} ${(volume * 100).roundToInt()}%"
+                                    }
+                                }
+                                if (zone != 0) refreshControls()
+                            },
+                            onDragEnd = { refreshControls() },
+                            onDragCancel = { refreshControls() }
+                        )
+                    }
                     .pointerInput(controlsLocked, normalSkip, speed, duration, orientationMode, tapPause, portraitTapPause, seekPauseRatio, settingsVersion) {
                         detectTapGestures(
                             onPress = {
@@ -1369,16 +1399,14 @@ internal fun Media3VideoPlayer(
                             }
                         )
                     }
-                    .pointerInput(controlsLocked, duration, gestureSkip, temporaryFastPlayback, brightnessVolumeRatio) {
+                    .pointerInput(controlsLocked, duration, gestureSkip, temporaryFastPlayback) {
                         var totalDragX = 0f
                         var totalDragY = 0f
-                        var gestureStartX = 0f
                         var gestureMode = 0 // 0=pending, 1=seek, 2=brightness, 3=volume
                         detectDragGestures(
-                            onDragStart = { startOffset ->
+                            onDragStart = {
                                 totalDragX = 0f
                                 totalDragY = 0f
-                                gestureStartX = startOffset.x
                                 gestureMode = 0
                                 gestureHud = null
                             },
@@ -1391,14 +1419,7 @@ internal fun Media3VideoPlayer(
                                     val angleFromHorizontal = Math.toDegrees(
                                         atan2(abs(totalDragY).toDouble(), abs(totalDragX).toDouble())
                                     )
-                                    gestureMode = if (angleFromHorizontal <= 60.0) {
-                                        1
-                                    } else {
-                                        verticalGestureZone(
-                                            gestureStartX / gestureWidth.coerceAtLeast(1),
-                                            brightnessVolumeRatio
-                                        )
-                                    }
+                                    gestureMode = if (angleFromHorizontal <= 60.0) 1 else 4
                                 }
                                 when (gestureMode) {
                                     1 -> {
@@ -1407,14 +1428,6 @@ internal fun Media3VideoPlayer(
                                         seekToVideoFrame(player, next)
                                         val alignedNext = frameAlignedPosition(player, next)
                                         gestureHud = timeText(alignedNext)
-                                    }
-                                    2 -> {
-                                        setBrightness(brightness - dragAmount.y / gestureHeight.coerceAtLeast(1) * 0.5f)
-                                        gestureHud = "${appText("亮度", english)} ${(brightness * 100).roundToInt()}%"
-                                    }
-                                    3 -> {
-                                        setVolume(volume - dragAmount.y / gestureHeight.coerceAtLeast(1) * 0.5f)
-                                        gestureHud = "${appText("音量", english)} ${(volume * 100).roundToInt()}%"
                                     }
                                 }
                                 refreshControls()
@@ -1600,99 +1613,53 @@ internal fun Media3VideoPlayer(
             ) { Icon(HtmlLockIcon, appText("解锁控件", english), tint = Color.White, modifier = Modifier.size(25.dp)) }
         }
         if (playerMenuOpen) {
-            Dialog(
+            AlertDialog(
                 onDismissRequest = { playerMenuOpen = false; resumeAfterPopup() },
-                properties = DialogProperties(
-                    usePlatformDefaultWidth = false,
-                    decorFitsSystemWindows = false
-                )
-            ) {
-                Box(
-                    // The dialog window covers the whole screen, including the
-                    // navigation bar and any display cutout, so in landscape the
-                    // menu used to centre against the wrong rectangle. Insets
-                    // fix the centring; the width cap keeps it menu-sized
-                    // instead of stretching across a landscape screen.
-                    Modifier.fillMaxSize()
-                        // The window is full-screen, so "outside the menu" is
-                        // still inside this Box: without handling the tap here the
-                        // system's dismiss-on-outside-tap never fires.
-                        .background(PlayerPopupScrim)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
+                containerColor = Color.Black.copy(alpha = .20f),
+                titleContentColor = Color.White,
+                textContentColor = Color.White,
+                title = { Text(appText("菜单", english)) },
+                text = {
+                    Column(
+                        Modifier.fillMaxWidth().heightIn(max = 520.dp)
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        PlayerMenuRow(appText("设置", english), Icons.Outlined.SettingsIcon) {
+                            playerMenuOpen = false
+                            settingsPausePending = true
+                            onSettings()
+                        }
+                        PlayerMenuRow(
+                            if (mirrorVideo) appText("取消镜像", english) else appText("镜像翻转", english),
+                            EditorPrototypeIcons.FlipHorizontal
                         ) {
+                            mirrorVideo = !mirrorVideo
                             playerMenuOpen = false
                             resumeAfterPopup()
                         }
-                        .safeDrawingPadding()
-                        .padding(horizontal = 24.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Surface(
-                        modifier = Modifier.widthIn(max = PlayerPopupWidth).fillMaxWidth(),
-                        color = PlayerPopupSurface,
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, PlayerPopupBorder)
-                    ) {
-                        Column(Modifier.padding(vertical = 8.dp)) {
-                            DropdownMenuItem(
-                                text = { Text(if (mirrorVideo) appText("取消镜像", english) else appText("镜像翻转", english), color = Color.White) },
-                                leadingIcon = { Icon(EditorPrototypeIcons.FlipHorizontal, null, tint = Color.White) },
-                                colors = MenuDefaults.itemColors(
-                                    textColor = Color.White,
-                                    leadingIconColor = Color.White
-                                ),
-                                onClick = {
-                                    mirrorVideo = !mirrorVideo
-                                    playerMenuOpen = false
-                                    resumeAfterPopup()
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text(appText("设置", english), color = Color.White) },
-                                leadingIcon = { Icon(Icons.Outlined.SettingsIcon, null, tint = Color.White) },
-                                colors = MenuDefaults.itemColors(
-                                    textColor = Color.White,
-                                    leadingIconColor = Color.White
-                                ),
-                                onClick = {
-                                    playerMenuOpen = false
-                                    settingsPausePending = true
-                                    onSettings()
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text(appText("分享", english), color = Color.White) },
-                                leadingIcon = { Icon(Icons.Outlined.Share, null, tint = Color.White) },
-                                colors = MenuDefaults.itemColors(
-                                    textColor = Color.White,
-                                    leadingIconColor = Color.White
-                                ),
-                                onClick = { playerMenuOpen = false; onShare(); resumeAfterPopup() }
-                            )
-                            DropdownMenuItem(
-                                text = { Text(appText("设置为壁纸", english), color = Color.White) },
-                                leadingIcon = { Icon(Icons.Outlined.Wallpaper, null, tint = Color.White) },
-                                colors = MenuDefaults.itemColors(
-                                    textColor = Color.White,
-                                    leadingIconColor = Color.White
-                                ),
-                                onClick = { playerMenuOpen = false; onWallpaper(); resumeAfterPopup() }
-                            )
-                            DropdownMenuItem(
-                                text = { Text(appText("信息", english), color = Color.White) },
-                                leadingIcon = { Icon(Icons.Outlined.Info, null, tint = Color.White) },
-                                colors = MenuDefaults.itemColors(
-                                    textColor = Color.White,
-                                    leadingIconColor = Color.White
-                                ),
-                                onClick = { playerMenuOpen = false; onInfo(); resumeAfterPopup() }
-                            )
+                        PlayerMenuRow(appText("分享", english), Icons.Outlined.Share) {
+                            playerMenuOpen = false
+                            onShare()
+                            resumeAfterPopup()
+                        }
+                        PlayerMenuRow(appText("设置为壁纸", english), Icons.Outlined.Wallpaper) {
+                            playerMenuOpen = false
+                            onWallpaper()
+                            resumeAfterPopup()
+                        }
+                        PlayerMenuRow(appText("信息", english), Icons.Outlined.Info) {
+                            playerMenuOpen = false
+                            onInfo()
+                            resumeAfterPopup()
                         }
                     }
+                },
+                confirmButton = {
+                    TextButton(onClick = { playerMenuOpen = false; resumeAfterPopup() }) {
+                        Text(appText("关闭", english))
+                    }
                 }
-            }
+            )
         }
         if (showSpeed) {
             val speedOptions = remember { listOf("0.25x", "0.5x", "0.75x", "1x", "1.25x", "1.5x", "2x", "4x") }
@@ -1713,6 +1680,24 @@ internal fun Media3VideoPlayer(
             )
         }
         }
+    }
+}
+
+@Composable
+internal fun PlayerMenuRow(
+    label: String,
+    icon: ImageVector,
+    onClick: () -> Unit
+) {
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 52.dp)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 4.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
+        Text(label, color = Color.White, style = androidx.compose.material3.MaterialTheme.typography.bodyMedium)
     }
 }
 

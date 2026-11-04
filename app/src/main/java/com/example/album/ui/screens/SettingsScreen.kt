@@ -80,6 +80,8 @@ import androidx.compose.ui.unit.dp
 import com.example.album.ui.theme.VaultDimens
 import com.example.album.ui.appText
 import com.example.album.ui.theme.ThemeAccent
+import com.example.album.playback.NORMAL_SKIP_OPTIONS
+import com.example.album.playback.LONG_SKIP_OPTIONS
 import com.example.album.ui.components.VaultInfoSheet
 import com.example.album.ui.components.VaultWheelChoiceSheet
 import com.example.album.ui.components.VaultColorSheet
@@ -493,11 +495,11 @@ fun SettingsScreen(
                 if (longSkip) {
                     SettingsRowDivider()
                     ValueRow("长快进长度", value("long_skip_length", "30秒")) {
-                        choose("长快进长度", "long_skip_length", listOf("15秒", "30秒", "45秒", "60秒", "90秒", "120秒"), value("long_skip_length", "30秒"))
+                        choose("长快进长度", "long_skip_length", LONG_SKIP_OPTIONS, value("long_skip_length", "30秒"))
                     }
                 }
                 SettingsRowDivider()
-                ValueRow("快进长度", value("normal_skip", "10秒")) { choose("快进长度", "normal_skip", listOf("3秒", "5秒", "10秒", "15秒", "30秒"), value("normal_skip", "10秒")) }
+                ValueRow("快进长度", value("normal_skip", "10秒")) { choose("快进长度", "normal_skip", NORMAL_SKIP_OPTIONS, value("normal_skip", "10秒")) }
                 SettingsRowDivider()
                 ValueRow("满屏滑动跳过时间", value("gesture_seek", "90秒"), "横向滑满整个屏幕对应的进度") { choose("满屏滑动跳过时间", "gesture_seek", listOf("30秒", "60秒", "90秒", "120秒", "150秒"), value("gesture_seek", "90秒")) }
                 SettingsRowDivider()

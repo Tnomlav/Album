@@ -9,6 +9,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,7 +37,6 @@ import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Wallpaper
@@ -73,6 +73,7 @@ import com.example.album.data.MediaItem
 import com.example.album.ui.LocalAppEnglish
 import com.example.album.ui.appText
 import com.example.album.ui.appSeekText
+import com.example.album.playback.skipDurationMs
 import kotlinx.coroutines.delay
 import kotlin.math.abs
 import kotlin.math.min
@@ -228,7 +229,7 @@ internal fun VlcVideoPlayer(
         val max = audioManager?.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)?.coerceAtLeast(1) ?: return
         audioManager.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, (volume * max).toInt().coerceIn(0, max), 0)
     }
-    val skip = (preferences.getString("normal_skip", "10秒")?.filter(Char::isDigit)?.toLongOrNull() ?: 10L) * 1000L
+    val skipSetting = preferences.getString("normal_skip", "10秒")
     val autoHide = preferences.getBoolean("video_auto_hide", true)
     LaunchedEffect(playing, current.width, current.height) {
         onAutoEnterPictureInPictureChange(
@@ -245,6 +246,11 @@ internal fun VlcVideoPlayer(
         LibVLC(context, arrayListOf("--no-drop-late-frames", "--no-skip-frames", "--audio-time-stretch"))
     }
     val mediaPlayer = remember { MediaPlayer(libVlc) }
+    fun currentSkip() = skipDurationMs(
+        skipSetting,
+        runCatching { mediaPlayer.length }.getOrDefault(0L),
+        defaultSeconds = 10L
+    )
 
     DisposableEffect(mediaPlayer, libVlc) {
         onDispose {
@@ -385,8 +391,8 @@ internal fun VlcVideoPlayer(
         if (miniMode) {
             MiniWindowOverlay(
                 playing = playing,
-                seekBack = { seekBy(-skip); controlsInteraction++ },
-                seekForward = { seekBy(skip); controlsInteraction++ },
+                seekBack = { seekBy(-currentSkip()); controlsInteraction++ },
+                seekForward = { seekBy(currentSkip()); controlsInteraction++ },
                 onTogglePlay = { togglePlayback() },
                 onMove = { delta ->
                     val height = miniWidthPx / videoAspect
@@ -427,7 +433,36 @@ internal fun VlcVideoPlayer(
             Box(
                 Modifier.fillMaxSize()
                     .onSizeChanged { gestureWidth = it.width; gestureHeight = it.height }
-                    .pointerInput(controlsVisible, seekPauseRatio, brightnessVolumeRatio, skip) {
+                    .pointerInput(controlsVisible, brightnessVolumeRatio) {
+                        var zone = 0
+                        detectVerticalDragGestures(
+                            onDragStart = { start ->
+                                zone = verticalGestureZone(
+                                    start.x / gestureWidth.coerceAtLeast(1),
+                                    brightnessVolumeRatio
+                                )
+                            },
+                            onVerticalDrag = { change, dragAmount ->
+                                if (temporaryFastPlayback) return@detectVerticalDragGestures
+                                change.consume()
+                                when (zone) {
+                                    2 -> {
+                                        setBrightnessValue(brightness - dragAmount / gestureHeight.coerceAtLeast(1) * 0.5f)
+                                        gestureHud = "${appText("亮度", english)} ${(brightness * 100).toInt()}%"
+                                    }
+                                    3 -> {
+                                        setVolumeValue(volume - dragAmount / gestureHeight.coerceAtLeast(1) * 0.5f)
+                                        gestureHud = "${appText("音量", english)} ${(volume * 100).toInt()}%"
+                                    }
+                                }
+                                if (zone != 0) {
+                                    controlsVisible = true
+                                    controlsInteraction++
+                                }
+                            }
+                        )
+                    }
+                    .pointerInput(controlsVisible, seekPauseRatio, skipSetting) {
                         detectTapGestures(
                             onPress = {
                                 val releasedBeforeLongPress = kotlinx.coroutines.withTimeoutOrNull(460L) { tryAwaitRelease() }
@@ -457,10 +492,12 @@ internal fun VlcVideoPlayer(
                                 val width = size.width.coerceAtLeast(1)
                                 when (doubleTapZone(offset.x / width, seekPauseRatio)) {
                                     -1 -> {
+                                        val skip = currentSkip()
                                         seekBy(-skip)
                                         gestureHud = appSeekText("快退", skip, english)
                                     }
                                     1 -> {
+                                        val skip = currentSkip()
                                         seekBy(skip)
                                         gestureHud = appSeekText("快进", skip, english)
                                     }
@@ -474,16 +511,14 @@ internal fun VlcVideoPlayer(
                             }
                         )
                     }
-                    .pointerInput(controlsVisible, mediaPlayer, brightnessVolumeRatio) {
+                    .pointerInput(controlsVisible, mediaPlayer) {
                         var totalDragX = 0f
                         var totalDragY = 0f
-                        var gestureStartX = 0f
                         var gestureMode = 0
                         detectDragGestures(
-                            onDragStart = { start ->
+                            onDragStart = {
                                 totalDragX = 0f
                                 totalDragY = 0f
-                                gestureStartX = start.x
                                 gestureMode = 0
                             },
                             onDrag = { change, dragAmount ->
@@ -493,21 +528,14 @@ internal fun VlcVideoPlayer(
                                 totalDragY += dragAmount.y
                                 if (gestureMode == 0 && kotlin.math.hypot(totalDragX.toDouble(), totalDragY.toDouble()) > 10.0) {
                                     val angle = Math.toDegrees(kotlin.math.atan2(kotlin.math.abs(totalDragY).toDouble(), kotlin.math.abs(totalDragX).toDouble()))
-                                    gestureMode = if (angle <= 60.0) 1 else verticalGestureZone(gestureStartX / gestureWidth.coerceAtLeast(1), brightnessVolumeRatio)
+                                    gestureMode = if (angle <= 60.0) 1 else 4
                                 }
                                 when (gestureMode) {
                                     1 -> {
+                                        val skip = currentSkip()
                                         val delta = (dragAmount.x / gestureWidth.coerceAtLeast(1) * skip).toLong()
                                         seekBy(delta)
                                         gestureHud = timeText((position + delta).coerceAtLeast(0L))
-                                    }
-                                    2 -> {
-                                        setBrightnessValue(brightness - dragAmount.y / gestureHeight.coerceAtLeast(1) * 0.5f)
-                                        gestureHud = "${appText("亮度", english)} ${(brightness * 100).toInt()}%"
-                                    }
-                                    3 -> {
-                                        setVolumeValue(volume - dragAmount.y / gestureHeight.coerceAtLeast(1) * 0.5f)
-                                        gestureHud = "${appText("音量", english)} ${(volume * 100).toInt()}%"
                                     }
                                 }
                                 controlsVisible = true
@@ -582,7 +610,7 @@ internal fun VlcVideoPlayer(
                 horizontalArrangement = Arrangement.spacedBy(26.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = { seekBy(-skip); controlsInteraction++ }) {
+                IconButton(onClick = { seekBy(-currentSkip()); controlsInteraction++ }) {
                     Icon(Icons.Outlined.FastRewind, appText("快退", english), tint = Color.White, modifier = Modifier.size(32.dp))
                 }
                 IconButton(onClick = { togglePlayback() }) {
@@ -593,7 +621,7 @@ internal fun VlcVideoPlayer(
                         modifier = Modifier.size(48.dp)
                     )
                 }
-                IconButton(onClick = { seekBy(skip); controlsInteraction++ }) {
+                IconButton(onClick = { seekBy(currentSkip()); controlsInteraction++ }) {
                     Icon(Icons.Outlined.FastForward, appText("快进", english), tint = Color.White, modifier = Modifier.size(32.dp))
                 }
             }
@@ -658,27 +686,21 @@ internal fun VlcVideoPlayer(
     if (playerMenuOpen) {
         AlertDialog(
             onDismissRequest = { playerMenuOpen = false },
-            containerColor = Color.Black.copy(alpha = .85f),
+            containerColor = Color.Black.copy(alpha = .20f),
             titleContentColor = Color.White,
             textContentColor = Color.White,
             title = { Text(appText("菜单", english)) },
             text = {
                 Column {
-                    DropdownMenuItem(
-                        text = { Text(appText("分享", english), color = Color.White) },
-                        leadingIcon = { Icon(Icons.Outlined.Share, null, tint = Color.White) },
-                        onClick = { playerMenuOpen = false; onShare() }
-                    )
-                    DropdownMenuItem(
-                        text = { Text(appText("设置为壁纸", english), color = Color.White) },
-                        leadingIcon = { Icon(Icons.Outlined.Wallpaper, null, tint = Color.White) },
-                        onClick = { playerMenuOpen = false; onWallpaper() }
-                    )
-                    DropdownMenuItem(
-                        text = { Text(appText("信息", english), color = Color.White) },
-                        leadingIcon = { Icon(Icons.Outlined.Info, null, tint = Color.White) },
-                        onClick = { playerMenuOpen = false; onInfo() }
-                    )
+                    PlayerMenuRow(appText("分享", english), Icons.Outlined.Share) {
+                        playerMenuOpen = false; onShare()
+                    }
+                    PlayerMenuRow(appText("设置为壁纸", english), Icons.Outlined.Wallpaper) {
+                        playerMenuOpen = false; onWallpaper()
+                    }
+                    PlayerMenuRow(appText("信息", english), Icons.Outlined.Info) {
+                        playerMenuOpen = false; onInfo()
+                    }
                 }
             },
             confirmButton = { TextButton(onClick = { playerMenuOpen = false }) { Text(appText("关闭", english)) } }
