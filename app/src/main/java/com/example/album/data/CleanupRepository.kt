@@ -26,6 +26,63 @@ import org.json.JSONObject
 
 data class DuplicateGroup(val hash: String, val items: List<MediaItem>)
 
+data class DuplicateScanSnapshot(
+    val groups: List<DuplicateGroup>,
+    val completed: Boolean
+)
+
+internal data class SavedDuplicateGroup(
+    val hash: String,
+    val uris: List<String>
+)
+
+internal data class DuplicateScanCache(
+    val groups: List<SavedDuplicateGroup>,
+    val completed: Boolean
+)
+
+internal fun encodeDuplicateScanCache(cache: DuplicateScanCache): String = JSONObject().apply {
+    put("completed", cache.completed)
+    put("groups", JSONArray().apply {
+        cache.groups.forEach { group ->
+            put(JSONObject().apply {
+                put("hash", group.hash)
+                put("uris", JSONArray(group.uris))
+            })
+        }
+    })
+}.toString()
+
+internal fun decodeDuplicateScanCache(raw: String): DuplicateScanCache = runCatching {
+    val root = JSONObject(raw)
+    val groupsJson = root.optJSONArray("groups") ?: JSONArray()
+    val groups = buildList {
+        repeat(groupsJson.length()) { index ->
+            val groupJson = groupsJson.optJSONObject(index) ?: return@repeat
+            val urisJson = groupJson.optJSONArray("uris") ?: JSONArray()
+            val uris = buildList {
+                repeat(urisJson.length()) { uriIndex ->
+                    urisJson.optString(uriIndex).takeIf(String::isNotBlank)?.let(::add)
+                }
+            }.distinct()
+            if (uris.size > 1) {
+                add(
+                    SavedDuplicateGroup(
+                        hash = groupJson.optString("hash").ifBlank {
+                            uris.joinToString("-") { it.hashCode().toString(16) }
+                        },
+                        uris = uris
+                    )
+                )
+            }
+        }
+    }
+    DuplicateScanCache(
+        groups = groups,
+        completed = root.optBoolean("completed", false)
+    )
+}.getOrDefault(DuplicateScanCache(emptyList(), completed = false))
+
 /**
  * Candidates for "identical bytes", for pictures of any origin and any name.
  *
@@ -138,6 +195,24 @@ private fun lumaMeanAbsoluteDifference(first: IntArray, second: IntArray): Doubl
     return total.toDouble() / first.size
 }
 
+private fun lumaNormalizedCorrelation(first: IntArray, second: IntArray): Double {
+    if (first.size != second.size || first.isEmpty()) return Double.NEGATIVE_INFINITY
+    val firstMean = first.average()
+    val secondMean = second.average()
+    var covariance = 0.0
+    var firstVariance = 0.0
+    var secondVariance = 0.0
+    for (index in first.indices) {
+        val firstDelta = first[index] - firstMean
+        val secondDelta = second[index] - secondMean
+        covariance += firstDelta * secondDelta
+        firstVariance += firstDelta * firstDelta
+        secondVariance += secondDelta * secondDelta
+    }
+    val denominator = kotlin.math.sqrt(firstVariance * secondVariance)
+    return if (denominator <= 1e-9) Double.NEGATIVE_INFINITY else covariance / denominator
+}
+
 private fun hasUsefulDetails(luminance: IntArray): Boolean {
     if (luminance.size < 2) return false
     var total = 0L
@@ -175,7 +250,8 @@ internal fun looksLikeSamePicture(first: ImageFingerprint, second: ImageFingerpr
     val green = (first.green - second.green).toDouble()
     val blue = (first.blue - second.blue).toDouble()
     if (kotlin.math.sqrt(red * red + green * green + blue * blue) > STRICT_COLOUR_DISTANCE) return false
-    return lumaMeanAbsoluteDifference(first.luminance16, second.luminance16) <= STRICT_LUMA_MEAN_ERROR
+    if (lumaMeanAbsoluteDifference(first.luminance16, second.luminance16) > STRICT_LUMA_MEAN_ERROR) return false
+    return lumaNormalizedCorrelation(first.luminance16, second.luminance16) >= STRICT_LUMA_CORRELATION
 }
 
 /**
@@ -313,6 +389,7 @@ class CleanupRepository(private val context: Context) {
      * a large part of why a repeat scan still felt heavy.
      */
     private val analysisCacheFile = File(context.filesDir, "cleanup_analysis_cache.txt")
+    private val duplicateScanCacheFile = File(context.filesDir, "duplicate_scan_results.json")
 
     /**
      * Finds both byte-identical files and strict visual duplicates. Byte
@@ -323,8 +400,29 @@ class CleanupRepository(private val context: Context) {
         items: List<MediaItem>,
         onProgress: (completed: Int, total: Int) -> Unit = { _, _ -> }
     ): List<DuplicateGroup> = withContext(Dispatchers.IO) {
-        withAnalysisCache(items) { cache -> duplicateGroups(items, cache, onProgress) }
+        withAnalysisCache(items) { cache ->
+            duplicateGroups(items, cache, onProgress).also(::saveDuplicateScanCache)
+        }
     }
+
+    suspend fun loadDuplicateScanSnapshot(items: List<MediaItem>): DuplicateScanSnapshot =
+        withContext(Dispatchers.IO) {
+            val persisted = runCatching {
+                if (duplicateScanCacheFile.isFile) {
+                    decodeDuplicateScanCache(duplicateScanCacheFile.readText())
+                } else {
+                    DuplicateScanCache(emptyList(), completed = false)
+                }
+            }.getOrDefault(DuplicateScanCache(emptyList(), completed = false))
+            val byUri = items.associateBy { it.uri.toString() }
+            val groups = persisted.groups.mapNotNull { saved ->
+                val currentItems = saved.uris.mapNotNull(byUri::get)
+                    .distinctBy { it.uri }
+                    .sortedByDescending { it.dateTaken }
+                if (currentItems.size > 1) DuplicateGroup(saved.hash, currentItems) else null
+            }
+            DuplicateScanSnapshot(groups, persisted.completed)
+        }
 
     private suspend fun <T> withAnalysisCache(
         items: List<MediaItem>,
@@ -860,6 +958,28 @@ class CleanupRepository(private val context: Context) {
         }
     }
 
+    private fun saveDuplicateScanCache(groups: List<DuplicateGroup>) {
+        runCatching {
+            val serialized = encodeDuplicateScanCache(
+                DuplicateScanCache(
+                    groups = groups.map { group ->
+                        SavedDuplicateGroup(
+                            hash = group.hash,
+                            uris = group.items.map { it.uri.toString() }
+                        )
+                    },
+                    completed = true
+                )
+            )
+            val temporary = File(context.filesDir, "${duplicateScanCacheFile.name}.tmp")
+            temporary.writeText(serialized)
+            if (!temporary.renameTo(duplicateScanCacheFile)) {
+                duplicateScanCacheFile.writeText(temporary.readText())
+                temporary.delete()
+            }
+        }
+    }
+
     // The version suffix invalidates values computed by an older decoder or hash
     // implementation: the same picture would hash differently.
     private fun analysisSignature(item: MediaItem): String = "${item.size}:${item.dateModified}:px2"
@@ -953,7 +1073,8 @@ private const val STRICT_PHASH_DISTANCE = 4
 private const val STRICT_DHASH_DISTANCE = 5
 private const val STRICT_ASPECT_TOLERANCE = .01f
 private const val STRICT_COLOUR_DISTANCE = 12.0
-private const val STRICT_LUMA_MEAN_ERROR = 10.0
+private const val STRICT_LUMA_MEAN_ERROR = 8.0
+private const val STRICT_LUMA_CORRELATION = .995
 private const val STRICT_MIN_LUMA_DETAIL = 2.0
 
 /** Head bytes hashed by the cheap signature before a direct comparison. */

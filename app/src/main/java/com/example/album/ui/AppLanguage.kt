@@ -93,7 +93,7 @@ private val APP_ENGLISH = mapOf(
     "切换" to "Switch", "使用提示" to "Getting around",
     "没有匹配的内容" to "No matching items", "文件夹为空" to "This folder is empty",
     "幻灯片队列为空" to "Slideshow queue is empty", "移出队列" to "Remove",
-    "重新扫描" to "Rescan", "清除搜索" to "Clear search", "返回" to "Back",
+    "查重" to "Find duplicates", "重新扫描" to "Rescan", "清除搜索" to "Clear search", "返回" to "Back",
     "返回工具箱" to "Back to Tools", "返回队列" to "Back to queue",
     "返回上级文件夹" to "Back to parent folder", "退出搜索" to "Leave search",
     "幻灯片设置" to "Slideshow settings", "幻灯片播放间隔" to "Slideshow interval",

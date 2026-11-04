@@ -18,6 +18,7 @@ import com.example.album.data.MediaRepository
 import com.example.album.data.LocalFolderRepository
 import com.example.album.data.CleanupRepository
 import com.example.album.data.DuplicateGroup
+import com.example.album.data.DuplicateScanSnapshot
 import com.example.album.data.RecycleEntry
 import com.example.album.data.ConflictPolicy
 import com.example.album.data.TransferResult
@@ -667,6 +668,11 @@ class MediaLibraryState(context: Context) {
         (allImages + localImages).distinctBy { it.uri.toString() },
         onProgress
     )
+
+    suspend fun loadDuplicateScanSnapshot(): DuplicateScanSnapshot =
+        cleanup.loadDuplicateScanSnapshot(
+            (allImages + localImages).distinctBy { it.uri.toString() }
+        )
 
     suspend fun stageForRecycle(items: List<MediaItem>): List<RecycleEntry> {
         val staged = cleanup.stageForRecycle(items)

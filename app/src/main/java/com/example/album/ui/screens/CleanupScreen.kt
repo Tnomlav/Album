@@ -100,6 +100,7 @@ import androidx.documentfile.provider.DocumentFile
 import org.json.JSONArray
 import org.json.JSONObject
 import com.example.album.data.DuplicateGroup
+import com.example.album.data.DuplicateScanSnapshot
 import com.example.album.data.MediaItem
 import com.example.album.data.displayAddress
 import com.example.album.ui.LocalAppEnglish
@@ -144,6 +145,9 @@ private enum class CleanupTab(val label: String) {
     Excluded("已排除")
 }
 
+internal fun duplicateScanCommandLabel(scanCompleted: Boolean): String =
+    if (scanCompleted) "重新扫描" else "查重"
+
 @Composable
 fun CleanupScreen(
     media: List<MediaItem>,
@@ -151,6 +155,9 @@ fun CleanupScreen(
     excludedMedia: List<MediaItem>,
     onBack: () -> Unit,
     findDuplicates: suspend (onProgress: (Int, Int) -> Unit) -> List<DuplicateGroup>,
+    loadDuplicateResults: suspend () -> DuplicateScanSnapshot = {
+        DuplicateScanSnapshot(emptyList(), completed = false)
+    },
     confirmMediaDeletion: Boolean = true,
     recycleMediaDeletion: Boolean = true,
     /** Retention the Settings page currently has; shown as "days left" per item. */
@@ -169,6 +176,8 @@ fun CleanupScreen(
     var scanning by remember { mutableStateOf(false) }
     var scanProgress by remember { mutableStateOf(0 to 0) }
     var scanJob by remember { mutableStateOf<Job?>(null) }
+    var hasCompletedScan by remember { mutableStateOf(false) }
+    var scanRequestCount by remember { mutableIntStateOf(0) }
     var deletingMedia by remember { mutableStateOf(false) }
     var confirmDuplicateDelete by remember { mutableStateOf<List<MediaItem>?>(null) }
     var confirmRestore by remember { mutableStateOf<List<RecycleEntry>?>(null) }
@@ -179,6 +188,22 @@ fun CleanupScreen(
     var infoItem by remember { mutableStateOf<MediaItem?>(null) }
     var infoRecycleEntry by remember { mutableStateOf<RecycleEntry?>(null) }
     val scope = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) {
+        val saved = try {
+            loadDuplicateResults()
+        } catch (_: CancellationException) {
+            return@LaunchedEffect
+        } catch (_: Exception) {
+            null
+        } ?: return@LaunchedEffect
+        if (scanRequestCount == 0) {
+            groups = saved.groups
+            selectedUris = saved.groups.flatMap { it.items.drop(1) }
+                .mapTo(mutableSetOf()) { it.uri.toString() }
+            hasCompletedScan = saved.completed
+        }
+    }
 
     fun submitDuplicateDelete(deleting: List<MediaItem>) {
         if (deleting.isEmpty()) return
@@ -202,7 +227,8 @@ fun CleanupScreen(
         CleanupToolbar(selectedTab = selectedTab, onTabSelected = { selectedTab = it }, onBack = onBack)
 
         when (selectedTab) {
-            CleanupTab.Duplicates -> DuplicateContent(media, groups, selectedUris, scanning, deletingMedia, scanProgress, onScan = {
+            CleanupTab.Duplicates -> DuplicateContent(media, groups, selectedUris, hasCompletedScan, scanning, deletingMedia, scanProgress, onScan = {
+                scanRequestCount++
                 scanJob?.cancel()
                 scanJob = scope.launch {
                     scanning = true
@@ -211,6 +237,7 @@ fun CleanupScreen(
                         val found = findDuplicates { done, total -> scanProgress = done to total }
                         groups = found
                         selectedUris = found.flatMap { it.items.drop(1) }.mapTo(mutableSetOf()) { it.uri.toString() }
+                        hasCompletedScan = true
                     } catch (_: CancellationException) {
                         // Stopped by the user, or the page was left: keep whatever
                         // the previous scan found instead of clearing the list.
@@ -234,7 +261,7 @@ fun CleanupScreen(
                 if (deleting.isNotEmpty()) {
                     requestDuplicateDelete(deleting)
                 }
-            }, onLongClick = { infoItem = it })
+            }, onOpen = onOpenMedia, onLongClick = { infoItem = it })
             CleanupTab.Recycle -> RecycleContent(
                 entries = recycleEntries,
                 retentionDays = recycleRetentionDays,
@@ -626,6 +653,7 @@ private fun DuplicateContent(
     media: List<MediaItem>,
     groups: List<DuplicateGroup>,
     selectedUris: Set<String>,
+    hasCompletedScan: Boolean,
     scanning: Boolean,
     deleting: Boolean,
     progress: Pair<Int, Int>,
@@ -634,6 +662,7 @@ private fun DuplicateContent(
     onToggle: (String) -> Unit,
     onDelete: (Set<String>) -> Unit,
     onDeleteAll: () -> Unit,
+    onOpen: (MediaItem) -> Unit = {},
     onLongClick: (MediaItem) -> Unit = {}
 ) {
     val english = LocalAppEnglish.current
@@ -678,7 +707,12 @@ private fun DuplicateContent(
                             // the user can act on.
                             CleanupCommand("停止", color = Color(0xFFFF453A), enabled = true, onClick = onCancelScan)
                         } else {
-                            CleanupCommand("查重", color = Color(0xFF22A447), enabled = !deleting, onClick = onScan)
+                            CleanupCommand(
+                                duplicateScanCommandLabel(hasCompletedScan),
+                                color = Color(0xFF22A447),
+                                enabled = !deleting,
+                                onClick = onScan
+                            )
                         }
                         if (liveGroups.isNotEmpty()) CleanupCommand("清理全部", color = Color(0xFFFF453A), enabled = !deleting, onClick = onDeleteAll)
                     }
@@ -762,7 +796,12 @@ private fun DuplicateContent(
                 }
             } else {
                 items(group.items, key = { "${group.hash}:${it.uri}" }) { item ->
-                    DuplicateMediaRow(item, item.uri.toString() in selectedUris, onLongClick = { onLongClick(item) }) {
+                    DuplicateMediaRow(
+                        item = item,
+                        selected = item.uri.toString() in selectedUris,
+                        onLongClick = { onLongClick(item) },
+                        onOpen = { onOpen(item) }
+                    ) {
                         onToggle(item.uri.toString())
                     }
                 }
@@ -774,16 +813,29 @@ private fun DuplicateContent(
 }
 
 @Composable
-private fun DuplicateMediaRow(item: MediaItem, selected: Boolean, onLongClick: () -> Unit, onClick: () -> Unit) {
+private fun DuplicateMediaRow(
+    item: MediaItem,
+    selected: Boolean,
+    onLongClick: () -> Unit,
+    onOpen: () -> Unit,
+    onClick: () -> Unit
+) {
     Row(
-        Modifier.fillMaxWidth().height(72.dp).combinedClickable(onClick = onClick, onLongClick = onLongClick),
+        Modifier.fillMaxWidth().height(72.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(Modifier.size(72.dp)) {
+        Box(Modifier.size(72.dp).combinedClickable(onClick = onClick, onLongClick = onLongClick)) {
             MediaThumbnail(item, Modifier.fillMaxSize())
             CleanupSelectionMark(selected, Modifier.align(Alignment.TopEnd).padding(5.dp))
         }
-        Column(Modifier.weight(1f).padding(start = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(
+            Modifier
+                .weight(1f)
+                .fillMaxSize()
+                .combinedClickable(onClick = onOpen, onLongClick = onLongClick)
+                .padding(start = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 CleanupProperty(item.folder, Modifier.weight(1f), primary = true)
                 CleanupProperty(item.name, Modifier.weight(1f))

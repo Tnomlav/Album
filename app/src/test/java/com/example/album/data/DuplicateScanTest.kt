@@ -198,4 +198,30 @@ class DuplicateScanTest {
         assertTrue(strictPerceptualGroups(listOf(same, other)).isEmpty())
     }
 
+    @Test
+    fun savedScanResultsRoundTripAndKeepCompletionState() {
+        val saved = DuplicateScanCache(
+            groups = listOf(
+                SavedDuplicateGroup(
+                    hash = "group-a",
+                    uris = listOf("content://media/1", "content://media/2")
+                )
+            ),
+            completed = true
+        )
+        assertEquals(saved, decodeDuplicateScanCache(encodeDuplicateScanCache(saved)))
+    }
+
+    @Test
+    fun invalidSavedResultsNeverCreateSingleItemGroups() {
+        val decoded = decodeDuplicateScanCache(
+            """{"completed":true,"groups":[{"hash":"bad","uris":["content://media/1"]}]}"""
+        )
+        assertEquals(DuplicateScanCache(emptyList(), completed = true), decoded)
+        assertEquals(
+            DuplicateScanCache(emptyList(), completed = false),
+            decodeDuplicateScanCache("not json")
+        )
+    }
+
 }
