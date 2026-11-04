@@ -224,4 +224,20 @@ class DuplicateScanTest {
         )
     }
 
+    @Test
+    fun duplicateUiStateRoundTripsSelectionCollapseAndScroll() {
+        val state = DuplicateUiSnapshot(
+            initialized = true,
+            selectedUris = setOf("content://media/2", "content://media/7"),
+            collapsedGroups = setOf("group-b"),
+            firstVisibleItemIndex = 42,
+            firstVisibleItemOffset = 318
+        )
+        assertEquals(state, decodeDuplicateUiSnapshot(encodeDuplicateUiSnapshot(state)))
+        assertEquals(
+            DuplicateUiSnapshot(false, emptySet(), emptySet(), 0, 0),
+            decodeDuplicateUiSnapshot(null)
+        )
+    }
+
 }

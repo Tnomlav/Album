@@ -19,6 +19,7 @@ import com.example.album.data.LocalFolderRepository
 import com.example.album.data.CleanupRepository
 import com.example.album.data.DuplicateGroup
 import com.example.album.data.DuplicateScanSnapshot
+import com.example.album.data.DuplicateUiSnapshot
 import com.example.album.data.RecycleEntry
 import com.example.album.data.ConflictPolicy
 import com.example.album.data.TransferResult
@@ -673,6 +674,11 @@ class MediaLibraryState(context: Context) {
         cleanup.loadDuplicateScanSnapshot(
             (allImages + localImages).distinctBy { it.uri.toString() }
         )
+
+    fun loadDuplicateUiSnapshot(): DuplicateUiSnapshot = cleanup.loadDuplicateUiSnapshot()
+
+    fun saveDuplicateUiSnapshot(snapshot: DuplicateUiSnapshot) =
+        cleanup.saveDuplicateUiSnapshot(snapshot)
 
     suspend fun stageForRecycle(items: List<MediaItem>): List<RecycleEntry> {
         val staged = cleanup.stageForRecycle(items)

@@ -50,6 +50,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.navigationBars
@@ -177,6 +178,7 @@ import com.example.album.ui.components.PixivPMark
 import com.example.album.ui.components.PixivMarkBadge
 import com.example.album.ui.screens.TimelineScreen
 import com.example.album.ui.screens.CleanupScreen
+import com.example.album.ui.screens.CleanupDuplicateUiState
 import com.example.album.ui.screens.WallpaperManagerScreen
 import com.example.album.ui.screens.SlideshowQueueScreen
 import com.example.album.ui.screens.SlideshowQueueScreen
@@ -599,6 +601,10 @@ fun AlbumApp(
     var pendingTrashDelete by remember { mutableStateOf<List<com.example.album.data.RecycleEntry>>(emptyList()) }
     var cleanupOpen by rememberSaveable { mutableStateOf(false) }
     var cleanupTabIndex by rememberSaveable { mutableIntStateOf(0) }
+    val cleanupDuplicateListState = rememberLazyListState()
+    val cleanupDuplicateUiState = remember(cleanupDuplicateListState) {
+        CleanupDuplicateUiState(cleanupDuplicateListState)
+    }
     var wallpaperManagerOpen by rememberSaveable { mutableStateOf(false) }
     // Settings are a list page plus one sub-page per group. The open sub-page
     // lives here instead of inside SettingsScreen so that the app-level back
@@ -2648,6 +2654,7 @@ fun AlbumApp(
             excludedMedia = library.excludedMedia,
             initialTabIndex = cleanupTabIndex,
             onTabSelected = { cleanupTabIndex = it },
+            duplicateUiState = cleanupDuplicateUiState,
             onBack = {
                 cleanupOpen = false
                 if (pixivFilesChanged) {
@@ -2663,6 +2670,8 @@ fun AlbumApp(
             },
             findDuplicates = { onProgress -> library.findDuplicates(onProgress) },
             loadDuplicateResults = { library.loadDuplicateScanSnapshot() },
+            loadDuplicateUiState = library::loadDuplicateUiSnapshot,
+            saveDuplicateUiState = library::saveDuplicateUiSnapshot,
             confirmMediaDeletion = albumSettings.getBoolean("delete_confirmation", true),
             recycleMediaDeletion = albumSettings.getBoolean("recycle_bin", true),
             recycleRetentionDays = albumSettings.getString("retention", "60")

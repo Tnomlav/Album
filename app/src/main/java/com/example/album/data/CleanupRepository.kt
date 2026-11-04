@@ -31,6 +31,14 @@ data class DuplicateScanSnapshot(
     val completed: Boolean
 )
 
+data class DuplicateUiSnapshot(
+    val initialized: Boolean,
+    val selectedUris: Set<String>,
+    val collapsedGroups: Set<String>,
+    val firstVisibleItemIndex: Int,
+    val firstVisibleItemOffset: Int
+)
+
 internal data class SavedDuplicateGroup(
     val hash: String,
     val uris: List<String>
@@ -82,6 +90,48 @@ internal fun decodeDuplicateScanCache(raw: String): DuplicateScanCache = runCatc
         completed = root.optBoolean("completed", false)
     )
 }.getOrDefault(DuplicateScanCache(emptyList(), completed = false))
+
+internal fun encodeDuplicateUiSnapshot(snapshot: DuplicateUiSnapshot): String = JSONObject().apply {
+    put("initialized", snapshot.initialized)
+    put("selectedUris", JSONArray(snapshot.selectedUris.toList()))
+    put("collapsedGroups", JSONArray(snapshot.collapsedGroups.toList()))
+    put("firstVisibleItemIndex", snapshot.firstVisibleItemIndex.coerceAtLeast(0))
+    put("firstVisibleItemOffset", snapshot.firstVisibleItemOffset.coerceAtLeast(0))
+}.toString()
+
+internal fun decodeDuplicateUiSnapshot(raw: String?): DuplicateUiSnapshot = runCatching {
+    if (raw.isNullOrBlank()) return@runCatching DuplicateUiSnapshot(
+        initialized = false,
+        selectedUris = emptySet(),
+        collapsedGroups = emptySet(),
+        firstVisibleItemIndex = 0,
+        firstVisibleItemOffset = 0
+    )
+    val root = JSONObject(raw)
+    fun strings(name: String): Set<String> {
+        val array = root.optJSONArray(name) ?: JSONArray()
+        return buildSet {
+            repeat(array.length()) { index ->
+                array.optString(index).takeIf(String::isNotBlank)?.let(::add)
+            }
+        }
+    }
+    DuplicateUiSnapshot(
+        initialized = root.optBoolean("initialized", false),
+        selectedUris = strings("selectedUris"),
+        collapsedGroups = strings("collapsedGroups"),
+        firstVisibleItemIndex = root.optInt("firstVisibleItemIndex", 0).coerceAtLeast(0),
+        firstVisibleItemOffset = root.optInt("firstVisibleItemOffset", 0).coerceAtLeast(0)
+    )
+}.getOrDefault(
+    DuplicateUiSnapshot(
+        initialized = false,
+        selectedUris = emptySet(),
+        collapsedGroups = emptySet(),
+        firstVisibleItemIndex = 0,
+        firstVisibleItemOffset = 0
+    )
+)
 
 /**
  * Candidates for "identical bytes", for pictures of any origin and any name.
@@ -379,6 +429,7 @@ data class RecycleEntry(
 
 class CleanupRepository(private val context: Context) {
     private val preferences = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
+    private val duplicateUiPreferences = context.getSharedPreferences(DUPLICATE_UI_PREFERENCES, Context.MODE_PRIVATE)
     private val thumbnailPreferences = context.getSharedPreferences("album_settings", Context.MODE_PRIVATE)
     private val recycleDirectory = File(context.filesDir, "recycle_bin").apply { mkdirs() }
 
@@ -423,6 +474,15 @@ class CleanupRepository(private val context: Context) {
             }
             DuplicateScanSnapshot(groups, persisted.completed)
         }
+
+    fun loadDuplicateUiSnapshot(): DuplicateUiSnapshot =
+        decodeDuplicateUiSnapshot(duplicateUiPreferences.getString(KEY_DUPLICATE_UI, null))
+
+    fun saveDuplicateUiSnapshot(snapshot: DuplicateUiSnapshot) {
+        duplicateUiPreferences.edit()
+            .putString(KEY_DUPLICATE_UI, encodeDuplicateUiSnapshot(snapshot))
+            .apply()
+    }
 
     private suspend fun <T> withAnalysisCache(
         items: List<MediaItem>,
@@ -1010,6 +1070,8 @@ class CleanupRepository(private val context: Context) {
         private const val PREFERENCES = "cleanup_preferences"
         private const val ANALYSIS_PREFERENCES = "cleanup_analysis_cache"
         private const val KEY_RECYCLE = "recycle_entries"
+        private const val DUPLICATE_UI_PREFERENCES = "cleanup_duplicate_ui"
+        private const val KEY_DUPLICATE_UI = "duplicate_ui"
     }
 }
 

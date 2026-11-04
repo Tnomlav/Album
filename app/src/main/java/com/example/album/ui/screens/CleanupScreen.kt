@@ -42,6 +42,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -79,7 +80,9 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -101,6 +104,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import com.example.album.data.DuplicateGroup
 import com.example.album.data.DuplicateScanSnapshot
+import com.example.album.data.DuplicateUiSnapshot
 import com.example.album.data.MediaItem
 import com.example.album.data.displayAddress
 import com.example.album.ui.LocalAppEnglish
@@ -134,6 +138,8 @@ import java.util.Locale
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Job
@@ -143,6 +149,14 @@ private enum class CleanupTab(val label: String) {
     Recycle("回收站"),
     Duplicates("重复图片"),
     Excluded("已排除")
+}
+
+class CleanupDuplicateUiState(val listState: LazyListState) {
+    val groups = mutableStateOf<List<DuplicateGroup>>(emptyList())
+    val hasCompletedScan = mutableStateOf(false)
+    val selectedUris = mutableStateOf<Set<String>>(emptySet())
+    val collapsedGroups = mutableStateOf<Set<String>>(emptySet())
+    val initialized = mutableStateOf(false)
 }
 
 internal fun duplicateScanCommandLabel(scanCompleted: Boolean): String =
@@ -156,10 +170,15 @@ fun CleanupScreen(
     onBack: () -> Unit,
     initialTabIndex: Int = 0,
     onTabSelected: (Int) -> Unit = {},
+    duplicateUiState: CleanupDuplicateUiState,
     findDuplicates: suspend (onProgress: (Int, Int) -> Unit) -> List<DuplicateGroup>,
     loadDuplicateResults: suspend () -> DuplicateScanSnapshot = {
         DuplicateScanSnapshot(emptyList(), completed = false)
     },
+    loadDuplicateUiState: () -> DuplicateUiSnapshot = {
+        DuplicateUiSnapshot(false, emptySet(), emptySet(), 0, 0)
+    },
+    saveDuplicateUiState: (DuplicateUiSnapshot) -> Unit = {},
     confirmMediaDeletion: Boolean = true,
     recycleMediaDeletion: Boolean = true,
     /** Retention the Settings page currently has; shown as "days left" per item. */
@@ -175,12 +194,13 @@ fun CleanupScreen(
     var selectedTab by remember(initialTabIndex) {
         mutableStateOf(CleanupTab.entries.getOrElse(initialTabIndex) { CleanupTab.Recycle })
     }
-    var groups by remember { mutableStateOf<List<DuplicateGroup>>(emptyList()) }
-    var selectedUris by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var groups by duplicateUiState.groups
+    var selectedUris by duplicateUiState.selectedUris
+    var collapsedGroups by duplicateUiState.collapsedGroups
     var scanning by remember { mutableStateOf(false) }
     var scanProgress by remember { mutableStateOf(0 to 0) }
     var scanJob by remember { mutableStateOf<Job?>(null) }
-    var hasCompletedScan by remember { mutableStateOf(false) }
+    var hasCompletedScan by duplicateUiState.hasCompletedScan
     var scanRequestCount by remember { mutableIntStateOf(0) }
     var deletingMedia by remember { mutableStateOf(false) }
     var confirmDuplicateDelete by remember { mutableStateOf<List<MediaItem>?>(null) }
@@ -193,6 +213,19 @@ fun CleanupScreen(
     var infoRecycleEntry by remember { mutableStateOf<RecycleEntry?>(null) }
     val scope = rememberCoroutineScope()
 
+    fun persistDuplicateUiState() {
+        if (!duplicateUiState.initialized.value) return
+        saveDuplicateUiState(
+            DuplicateUiSnapshot(
+                initialized = true,
+                selectedUris = selectedUris,
+                collapsedGroups = collapsedGroups,
+                firstVisibleItemIndex = duplicateUiState.listState.firstVisibleItemIndex,
+                firstVisibleItemOffset = duplicateUiState.listState.firstVisibleItemScrollOffset
+            )
+        )
+    }
+
     LaunchedEffect(Unit) {
         val saved = try {
             loadDuplicateResults()
@@ -203,15 +236,62 @@ fun CleanupScreen(
         } ?: return@LaunchedEffect
         if (scanRequestCount == 0) {
             groups = saved.groups
-            selectedUris = saved.groups.flatMap { it.items.drop(1) }
-                .mapTo(mutableSetOf()) { it.uri.toString() }
             hasCompletedScan = saved.completed
+            if (!duplicateUiState.initialized.value) {
+                val persistedUi = try {
+                    loadDuplicateUiState()
+                } catch (_: Exception) {
+                    DuplicateUiSnapshot(false, emptySet(), emptySet(), 0, 0)
+                }
+                val availableUris = saved.groups
+                    .flatMap { group -> group.items.map { it.uri.toString() } }
+                    .toSet()
+                selectedUris = if (persistedUi.initialized) {
+                    persistedUi.selectedUris intersect availableUris
+                } else {
+                    saved.groups.flatMap { it.items.drop(1) }
+                        .mapTo(mutableSetOf()) { it.uri.toString() }
+                }
+                collapsedGroups = persistedUi.collapsedGroups
+                duplicateUiState.initialized.value = true
+                if (persistedUi.initialized) {
+                    runCatching {
+                        withFrameNanos { }
+                        duplicateUiState.listState.scrollToItem(
+                            persistedUi.firstVisibleItemIndex,
+                            persistedUi.firstVisibleItemOffset
+                        )
+                    }
+                }
+            }
+            persistDuplicateUiState()
+        }
+    }
+
+    LaunchedEffect(duplicateUiState.initialized.value) {
+        if (!duplicateUiState.initialized.value) return@LaunchedEffect
+        snapshotFlow {
+            duplicateUiState.listState.firstVisibleItemIndex to
+                duplicateUiState.listState.firstVisibleItemScrollOffset
+        }.distinctUntilChanged().collectLatest {
+            // Selection changes are saved immediately; scroll position only
+            // needs its final resting place.
+            delay(250)
+            persistDuplicateUiState()
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            // This also runs when a preview temporarily replaces this page.
+            persistDuplicateUiState()
         }
     }
 
     fun submitDuplicateDelete(deleting: List<MediaItem>) {
         if (deleting.isEmpty()) return
         selectedUris = selectedUris - deleting.mapTo(hashSetOf()) { it.uri.toString() }
+        persistDuplicateUiState()
         scope.launch {
             deletingMedia = true
             try {
@@ -238,7 +318,21 @@ fun CleanupScreen(
         )
 
         when (selectedTab) {
-            CleanupTab.Duplicates -> DuplicateContent(media, groups, selectedUris, hasCompletedScan, scanning, deletingMedia, scanProgress, onScan = {
+            CleanupTab.Duplicates -> DuplicateContent(
+                media = media,
+                groups = groups,
+                selectedUris = selectedUris,
+                hasCompletedScan = hasCompletedScan,
+                listState = duplicateUiState.listState,
+                collapsedGroups = collapsedGroups,
+                onCollapsedGroupsChanged = {
+                    collapsedGroups = it
+                    persistDuplicateUiState()
+                },
+                scanning = scanning,
+                deleting = deletingMedia,
+                progress = scanProgress,
+                onScan = {
                 scanRequestCount++
                 scanJob?.cancel()
                 scanJob = scope.launch {
@@ -248,6 +342,10 @@ fun CleanupScreen(
                         val found = findDuplicates { done, total -> scanProgress = done to total }
                         groups = found
                         selectedUris = found.flatMap { it.items.drop(1) }.mapTo(mutableSetOf()) { it.uri.toString() }
+                        collapsedGroups = emptySet()
+                        duplicateUiState.initialized.value = true
+                        duplicateUiState.listState.scrollToItem(0)
+                        persistDuplicateUiState()
                         hasCompletedScan = true
                     } catch (_: CancellationException) {
                         // Stopped by the user, or the page was left: keep whatever
@@ -257,22 +355,32 @@ fun CleanupScreen(
                         scanJob = null
                     }
                 }
-            }, onCancelScan = {
+                },
+                onCancelScan = {
                 scanJob?.cancel()
-            }, onToggle = { uri -> selectedUris = if (uri in selectedUris) selectedUris - uri else selectedUris + uri }, onDelete = { requestedUris ->
+                },
+                onToggle = { uri ->
+                selectedUris = if (uri in selectedUris) selectedUris - uri else selectedUris + uri
+                persistDuplicateUiState()
+                },
+                onDelete = { requestedUris ->
                 val liveUris = media.mapTo(hashSetOf()) { it.uri.toString() }
                 val deleting = groups.flatMap { it.items }.distinctBy { it.uri }.filter { it.uri.toString() in requestedUris && it.uri.toString() in liveUris }
                 if (deleting.isNotEmpty()) {
                     requestDuplicateDelete(deleting)
                 }
-            }, onDeleteAll = {
+                },
+                onDeleteAll = {
                 val liveUris = media.mapTo(hashSetOf()) { it.uri.toString() }
                 val deleting = groups.flatMap { it.items.drop(1) }.distinctBy { it.uri }
                     .filter { it.uri.toString() in liveUris }
                 if (deleting.isNotEmpty()) {
                     requestDuplicateDelete(deleting)
                 }
-            }, onOpen = onOpenMedia, onLongClick = { infoItem = it })
+                },
+                onOpen = onOpenMedia,
+                onLongClick = { infoItem = it }
+            )
             CleanupTab.Recycle -> RecycleContent(
                 entries = recycleEntries,
                 retentionDays = recycleRetentionDays,
@@ -665,6 +773,9 @@ private fun DuplicateContent(
     groups: List<DuplicateGroup>,
     selectedUris: Set<String>,
     hasCompletedScan: Boolean,
+    listState: LazyListState,
+    collapsedGroups: Set<String>,
+    onCollapsedGroupsChanged: (Set<String>) -> Unit,
     scanning: Boolean,
     deleting: Boolean,
     progress: Pair<Int, Int>,
@@ -679,9 +790,7 @@ private fun DuplicateContent(
     val english = LocalAppEnglish.current
     val liveUris = media.mapTo(hashSetOf()) { it.uri.toString() }
     val liveGroups = groups.map { it.copy(items = it.items.filter { item -> item.uri.toString() in liveUris }) }.filter { it.items.size > 1 }
-    var collapsedGroups by remember { mutableStateOf<Set<String>>(emptySet()) }
     val allCollapsed = liveGroups.isNotEmpty() && liveGroups.all { it.hash in collapsedGroups }
-    val listState = rememberLazyListState()
     val scrollMetrics = cleanupScrollMetrics(listState)
 
     Box(Modifier.fillMaxSize()) {
@@ -698,7 +807,10 @@ private fun DuplicateContent(
                             if (liveGroups.isNotEmpty()) {
                                 IconButton(
                                     onClick = {
-                                        collapsedGroups = if (allCollapsed) emptySet() else liveGroups.mapTo(mutableSetOf()) { it.hash }
+                                        onCollapsedGroupsChanged(
+                                            if (allCollapsed) emptySet()
+                                            else liveGroups.mapTo(mutableSetOf()) { it.hash }
+                                        )
                                     },
                                     modifier = Modifier.size(38.dp)
                                 ) {
@@ -760,7 +872,10 @@ private fun DuplicateContent(
                     Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
                         IconButton(
                             onClick = {
-                                collapsedGroups = if (collapsed) collapsedGroups - group.hash else collapsedGroups + group.hash
+                                onCollapsedGroupsChanged(
+                                    if (collapsed) collapsedGroups - group.hash
+                                    else collapsedGroups + group.hash
+                                )
                             },
                             modifier = Modifier.size(38.dp)
                         ) {
