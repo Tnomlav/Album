@@ -1069,21 +1069,24 @@ private fun CleanupCommand(
     onClick: () -> Unit
 ) {
     val english = LocalAppEnglish.current
+    val shape = RoundedCornerShape(12.dp)
     Box(
         Modifier
             .height(40.dp)
-            .shadow(if (enabled) 2.dp else 0.dp, RoundedCornerShape(12.dp))
-            .clip(RoundedCornerShape(12.dp))
-            .background(color)
+            .widthIn(min = 88.dp)
+            // Constrain the full draw layer before painting it. Applying
+            // width and alpha after the background made scaled CJK labels
+            // look clipped or washed out on some devices.
+            .shadow(if (enabled) 2.dp else 0.dp, shape)
+            .clip(shape)
+            .background(if (enabled) color else color.copy(alpha = .42f))
             .clickable(enabled = enabled, onClick = onClick)
-            .alpha(if (enabled) 1f else .42f)
-            .widthIn(min = 72.dp)
-            .padding(horizontal = 10.dp),
+            .padding(horizontal = 12.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = appText(label, english),
-            color = Color.White,
+            color = Color.White.copy(alpha = if (enabled) 1f else .58f),
             fontSize = 12.sp,
             lineHeight = 15.sp,
             fontWeight = FontWeight.SemiBold,
