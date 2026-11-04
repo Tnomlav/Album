@@ -154,6 +154,8 @@ fun CleanupScreen(
     recycleEntries: List<RecycleEntry>,
     excludedMedia: List<MediaItem>,
     onBack: () -> Unit,
+    initialTabIndex: Int = 0,
+    onTabSelected: (Int) -> Unit = {},
     findDuplicates: suspend (onProgress: (Int, Int) -> Unit) -> List<DuplicateGroup>,
     loadDuplicateResults: suspend () -> DuplicateScanSnapshot = {
         DuplicateScanSnapshot(emptyList(), completed = false)
@@ -170,7 +172,9 @@ fun CleanupScreen(
     onOpenExcludedFolder: (String, Boolean) -> Unit = { _, _ -> }
 ) {
     val english = LocalAppEnglish.current
-    var selectedTab by remember { mutableStateOf(CleanupTab.Recycle) }
+    var selectedTab by remember(initialTabIndex) {
+        mutableStateOf(CleanupTab.entries.getOrElse(initialTabIndex) { CleanupTab.Recycle })
+    }
     var groups by remember { mutableStateOf<List<DuplicateGroup>>(emptyList()) }
     var selectedUris by remember { mutableStateOf<Set<String>>(emptySet()) }
     var scanning by remember { mutableStateOf(false) }
@@ -224,7 +228,14 @@ fun CleanupScreen(
     }
 
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        CleanupToolbar(selectedTab = selectedTab, onTabSelected = { selectedTab = it }, onBack = onBack)
+        CleanupToolbar(
+            selectedTab = selectedTab,
+            onTabSelected = {
+                selectedTab = it
+                onTabSelected(it.ordinal)
+            },
+            onBack = onBack
+        )
 
         when (selectedTab) {
             CleanupTab.Duplicates -> DuplicateContent(media, groups, selectedUris, hasCompletedScan, scanning, deletingMedia, scanProgress, onScan = {

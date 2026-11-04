@@ -598,6 +598,7 @@ fun AlbumApp(
     var pendingTrashRestore by remember { mutableStateOf<List<com.example.album.data.RecycleEntry>>(emptyList()) }
     var pendingTrashDelete by remember { mutableStateOf<List<com.example.album.data.RecycleEntry>>(emptyList()) }
     var cleanupOpen by rememberSaveable { mutableStateOf(false) }
+    var cleanupTabIndex by rememberSaveable { mutableIntStateOf(0) }
     var wallpaperManagerOpen by rememberSaveable { mutableStateOf(false) }
     // Settings are a list page plus one sub-page per group. The open sub-page
     // lives here instead of inside SettingsScreen so that the app-level back
@@ -1822,7 +1823,8 @@ fun AlbumApp(
 
     val appBackEnabled by remember {
         derivedStateOf {
-            val standalonePageOpen = transferRequest != null || pixivArchiveOpen || cleanupOpen || wallpaperManagerOpen
+            val standalonePageOpen = transferRequest != null || pixivArchiveOpen ||
+                (cleanupOpen && selectedMedia == null) || wallpaperManagerOpen
             (settingsSection != null || standalonePageOpen ||
                 (selectedMedia == null && editingMedia == null && selectionSlideshow.isEmpty())) &&
                 pendingAppDelete == null &&
@@ -2636,7 +2638,7 @@ fun AlbumApp(
         return
     }
 
-    if (cleanupOpen) {
+    if (cleanupOpen && selectedMedia == null) {
         CleanupScreen(
             // Duplicate scanning must include authorized local-folder media;
             // moved or archived images can be represented there instead of in
@@ -2644,6 +2646,8 @@ fun AlbumApp(
             media = (library.images + library.localImages).distinctBy { it.uri },
             recycleEntries = library.recycleEntries,
             excludedMedia = library.excludedMedia,
+            initialTabIndex = cleanupTabIndex,
+            onTabSelected = { cleanupTabIndex = it },
             onBack = {
                 cleanupOpen = false
                 if (pixivFilesChanged) {
