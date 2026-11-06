@@ -589,6 +589,7 @@ fun AlbumApp(
     var transferRequest by remember { mutableStateOf<TransferRequest?>(null) }
     var pixivArchiveMoveUris by remember { mutableStateOf<Set<String>>(emptySet()) }
     var pendingDeletes by remember { mutableStateOf<List<MediaItem>>(emptyList()) }
+    var pendingOptimisticDelete by remember { mutableStateOf<List<MediaItem>>(emptyList()) }
     var pixivArchivePendingDeleteUris by remember { mutableStateOf<Set<String>>(emptySet()) }
     var pendingAppDelete by remember { mutableStateOf<List<MediaItem>?>(null) }
     // Items the recycle bin refused to hold (almost always "not enough room").
@@ -1929,6 +1930,7 @@ fun AlbumApp(
         externalDeleteRequestInFlight = false
         if (result.resultCode == Activity.RESULT_OK) {
             library.remove(pendingDeletes)
+            library.finishRemoval(pendingOptimisticDelete)
             val deletedUris = pendingDeletes.mapTo(hashSetOf()) { it.uri.toString() }
             // A deleted file is a real change: the P page's walk has to run,
             // even though no page is being left.
@@ -1944,11 +1946,18 @@ fun AlbumApp(
             requestPageRestoreAfterDelete()
             selectedUris = emptySet()
             selectionMode = false
+            scope.launch {
+                library.refresh(library.permissionGranted, scheduleThumbnailOptimization = false)
+            }
         } else if (pendingRecycleIds.isNotEmpty()) {
             library.discardRecycle(pendingRecycleIds)
+            library.restore(pendingOptimisticDelete)
+        } else {
+            library.restore(pendingOptimisticDelete)
         }
         pixivArchivePendingDeleteUris = emptySet()
         pendingDeletes = emptyList()
+        pendingOptimisticDelete = emptyList()
         pendingRecycleIds = emptySet()
     }
     // Android 10 has no MediaStore.createDeleteRequest, so a delete of media
@@ -1996,9 +2005,13 @@ fun AlbumApp(
             selectionMode = false
         } else if (pendingRecycleIds.isNotEmpty()) {
             library.discardRecycle(pendingRecycleIds)
+            library.restore(pendingOptimisticDelete)
+        } else {
+            library.restore(pendingOptimisticDelete)
         }
         pixivArchivePendingDeleteUris = emptySet()
         pendingDeletes = emptyList()
+        pendingOptimisticDelete = emptyList()
         pendingRecycleIds = emptySet()
     }
     val trashRestoreLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
@@ -2097,12 +2110,39 @@ fun AlbumApp(
         if (deleting.isEmpty() || externalDeleteRequestInFlight) {
             return
         }
+            val optimisticItems = deleting.distinctBy { it.uri }
+            val optimisticUris = optimisticItems.mapTo(hashSetOf()) { it.uri.toString() }
+            // The visible operation must not wait for a full recycle-bin copy
+            // or an external MediaStore dialog. Remove the rows now; restore
+            // them below only if the real operation fails or is cancelled.
+            library.removeOptimistically(optimisticItems)
+            selectedUris -= optimisticUris
+            if (selectedUris.isEmpty()) selectionMode = false
+            if (selectedMedia?.uri?.toString() in optimisticUris) selectedMedia = null
             val recycleEnabled = !permanent && albumSettings.getBoolean("recycle_bin", true)
             // Keep the app's recycle bin authoritative. Using MediaStore's
             // system Trash here makes the persisted recycle records depend on
             // OEM-specific Trash URI and permission behavior, which can make
             // items disappear from this screen or fail to restore.
-            val staged = if (recycleEnabled) library.stageForRecycle(deleting) else emptyList()
+            val staged = if (recycleEnabled) {
+                try {
+                    library.stageForRecycle(deleting)
+                } catch (cancelled: CancellationException) {
+                    library.restore(optimisticItems)
+                    throw cancelled
+                } catch (_: Throwable) {
+                    library.restore(optimisticItems)
+                    Toast.makeText(
+                        context,
+                        if (english) "Unable to prepare Trash; originals were kept"
+                        else "无法准备回收站，已保留原文件",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    return
+                }
+            } else {
+                emptyList()
+            }
             val stagedSources = staged.mapTo(mutableSetOf()) { it.sourceUri }
             val deletableSources = resolveDeletionSources(deleting.map { it.uri.toString() }, stagedSources, recycleEnabled)
             val deletable = deleting.filter { it.uri.toString() in deletableSources }
@@ -2111,6 +2151,7 @@ fun AlbumApp(
                 // Originals stay untouched. Ask instead of dropping the request:
                 // the usual cause is a data partition too full for another copy
                 // of a large video, and "delete for good" is still a valid answer.
+                library.restore(unbacked)
                 pendingUnbackedDelete = unbacked
             }
             if (deletable.isEmpty()) {
@@ -2123,6 +2164,7 @@ fun AlbumApp(
                 !canModifyMediaDirectly(context)
             ) {
                 pendingDeletes = deletable
+                pendingOptimisticDelete = deletable
                 pendingRecycleIds = staged.mapTo(mutableSetOf()) { it.id }
                 runCatching {
                     val request = MediaStore.createDeleteRequest(context.contentResolver, deletable.map { it.uri })
@@ -2131,7 +2173,9 @@ fun AlbumApp(
                 }.onFailure {
                     externalDeleteRequestInFlight = false
                     library.discardRecycle(pendingRecycleIds)
+                    library.restore(deletable)
                     pendingDeletes = emptyList()
+                    pendingOptimisticDelete = emptyList()
                     pendingRecycleIds = emptySet()
                     pixivArchivePendingDeleteUris = emptySet()
                     Toast.makeText(
@@ -2159,6 +2203,9 @@ fun AlbumApp(
                     }
                 }
                 library.remove(deletedMedia)
+                library.finishRemoval(deletedMedia)
+                val failedMedia = deletable.filter { it.uri.toString() in failedUris }
+                if (failedMedia.isNotEmpty()) library.restore(failedMedia)
                 val deletedUris = deletable.mapTo(hashSetOf()) { it.uri.toString() } - failedUris
                 if (deletedUris.isNotEmpty()) {
                     Toast.makeText(
@@ -2363,9 +2410,21 @@ fun AlbumApp(
                 // Leave the destination screen immediately. The transfer and
                 // any follow-up refresh/delete work continue in this scope.
                 transferRequest = null
+                val optimisticMoveItems =
+                    if (request.mode == TransferMode.Move) request.items.distinctBy { it.uri } else emptyList()
+                if (optimisticMoveItems.isNotEmpty()) {
+                    library.removeOptimistically(optimisticMoveItems)
+                    selectedUris -= optimisticMoveItems.mapTo(hashSetOf()) { it.uri.toString() }
+                    if (selectedUris.isEmpty()) selectionMode = false
+                    if (selectedMedia?.uri in optimisticMoveItems.map { it.uri }) selectedMedia = null
+                }
                 val transferErrorHandler = CoroutineExceptionHandler { _, error ->
                     transferRequest = null
                     pixivArchiveMoveUris = emptySet()
+                    library.restore(optimisticMoveItems)
+                    scope.launch {
+                        library.refresh(library.permissionGranted, scheduleThumbnailOptimization = false)
+                    }
                     Toast.makeText(
                         context,
                         error.message ?: if (english) "Transfer failed" else "移动或复制失败，源文件已保留",
@@ -2382,9 +2441,14 @@ fun AlbumApp(
                     val completedItems = completed.map { it.item }
                     val skipped = results.count { it.skipped }
                     val failed = results.count { !it.success }
+                    if (request.mode == TransferMode.Move) {
+                        library.restore(
+                            results.filter { !it.success || it.skipped }
+                                .map { it.item }
+                        )
+                    }
                     val updatedRecent = (listOf(destination) + recentFolders).distinct().take(8)
                     transferPreferences.edit().putString("recent_folders", updatedRecent.joinToString("\u001f")).apply()
-                    library.refresh(library.permissionGranted, scheduleThumbnailOptimization = false)
                     if (request.fromPixivArchive) {
                         // The Pixiv page walks the archive's own SAF tree; without
                         // a fresh walk the artist folder still lists what it held
@@ -2449,6 +2513,7 @@ fun AlbumApp(
                             documents.mapNotNull { media -> media.takeIf { library.deleteLegacy(it) } }
                         }
                         library.remove(deletedDocuments)
+                        library.finishRemoval(deletedDocuments)
                         if (archiveMoveUris.isNotEmpty()) {
                             val deletedUris = deletedDocuments.mapTo(hashSetOf()) { it.uri.toString() }
                             pixivArchiveSession.removeRecords(deletedUris intersect archiveMoveUris)
@@ -2459,6 +2524,7 @@ fun AlbumApp(
                             systemMedia.mapNotNull { media -> media.takeIf { library.deleteLegacy(it) } }
                         }
                         library.remove(deletedSystemMedia)
+                        library.finishRemoval(deletedSystemMedia)
                         if (archiveMoveUris.isNotEmpty()) {
                             val deletedUris = deletedSystemMedia.mapTo(hashSetOf()) { it.uri.toString() }
                             pixivArchiveSession.removeRecords(deletedUris intersect archiveMoveUris)
@@ -2467,11 +2533,17 @@ fun AlbumApp(
                         val requiresSystemConfirmation = systemMedia.filterNot { media ->
                             deletedSystemMedia.any { it.uri == media.uri }
                         }
+                        val awaitingDeleteUris = requiresSystemConfirmation
+                            .mapTo(hashSetOf()) { it.uri }
+                        library.finishRemoval(
+                            completedItems.filterNot { it.uri in awaitingDeleteUris }
+                        )
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
                         requiresSystemConfirmation.isNotEmpty() &&
                         !canModifyMediaDirectly(context)
                     ) {
                             pendingDeletes = requiresSystemConfirmation
+                            pendingOptimisticDelete = requiresSystemConfirmation
                             pixivArchivePendingDeleteUris = requiresSystemConfirmation
                                 .mapNotNull { media -> media.uri.toString().takeIf { it in archiveMoveUris } }
                                 .toSet()
@@ -2484,6 +2556,8 @@ fun AlbumApp(
                                 externalDeleteRequestInFlight = false
                                 sourceDeleteRequestFailed = true
                                 pendingDeletes = emptyList()
+                                pendingOptimisticDelete = emptyList()
+                                library.restore(requiresSystemConfirmation)
                                 Toast.makeText(
                                     context,
                                     if (english) "Copied, but the original files were kept" else "已完成复制，但源文件已保留",
@@ -2492,6 +2566,7 @@ fun AlbumApp(
                             }
                             pixivArchiveMoveUris = emptySet()
                         } else {
+                            library.restore(requiresSystemConfirmation)
                             pixivArchiveMoveUris = emptySet()
                             selectedUris = emptySet()
                             selectionMode = false
@@ -2499,6 +2574,10 @@ fun AlbumApp(
                     } else {
                         selectedUris = emptySet()
                         selectionMode = false
+                    }
+
+                    if (!sourceDeletePending) {
+                        library.refresh(library.permissionGranted, scheduleThumbnailOptimization = false)
                     }
 
                     val action = if (english) {

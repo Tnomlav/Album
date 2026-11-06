@@ -550,6 +550,40 @@ class MediaLibraryState(context: Context) {
         applyExclusions()
     }
 
+    private var pendingRemovalUris by mutableStateOf<Set<Uri>>(emptySet())
+
+    /** Removes items from every visible list while their file operation runs. */
+    fun removeOptimistically(items: List<MediaItem>) {
+        if (items.isEmpty()) return
+        pendingRemovalUris = pendingRemovalUris + items.map { it.uri }
+        remove(items)
+    }
+
+    /**
+     * Puts items back after an optimistic file operation failed or required
+     * user consent. This only restores the in-memory view; the repository and
+     * MediaStore are still authoritative for the next refresh.
+     */
+    fun restore(items: List<MediaItem>) {
+        if (items.isEmpty()) return
+        pendingRemovalUris = pendingRemovalUris - items.mapTo(hashSetOf()) { it.uri }
+        val restored = items.distinctBy { it.uri }
+        val existingUris = (allImages + allVideos + localImages + localVideos)
+            .mapTo(hashSetOf()) { it.uri }
+        val missing = restored.filterNot { it.uri in existingUris }
+        allImages = (allImages + missing.filter { !it.isDocument && !it.isVideo }).distinctBy { it.uri }
+        allVideos = (allVideos + missing.filter { !it.isDocument && it.isVideo }).distinctBy { it.uri }
+        localImages = (localImages + missing.filter { it.isDocument && !it.isVideo }).distinctBy { it.uri }
+        localVideos = (localVideos + missing.filter { it.isDocument && it.isVideo }).distinctBy { it.uri }
+        applyExclusions()
+    }
+
+    fun finishRemoval(items: List<MediaItem>) {
+        if (items.isEmpty()) return
+        pendingRemovalUris = pendingRemovalUris - items.mapTo(hashSetOf()) { it.uri }
+        applyExclusions()
+    }
+
     suspend fun deleteLegacy(item: MediaItem): Boolean = withContext(Dispatchers.IO) {
         runCatching { repository.delete(item) > 0 }.getOrDefault(false)
     }
@@ -735,9 +769,13 @@ class MediaLibraryState(context: Context) {
         get() = allImages.size + allVideos.size + localImages.size + localVideos.size
 
     private fun applyExclusions() {
-        images = allImages.filterNot { it.folder in excludedFolders }
-        videos = allVideos.filterNot { it.folder in excludedFolders }
-        excludedMedia = (allImages + allVideos).filter { it.folder in excludedFolders }
+        localImages = localImages.filterNot { it.uri in pendingRemovalUris }
+        localVideos = localVideos.filterNot { it.uri in pendingRemovalUris }
+        images = allImages.filter { it.folder !in excludedFolders && it.uri !in pendingRemovalUris }
+        videos = allVideos.filter { it.folder !in excludedFolders && it.uri !in pendingRemovalUris }
+        excludedMedia = (allImages + allVideos).filter {
+            it.folder in excludedFolders && it.uri !in pendingRemovalUris
+        }
     }
 }
 
