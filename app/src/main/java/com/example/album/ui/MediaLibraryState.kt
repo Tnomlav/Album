@@ -584,6 +584,14 @@ class MediaLibraryState(context: Context) {
         applyExclusions()
     }
 
+    private fun replaceItem(existing: MediaItem, replacement: MediaItem) {
+        allImages = allImages.map { if (it.uri == existing.uri) replacement else it }
+        allVideos = allVideos.map { if (it.uri == existing.uri) replacement else it }
+        localImages = localImages.map { if (it.uri == existing.uri) replacement else it }
+        localVideos = localVideos.map { if (it.uri == existing.uri) replacement else it }
+        applyExclusions()
+    }
+
     suspend fun deleteLegacy(item: MediaItem): Boolean = withContext(Dispatchers.IO) {
         runCatching { repository.delete(item) > 0 }.getOrDefault(false)
     }
@@ -604,18 +612,25 @@ class MediaLibraryState(context: Context) {
         }
     }
 
-    suspend fun rename(item: MediaItem, newName: String): MediaItem? = withContext(Dispatchers.IO) {
-        val renamed = repository.rename(item, newName) ?: return@withContext null
-        if (item.isDocument) {
-            if (item.isVideo) localVideos = localVideos.map { if (it.uri == item.uri) renamed else it }
-            else localImages = localImages.map { if (it.uri == item.uri) renamed else it }
-        } else {
-            if (item.isVideo) videos = videos.map { if (it.uri == item.uri) renamed else it }
-            else images = images.map { if (it.uri == item.uri) renamed else it }
-            if (item.isVideo) allVideos = allVideos.map { if (it.uri == item.uri) renamed else it }
-            else allImages = allImages.map { if (it.uri == item.uri) renamed else it }
+    suspend fun rename(item: MediaItem, newName: String): MediaItem? {
+        val optimistic = item.copy(name = newName)
+        replaceItem(item, optimistic)
+        return withContext(Dispatchers.IO) {
+            val renamed = try {
+                repository.rename(item, newName)
+            } catch (cancelled: CancellationException) {
+                replaceItem(optimistic, item)
+                throw cancelled
+            } catch (_: Throwable) {
+                replaceItem(optimistic, item)
+                return@withContext null
+            } ?: run {
+                replaceItem(optimistic, item)
+                return@withContext null
+            }
+            replaceItem(optimistic, renamed)
+            renamed
         }
-        renamed
     }
 
     fun renameFolder(folder: String, newName: String): Int {

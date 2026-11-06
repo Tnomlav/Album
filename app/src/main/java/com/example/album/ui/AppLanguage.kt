@@ -110,7 +110,7 @@ private val APP_ENGLISH = mapOf(
     "跳转日期" to "Jump to date", "跳转" to "Jump", "排除文件夹" to "Exclude folder", "文件名" to "File name", "地址" to "Location",
     "打开方式选择" to "Choose app", "编辑图片" to "Edit photo", "返回相册" to "Back to albums", "确认" to "Confirm", "搜索" to "Search", "切换搜索方式" to "Switch search mode", "清除搜索" to "Clear search", "切换为单屏宽度" to "Switch to single-screen width", "切换为多屏宽度" to "Switch to multi-screen width", "使用裁剪区域" to "Use crop area",
     "收藏" to "Favorite", "取消收藏所选" to "Unfavorite selected", "移到回收站" to "Move to Trash", "菜单" to "Menu", "壁纸" to "Wallpaper",
-    "播放速度" to "Playback speed", "倍速" to "Speed", "画中画" to "Picture-in-picture",
+    "播放速度" to "Playback speed", "长按倍速" to "Long-press speed", "倍速" to "Speed", "画中画" to "Picture-in-picture",
     "小窗" to "Mini window", "自动小窗" to "Auto mini window", "恢复全屏播放" to "Restore full screen",
     "适配重力" to "Follow sensor", "始终横屏" to "Always landscape", "始终竖屏" to "Always portrait", "按视频比例" to "Match video ratio",
     "亮度：空白：音量 触控占比" to "Brightness/volume touch split", "快退：暂停：快进 触控占比" to "Seek/pause touch split",

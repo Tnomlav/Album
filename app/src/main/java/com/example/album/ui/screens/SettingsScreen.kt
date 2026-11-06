@@ -492,6 +492,15 @@ fun SettingsScreen(
                 ToggleRow("手势提示浮层", "手势操作时显示中间提示", centerPopup) { setBoolean("video_center_popup", it) { centerPopup = it } }
                 SettingsRowDivider()
                 ToggleRow("长快进", "在播放器中显示长快退和长快进按钮", longSkip) { setBoolean("long_skip", it) { longSkip = it } }
+                SettingsRowDivider()
+                ValueRow("长按倍速", value("video_long_press_speed", "2x"), "长按画面时临时使用的播放速度") {
+                    choose(
+                        "长按倍速",
+                        "video_long_press_speed",
+                        listOf("1.5x", "2x", "2.5x", "3x", "4x"),
+                        value("video_long_press_speed", "2x")
+                    )
+                }
                 if (longSkip) {
                     SettingsRowDivider()
                     ValueRow("长快进长度", value("long_skip_length", "30秒")) {

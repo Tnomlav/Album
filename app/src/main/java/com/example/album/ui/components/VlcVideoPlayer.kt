@@ -199,6 +199,9 @@ internal fun VlcVideoPlayer(
         applyOrientationMode(orientationMode)
     }
     var speed by remember { androidx.compose.runtime.mutableFloatStateOf(1f) }
+    val selectedLongPressSpeed = parseVideoSpeed(
+        preferences.getString("video_long_press_speed", "2x")
+    )
     var playerMenuOpen by remember { androidx.compose.runtime.mutableStateOf(false) }
     var gestureHud by remember { androidx.compose.runtime.mutableStateOf<String?>(null) }
     var temporaryFastPlayback by remember { androidx.compose.runtime.mutableStateOf(false) }
@@ -462,16 +465,17 @@ internal fun VlcVideoPlayer(
                             }
                         )
                     }
-                    .pointerInput(controlsVisible, seekPauseRatio, skipSetting) {
+                    .pointerInput(controlsVisible, seekPauseRatio, skipSetting, speed, selectedLongPressSpeed) {
                         detectTapGestures(
                             onPress = {
                                 val releasedBeforeLongPress = kotlinx.coroutines.withTimeoutOrNull(460L) { tryAwaitRelease() }
                                 if (releasedBeforeLongPress == null) {
                                     val wasPlaying = mediaPlayer.isPlaying
+                                    val boostSpeed = longPressPlaybackSpeed(speed, selectedLongPressSpeed)
                                     temporaryFastPlayback = true
-                                    runCatching { mediaPlayer.rate = 2f }
+                                    runCatching { mediaPlayer.rate = boostSpeed }
                                     runCatching { mediaPlayer.play() }
-                                    gestureHud = "2x ${appText("播放", english)}"
+                                    gestureHud = "${videoSpeedLabel(boostSpeed)} ${appText("播放", english)}"
                                     try {
                                         tryAwaitRelease()
                                     } finally {

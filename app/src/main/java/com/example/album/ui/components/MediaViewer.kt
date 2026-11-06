@@ -1013,6 +1013,9 @@ private fun VideoSettingsDialog(onDismiss: () -> Unit) {
     var autoHide by remember { mutableStateOf(preferences.getBoolean("video_auto_hide", true)) }
     var centerPopup by remember { mutableStateOf(preferences.getBoolean("video_center_popup", true)) }
     var longSkip by remember { mutableStateOf(preferences.getBoolean("long_skip", false)) }
+    var longPressSpeed by remember {
+        mutableStateOf(preferences.getString("video_long_press_speed", "2x") ?: "2x")
+    }
     var edgeProtection by remember { mutableStateOf(preferences.getBoolean("edge_protection", true)) }
     var tapPause by remember { mutableStateOf(preferences.getBoolean("video_tap_pause", false)) }
     var portraitTapPause by remember { mutableStateOf(preferences.getBoolean("video_portrait_tap_pause", false)) }
@@ -1029,6 +1032,7 @@ private fun VideoSettingsDialog(onDismiss: () -> Unit) {
     val options = when (openChoice) {
         "normal" -> NORMAL_SKIP_OPTIONS
         "long" -> LONG_SKIP_OPTIONS
+        "longPressSpeed" -> LONG_PRESS_SPEED_OPTIONS
         "gesture" -> listOf("30秒", "60秒", "90秒", "120秒", "150秒")
         "brightnessVolume" -> listOf("1:1", "1:1:1", "1:2:1")
         "seekPause" -> listOf("1:1:1", "1:2:1", "1:0:1")
@@ -1060,6 +1064,9 @@ private fun VideoSettingsDialog(onDismiss: () -> Unit) {
                 }
                 VideoSettingSwitch(appText("长快进", english), longSkip) {
                     longSkip = it; putBoolean("long_skip", it)
+                }
+                VideoSettingChoice(appText("长按倍速", english), longPressSpeed) {
+                    openChoice = "longPressSpeed"
                 }
                 VideoSettingChoice(appText("快进长度", english), normalSkip) { openChoice = "normal" }
                 if (longSkip) VideoSettingChoice(appText("长快进长度", english), longSkipLength) { openChoice = "long" }
@@ -1100,6 +1107,7 @@ private fun VideoSettingsDialog(onDismiss: () -> Unit) {
                     when (openChoice) {
                         "normal" -> appText("快进长度", english)
                         "long" -> appText("长快进长度", english)
+                        "longPressSpeed" -> appText("长按倍速", english)
                         "gesture" -> appText("满屏滑动跳过时间", english)
                         "brightnessVolume" -> appText("亮度：空白：音量 触控占比", english)
                         else -> appText("快退：暂停：快进 触控占比", english)
@@ -1114,6 +1122,7 @@ private fun VideoSettingsDialog(onDismiss: () -> Unit) {
                                 when (openChoice) {
                                     "normal" -> { normalSkip = option; putString("normal_skip", option) }
                                     "long" -> { longSkipLength = option; putString("long_skip_length", option) }
+                                    "longPressSpeed" -> { longPressSpeed = option; putString("video_long_press_speed", option) }
                                     "gesture" -> { gestureSeek = option; putString("gesture_seek", option) }
                                     "brightnessVolume" -> { brightnessVolumeRatio = option; putString("video_brightness_volume_ratio", option) }
                                     "seekPause" -> { seekPauseRatio = option; putString("video_seek_pause_ratio", option) }

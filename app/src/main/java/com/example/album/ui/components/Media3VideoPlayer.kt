@@ -55,6 +55,7 @@ import androidx.compose.material.icons.outlined.ScreenRotation
 import androidx.compose.material.icons.outlined.StayCurrentLandscape
 import androidx.compose.material.icons.outlined.StayCurrentPortrait
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.FormatListNumbered
 import androidx.compose.material.icons.outlined.Fullscreen
 import androidx.compose.material.icons.outlined.Info
@@ -273,12 +274,6 @@ private val HtmlLandscapeIcon: ImageVector by lazy {
     }.build()
 }
 
-/**
- * One width for the player's popups: the menu and the speed wheel use the same
- * card width so switching between them does not make the panel jump size.
- */
-private val PlayerPopupWidth = 288.dp
-
 private val HtmlPortraitIcon: ImageVector by lazy {
     ImageVector.Builder("html-portrait", 24.dp, 24.dp, 24f, 24f).apply {
         path(fill = null, stroke = androidx.compose.ui.graphics.SolidColor(Color.White), strokeLineWidth = 1.7f) {
@@ -385,6 +380,9 @@ internal fun Media3VideoPlayer(
     val autoMiniWindow = preferences.getBoolean("video_auto_mini", false)
     val brightnessVolumeRatio = preferences.getString("video_brightness_volume_ratio", "1:1") ?: "1:1"
     val seekPauseRatio = preferences.getString("video_seek_pause_ratio", "1:1:1") ?: "1:1:1"
+    val selectedLongPressSpeed = parseVideoSpeed(
+        preferences.getString("video_long_press_speed", "2x")
+    )
     var mode by remember { mutableIntStateOf(0) }
     val latestMode by rememberUpdatedState(mode)
     var speed by remember { mutableFloatStateOf(1f) }
@@ -1337,17 +1335,18 @@ internal fun Media3VideoPlayer(
                             onDragCancel = { refreshControls() }
                         )
                     }
-                    .pointerInput(controlsLocked, normalSkip, speed, duration, orientationMode, tapPause, portraitTapPause, seekPauseRatio, settingsVersion) {
+                    .pointerInput(controlsLocked, normalSkip, speed, selectedLongPressSpeed, duration, orientationMode, tapPause, portraitTapPause, seekPauseRatio, settingsVersion) {
                         detectTapGestures(
                             onPress = {
                                 if (!controlsLocked) {
                                     val releasedBeforeLongPress = withTimeoutOrNull(460L) { tryAwaitRelease() }
                                     if (releasedBeforeLongPress == null) {
                                         val wasPlaying = player.playWhenReady
+                                        val boostSpeed = longPressPlaybackSpeed(speed, selectedLongPressSpeed)
                                         temporaryFastPlayback = true
-                                        player.setPlaybackSpeed(2f)
+                                        player.setPlaybackSpeed(boostSpeed)
                                         player.play()
-                                        gestureHud = "2x ${appText("播放", english)}"
+                                        gestureHud = "${videoSpeedLabel(boostSpeed)} ${appText("播放", english)}"
                                         hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                                         try {
                                             tryAwaitRelease()
@@ -1662,20 +1661,35 @@ internal fun Media3VideoPlayer(
             )
         }
         if (showSpeed) {
-            val speedOptions = remember { listOf("0.25x", "0.5x", "0.75x", "1x", "1.25x", "1.5x", "2x", "4x") }
-            VaultWheelChoiceSheet(
-                title = appText("播放速度", english),
-                options = speedOptions,
-                selected = if (speed == 1f) "1x" else "${speed}x",
-                playerStyle = true,
-                maxWidth = PlayerPopupWidth,
-                onDismiss = { showSpeed = false; resumeAfterPopup() },
-                onApply = { selected ->
-                    speed = selected.removeSuffix("x").toFloatOrNull() ?: 1f
-                    player.setPlaybackSpeed(speed)
-                    showSpeed = false
-                    resumeAfterPopup()
-                    refreshControls()
+            AlertDialog(
+                onDismissRequest = { showSpeed = false; resumeAfterPopup() },
+                containerColor = Color.Black.copy(alpha = .20f),
+                titleContentColor = Color.White,
+                textContentColor = Color.White,
+                title = { Text(appText("播放速度", english)) },
+                text = {
+                    Column(
+                        Modifier.fillMaxWidth().heightIn(max = 520.dp)
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        PLAYBACK_SPEED_OPTIONS.forEach { option ->
+                            PlayerSpeedRow(
+                                label = option,
+                                selected = parseVideoSpeed(option) == speed
+                            ) {
+                                speed = parseVideoSpeed(option)
+                                player.setPlaybackSpeed(speed)
+                                showSpeed = false
+                                resumeAfterPopup()
+                                refreshControls()
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showSpeed = false; resumeAfterPopup() }) {
+                        Text(appText("关闭", english))
+                    }
                 }
             )
         }
@@ -1698,6 +1712,31 @@ internal fun PlayerMenuRow(
     ) {
         Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
         Text(label, color = Color.White, style = androidx.compose.material3.MaterialTheme.typography.bodyMedium)
+    }
+}
+
+@Composable
+private fun PlayerSpeedRow(label: String, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 48.dp)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 4.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            label,
+            Modifier.weight(1f),
+            color = Color.White,
+            style = androidx.compose.material3.MaterialTheme.typography.bodyMedium
+        )
+        if (selected) {
+            Icon(
+                Icons.Outlined.Check,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(20.dp)
+            )
+        }
     }
 }
 
