@@ -148,6 +148,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.TextRange
@@ -1005,6 +1006,10 @@ private fun ViewerAction(icon: androidx.compose.ui.graphics.vector.ImageVector, 
 @Composable
 private fun VideoSettingsDialog(onDismiss: () -> Unit) {
     val context = LocalContext.current
+    val windowHeightDp = with(LocalDensity.current) {
+        LocalWindowInfo.current.containerSize.height.toDp()
+    }
+    val dialogScrollMaxHeight = if (windowHeightDp <= 600.dp) 220.dp else 520.dp
     val english = LocalAppEnglish.current
     val preferences = remember { context.getSharedPreferences("album_settings", Context.MODE_PRIVATE) }
     var autoplay by remember { mutableStateOf(preferences.getBoolean("video_autoplay", true)) }
@@ -1046,7 +1051,12 @@ private fun VideoSettingsDialog(onDismiss: () -> Unit) {
         textContentColor = Color.White,
         title = { Text(appText("视频设置", english)) },
         text = {
-            Column(Modifier.verticalScroll(rememberScrollState())) {
+            Column(
+                Modifier.fillMaxWidth()
+                    .heightIn(max = dialogScrollMaxHeight)
+                    .clipToBounds()
+                    .verticalScroll(rememberScrollState())
+            ) {
                 VideoSettingSwitch(appText("打开视频时自动播放", english), autoplay) {
                     autoplay = it; putBoolean("video_autoplay", it)
                 }
@@ -1115,7 +1125,12 @@ private fun VideoSettingsDialog(onDismiss: () -> Unit) {
                 )
             },
             text = {
-                Column {
+                Column(
+                    Modifier.fillMaxWidth()
+                        .heightIn(max = dialogScrollMaxHeight)
+                        .clipToBounds()
+                        .verticalScroll(rememberScrollState())
+                ) {
                     options.forEach { option ->
                         TextButton(
                             onClick = {

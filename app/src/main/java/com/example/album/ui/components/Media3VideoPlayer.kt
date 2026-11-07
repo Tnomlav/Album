@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -38,6 +39,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -360,6 +363,10 @@ internal fun Media3VideoPlayer(
 ) {
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
+    val windowHeightDp = with(LocalDensity.current) {
+        LocalWindowInfo.current.containerSize.height.toDp()
+    }
+    val dialogScrollMaxHeight = if (windowHeightDp <= 600.dp) 220.dp else 520.dp
     val hapticFeedback = LocalHapticFeedback.current
     val english = LocalAppEnglish.current
     val preferences = remember { context.getSharedPreferences("album_settings", Context.MODE_PRIVATE) }
@@ -1620,7 +1627,8 @@ internal fun Media3VideoPlayer(
                 title = { Text(appText("菜单", english)) },
                 text = {
                     Column(
-                        Modifier.fillMaxWidth().heightIn(max = 520.dp)
+                        Modifier.fillMaxWidth().heightIn(max = dialogScrollMaxHeight)
+                            .clipToBounds()
                             .verticalScroll(rememberScrollState())
                     ) {
                         PlayerMenuRow(appText("设置", english), Icons.Outlined.SettingsIcon) {
@@ -1669,7 +1677,8 @@ internal fun Media3VideoPlayer(
                 title = { Text(appText("播放速度", english)) },
                 text = {
                     Column(
-                        Modifier.fillMaxWidth().heightIn(max = 520.dp)
+                        Modifier.fillMaxWidth().heightIn(max = dialogScrollMaxHeight)
+                            .clipToBounds()
                             .verticalScroll(rememberScrollState())
                     ) {
                         PLAYBACK_SPEED_OPTIONS.forEach { option ->
