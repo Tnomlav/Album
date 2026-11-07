@@ -36,7 +36,6 @@ import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Wallpaper
@@ -688,26 +687,22 @@ internal fun VlcVideoPlayer(
         }
     }
     if (playerMenuOpen) {
-        AlertDialog(
+        CompactPlayerDialog(
+            title = appText("菜单", english),
+            closeLabel = appText("关闭", english),
             onDismissRequest = { playerMenuOpen = false },
-            containerColor = Color.Black.copy(alpha = .20f),
-            titleContentColor = Color.White,
-            textContentColor = Color.White,
-            title = { Text(appText("菜单", english)) },
-            text = {
-                Column {
-                    PlayerMenuRow(appText("分享", english), Icons.Outlined.Share) {
-                        playerMenuOpen = false; onShare()
-                    }
-                    PlayerMenuRow(appText("设置为壁纸", english), Icons.Outlined.Wallpaper) {
-                        playerMenuOpen = false; onWallpaper()
-                    }
-                    PlayerMenuRow(appText("信息", english), Icons.Outlined.Info) {
-                        playerMenuOpen = false; onInfo()
-                    }
+        ) {
+            Column {
+                PlayerMenuRow(appText("分享", english), Icons.Outlined.Share) {
+                    playerMenuOpen = false; onShare()
                 }
-            },
-            confirmButton = { TextButton(onClick = { playerMenuOpen = false }) { Text(appText("关闭", english)) } }
-        )
+                PlayerMenuRow(appText("设置为壁纸", english), Icons.Outlined.Wallpaper) {
+                    playerMenuOpen = false; onWallpaper()
+                }
+                PlayerMenuRow(appText("信息", english), Icons.Outlined.Info) {
+                    playerMenuOpen = false; onInfo()
+                }
+            }
+        }
     }
 }

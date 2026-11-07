@@ -103,7 +103,6 @@ import androidx.compose.material.icons.outlined.SkipPrevious
 import androidx.compose.material.icons.outlined.Settings as SettingsIcon
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -1044,113 +1043,101 @@ private fun VideoSettingsDialog(onDismiss: () -> Unit) {
         else -> emptyList()
     }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = Color.Black.copy(alpha = .20f),
-        titleContentColor = Color.White,
-        textContentColor = Color.White,
-        title = { Text(appText("视频设置", english)) },
-        text = {
+    CompactPlayerDialog(
+        title = appText("视频设置", english),
+        closeLabel = appText("完成", english),
+        onDismissRequest = onDismiss
+    ) {
+        Column(
+            Modifier.fillMaxWidth()
+                .heightIn(max = dialogScrollMaxHeight)
+                .clipToBounds()
+                .verticalScroll(rememberScrollState())
+        ) {
+            VideoSettingSwitch(appText("打开视频时自动播放", english), autoplay) {
+                autoplay = it; putBoolean("video_autoplay", it)
+            }
+            VideoSettingSwitch(appText("进入后台时自动暂停", english), pauseOnBackground) {
+                pauseOnBackground = it; putBoolean("video_pause_on_background", it)
+            }
+            VideoSettingSwitch(appText("记住最后一次播放进度", english), rememberProgress) {
+                rememberProgress = it; putBoolean("video_progress", it)
+            }
+            VideoSettingSwitch(appText("自动隐藏播放器界面", english), autoHide) {
+                autoHide = it; putBoolean("video_auto_hide", it)
+            }
+            VideoSettingSwitch(appText("手势提示浮层", english), centerPopup) {
+                centerPopup = it; putBoolean("video_center_popup", it)
+            }
+            VideoSettingSwitch(appText("长快进", english), longSkip) {
+                longSkip = it; putBoolean("long_skip", it)
+            }
+            VideoSettingChoice(appText("长按倍速", english), longPressSpeed) {
+                openChoice = "longPressSpeed"
+            }
+            VideoSettingChoice(appText("快进长度", english), normalSkip) { openChoice = "normal" }
+            if (longSkip) VideoSettingChoice(appText("长快进长度", english), longSkipLength) { openChoice = "long" }
+            VideoSettingChoice(appText("满屏滑动跳过时间", english), gestureSeek) { openChoice = "gesture" }
+            VideoSettingSwitch(appText("边缘误触保护", english), edgeProtection) {
+                edgeProtection = it; putBoolean("edge_protection", it)
+            }
+            VideoSettingSwitch(appText("单击暂停", english), tapPause) {
+                tapPause = it
+                if (!it) portraitTapPause = false
+                putBoolean("video_tap_pause", it)
+                putBoolean("video_portrait_tap_pause", if (!it) false else portraitTapPause)
+            }
+            VideoSettingSwitch(appText("只在竖屏下单击暂停", english), portraitTapPause) {
+                portraitTapPause = it
+                if (it) tapPause = true
+                putBoolean("video_portrait_tap_pause", it)
+                putBoolean("video_tap_pause", if (it) true else tapPause)
+            }
+            VideoSettingSwitch(appText("自动小窗", english), autoMini) {
+                autoMini = it; putBoolean("video_auto_mini", it)
+            }
+            VideoSettingChoice(appText("亮度：空白：音量 触控占比", english), brightnessVolumeRatio) { openChoice = "brightnessVolume" }
+            VideoSettingChoice(appText("快退：暂停：快进 触控占比", english), seekPauseRatio) { openChoice = "seekPause" }
+        }
+    }
+
+    if (openChoice != null) {
+        CompactPlayerDialog(
+            title = when (openChoice) {
+                "normal" -> appText("快进长度", english)
+                "long" -> appText("长快进长度", english)
+                "longPressSpeed" -> appText("长按倍速", english)
+                "gesture" -> appText("满屏滑动跳过时间", english)
+                "brightnessVolume" -> appText("亮度：空白：音量 触控占比", english)
+                else -> appText("快退：暂停：快进 触控占比", english)
+            },
+            closeLabel = appText("取消", english),
+            onDismissRequest = { openChoice = null },
+        ) {
             Column(
                 Modifier.fillMaxWidth()
                     .heightIn(max = dialogScrollMaxHeight)
                     .clipToBounds()
                     .verticalScroll(rememberScrollState())
             ) {
-                VideoSettingSwitch(appText("打开视频时自动播放", english), autoplay) {
-                    autoplay = it; putBoolean("video_autoplay", it)
+                options.forEach { option ->
+                    TextButton(
+                        onClick = {
+                            when (openChoice) {
+                                "normal" -> { normalSkip = option; putString("normal_skip", option) }
+                                "long" -> { longSkipLength = option; putString("long_skip_length", option) }
+                                "longPressSpeed" -> { longPressSpeed = option; putString("video_long_press_speed", option) }
+                                "gesture" -> { gestureSeek = option; putString("gesture_seek", option) }
+                                "brightnessVolume" -> { brightnessVolumeRatio = option; putString("video_brightness_volume_ratio", option) }
+                                "seekPause" -> { seekPauseRatio = option; putString("video_seek_pause_ratio", option) }
+                            }
+                            openChoice = null
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text(option) }
                 }
-                VideoSettingSwitch(appText("进入后台时自动暂停", english), pauseOnBackground) {
-                    pauseOnBackground = it; putBoolean("video_pause_on_background", it)
-                }
-                VideoSettingSwitch(appText("记住最后一次播放进度", english), rememberProgress) {
-                    rememberProgress = it; putBoolean("video_progress", it)
-                }
-                VideoSettingSwitch(appText("自动隐藏播放器界面", english), autoHide) {
-                    autoHide = it; putBoolean("video_auto_hide", it)
-                }
-                VideoSettingSwitch(appText("手势提示浮层", english), centerPopup) {
-                    centerPopup = it; putBoolean("video_center_popup", it)
-                }
-                VideoSettingSwitch(appText("长快进", english), longSkip) {
-                    longSkip = it; putBoolean("long_skip", it)
-                }
-                VideoSettingChoice(appText("长按倍速", english), longPressSpeed) {
-                    openChoice = "longPressSpeed"
-                }
-                VideoSettingChoice(appText("快进长度", english), normalSkip) { openChoice = "normal" }
-                if (longSkip) VideoSettingChoice(appText("长快进长度", english), longSkipLength) { openChoice = "long" }
-                VideoSettingChoice(appText("满屏滑动跳过时间", english), gestureSeek) { openChoice = "gesture" }
-                VideoSettingSwitch(appText("边缘误触保护", english), edgeProtection) {
-                    edgeProtection = it; putBoolean("edge_protection", it)
-                }
-                VideoSettingSwitch(appText("单击暂停", english), tapPause) {
-                    tapPause = it
-                    if (!it) portraitTapPause = false
-                    putBoolean("video_tap_pause", it)
-                    putBoolean("video_portrait_tap_pause", if (!it) false else portraitTapPause)
-                }
-                VideoSettingSwitch(appText("只在竖屏下单击暂停", english), portraitTapPause) {
-                    portraitTapPause = it
-                    if (it) tapPause = true
-                    putBoolean("video_portrait_tap_pause", it)
-                    putBoolean("video_tap_pause", if (it) true else tapPause)
-                }
-                VideoSettingSwitch(appText("自动小窗", english), autoMini) {
-                    autoMini = it; putBoolean("video_auto_mini", it)
-                }
-                VideoSettingChoice(appText("亮度：空白：音量 触控占比", english), brightnessVolumeRatio) { openChoice = "brightnessVolume" }
-                VideoSettingChoice(appText("快退：暂停：快进 触控占比", english), seekPauseRatio) { openChoice = "seekPause" }
             }
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text(appText("完成", english)) } }
-    )
-
-    if (openChoice != null) {
-        AlertDialog(
-            onDismissRequest = { openChoice = null },
-            containerColor = Color.Black.copy(alpha = .20f),
-            titleContentColor = Color.White,
-            textContentColor = Color.White,
-            title = {
-                Text(
-                    when (openChoice) {
-                        "normal" -> appText("快进长度", english)
-                        "long" -> appText("长快进长度", english)
-                        "longPressSpeed" -> appText("长按倍速", english)
-                        "gesture" -> appText("满屏滑动跳过时间", english)
-                        "brightnessVolume" -> appText("亮度：空白：音量 触控占比", english)
-                        else -> appText("快退：暂停：快进 触控占比", english)
-                    }
-                )
-            },
-            text = {
-                Column(
-                    Modifier.fillMaxWidth()
-                        .heightIn(max = dialogScrollMaxHeight)
-                        .clipToBounds()
-                        .verticalScroll(rememberScrollState())
-                ) {
-                    options.forEach { option ->
-                        TextButton(
-                            onClick = {
-                                when (openChoice) {
-                                    "normal" -> { normalSkip = option; putString("normal_skip", option) }
-                                    "long" -> { longSkipLength = option; putString("long_skip_length", option) }
-                                    "longPressSpeed" -> { longPressSpeed = option; putString("video_long_press_speed", option) }
-                                    "gesture" -> { gestureSeek = option; putString("gesture_seek", option) }
-                                    "brightnessVolume" -> { brightnessVolumeRatio = option; putString("video_brightness_volume_ratio", option) }
-                                    "seekPause" -> { seekPauseRatio = option; putString("video_seek_pause_ratio", option) }
-                                }
-                                openChoice = null
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        ) { Text(option) }
-                    }
-                }
-            },
-            confirmButton = { TextButton(onClick = { openChoice = null }) { Text(appText("取消", english)) } }
-        )
+        }
     }
 }
 

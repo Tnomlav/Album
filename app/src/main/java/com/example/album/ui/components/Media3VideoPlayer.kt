@@ -83,7 +83,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -1619,88 +1618,72 @@ internal fun Media3VideoPlayer(
             ) { Icon(HtmlLockIcon, appText("解锁控件", english), tint = Color.White, modifier = Modifier.size(25.dp)) }
         }
         if (playerMenuOpen) {
-            AlertDialog(
+            CompactPlayerDialog(
+                title = appText("菜单", english),
+                closeLabel = appText("关闭", english),
                 onDismissRequest = { playerMenuOpen = false; resumeAfterPopup() },
-                containerColor = Color.Black.copy(alpha = .20f),
-                titleContentColor = Color.White,
-                textContentColor = Color.White,
-                title = { Text(appText("菜单", english)) },
-                text = {
-                    Column(
-                        Modifier.fillMaxWidth().heightIn(max = dialogScrollMaxHeight)
-                            .clipToBounds()
-                            .verticalScroll(rememberScrollState())
-                    ) {
-                        PlayerMenuRow(appText("设置", english), Icons.Outlined.SettingsIcon) {
-                            playerMenuOpen = false
-                            settingsPausePending = true
-                            onSettings()
-                        }
-                        PlayerMenuRow(
-                            if (mirrorVideo) appText("取消镜像", english) else appText("镜像翻转", english),
-                            EditorPrototypeIcons.FlipHorizontal
-                        ) {
-                            mirrorVideo = !mirrorVideo
-                            playerMenuOpen = false
-                            resumeAfterPopup()
-                        }
-                        PlayerMenuRow(appText("分享", english), Icons.Outlined.Share) {
-                            playerMenuOpen = false
-                            onShare()
-                            resumeAfterPopup()
-                        }
-                        PlayerMenuRow(appText("设置为壁纸", english), Icons.Outlined.Wallpaper) {
-                            playerMenuOpen = false
-                            onWallpaper()
-                            resumeAfterPopup()
-                        }
-                        PlayerMenuRow(appText("信息", english), Icons.Outlined.Info) {
-                            playerMenuOpen = false
-                            onInfo()
-                            resumeAfterPopup()
-                        }
+            ) {
+                Column(
+                    Modifier.fillMaxWidth().heightIn(max = dialogScrollMaxHeight)
+                        .clipToBounds()
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    PlayerMenuRow(appText("设置", english), Icons.Outlined.SettingsIcon) {
+                        playerMenuOpen = false
+                        settingsPausePending = true
+                        onSettings()
                     }
-                },
-                confirmButton = {
-                    TextButton(onClick = { playerMenuOpen = false; resumeAfterPopup() }) {
-                        Text(appText("关闭", english))
+                    PlayerMenuRow(
+                        if (mirrorVideo) appText("取消镜像", english) else appText("镜像翻转", english),
+                        EditorPrototypeIcons.FlipHorizontal
+                    ) {
+                        mirrorVideo = !mirrorVideo
+                        playerMenuOpen = false
+                        resumeAfterPopup()
+                    }
+                    PlayerMenuRow(appText("分享", english), Icons.Outlined.Share) {
+                        playerMenuOpen = false
+                        onShare()
+                        resumeAfterPopup()
+                    }
+                    PlayerMenuRow(appText("设置为壁纸", english), Icons.Outlined.Wallpaper) {
+                        playerMenuOpen = false
+                        onWallpaper()
+                        resumeAfterPopup()
+                    }
+                    PlayerMenuRow(appText("信息", english), Icons.Outlined.Info) {
+                        playerMenuOpen = false
+                        onInfo()
+                        resumeAfterPopup()
                     }
                 }
-            )
+            }
         }
         if (showSpeed) {
-            AlertDialog(
+            CompactPlayerDialog(
+                title = appText("播放速度", english),
+                closeLabel = appText("关闭", english),
                 onDismissRequest = { showSpeed = false; resumeAfterPopup() },
-                containerColor = Color.Black.copy(alpha = .20f),
-                titleContentColor = Color.White,
-                textContentColor = Color.White,
-                title = { Text(appText("播放速度", english)) },
-                text = {
-                    Column(
-                        Modifier.fillMaxWidth().heightIn(max = dialogScrollMaxHeight)
-                            .clipToBounds()
-                            .verticalScroll(rememberScrollState())
-                    ) {
-                        PLAYBACK_SPEED_OPTIONS.forEach { option ->
-                            PlayerSpeedRow(
-                                label = option,
-                                selected = parseVideoSpeed(option) == speed
-                            ) {
-                                speed = parseVideoSpeed(option)
-                                player.setPlaybackSpeed(speed)
-                                showSpeed = false
-                                resumeAfterPopup()
-                                refreshControls()
-                            }
+            ) {
+                Column(
+                    Modifier.fillMaxWidth().heightIn(max = dialogScrollMaxHeight)
+                        .clipToBounds()
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    PLAYBACK_SPEED_OPTIONS.forEach { option ->
+                        PlayerSpeedRow(
+                            label = option,
+                            selected = parseVideoSpeed(option) == speed
+                        ) {
+                            speed = parseVideoSpeed(option)
+                            player.setPlaybackSpeed(speed)
+                            showSpeed = false
+                            resumeAfterPopup()
+                            refreshControls()
                         }
                     }
-                },
-                confirmButton = {
-                    TextButton(onClick = { showSpeed = false; resumeAfterPopup() }) {
-                        Text(appText("关闭", english))
-                    }
                 }
-            )
+            }
         }
         }
     }
