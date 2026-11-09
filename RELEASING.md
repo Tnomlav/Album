@@ -3,8 +3,8 @@
 `version.properties` 是版本号的唯一来源。不要在 `README.md`、`app/release/` 或
 `CHANGELOG.md` 里单独维护版本号。
 
-下面的命令都在 Windows 上执行：WSL 里没有 JDK、Android SDK 和 adb，`gradlew.bat` 与
-`scripts/*.ps1` 只能在 Windows 侧跑（见 [AGENTS.md](AGENTS.md)）。
+下面的 `gradlew.bat` 和 `scripts/*.ps1` 在 Windows 上执行。WSL 侧也能构建和跑单测
+（见 [docs/development-wsl.md](docs/development-wsl.md)），但签名与打包发布仍在 Windows。
 
 1. **准备版本**：编辑 `version.properties`
    （`VERSION_CODE`、`VERSION_MAJOR`、`VERSION_MINOR`、`VERSION_PATCH`）。

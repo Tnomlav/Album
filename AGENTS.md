@@ -2,13 +2,15 @@
 
 ## 运行环境：Windows 与 WSL
 
-同一份仓库会从 Windows 和 WSL 两边打开（WSL 里是 `/mnt/c/Album`）。改代码、读代码、提交两边
-都能做，但**工具链只在 Windows 侧**：
+同一份仓库会从 Windows 和 WSL 两边打开（WSL 里是 `/mnt/c/Album`）。两边都能构建，但环境
+准备不同：
 
-- `gradlew.bat`、`scripts/*.ps1`、`adb`、签名和打包都依赖 Windows 上装的 JDK / Android SDK。
-  WSL 里没有 JDK、没有 Android SDK，也看不到 `C:\Windows`、`C:\Program Files`，所以构建、
-  单测、lint 和设备检查要在 Windows 侧执行；WSL 里只做代码改动、`git` 和文档。
-- 在 WSL 里收尾的一轮，回答里要写清楚构建/Lint 没在本机跑过，不要写成已验证。
+- Windows：`gradlew.bat`、`scripts/*.ps1`、Android Studio、签名与打包发布。
+- WSL：JDK 17/21 在 `~/.local/java`，Android SDK 在 `~/Android/Sdk`；`local.properties` 不用
+  改，设好 `ANDROID_HOME` 就能 `./gradlew testDebugUnitTest lintDebug`。完整命令见
+  [docs/development-wsl.md](docs/development-wsl.md)。
+- 真机在 WSL 里通过共享回环借用 Windows 的 adb server（`adb -H 127.0.0.1 devices`）；不要在
+  WSL 里 `adb kill-server`，那会把 Windows 的 server 一起杀掉。
 - 行尾由 [`.gitattributes`](.gitattributes) 统一：索引里一律 LF，Windows 检出时按 CRLF 落地。
   不要用 `core.autocrlf` 覆盖它；否则一次 `git add -A` 会把两百多个文件重写成 CRLF，产生
   约五万行与真实改动无关的噪声。
