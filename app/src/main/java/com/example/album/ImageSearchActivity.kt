@@ -6,6 +6,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.OpenableColumns
 import android.util.Base64
 import android.webkit.CookieManager
 import android.webkit.MimeTypeMap
@@ -105,9 +106,11 @@ class ImageSearchActivity : ComponentActivity() {
         }
         super.onCreate(savedInstanceState)
 
-        source = ImageSearchSource.fromKey(intent.getStringExtra(EXTRA_SOURCE))
-        originalImageUri = intent.getParcelableExtraCompat(EXTRA_IMAGE_URI)
-        imageName = intent.getStringExtra(EXTRA_IMAGE_NAME)
+        source = ImageSearchSource.fromShareComponent(intent?.component?.className)
+            ?: ImageSearchSource.fromKey(intent.getStringExtra(EXTRA_SOURCE))
+        val sharedImage = intent.sharedImage()
+        originalImageUri = sharedImage?.first ?: intent.getParcelableExtraCompat(EXTRA_IMAGE_URI)
+        imageName = sharedImage?.second ?: intent.getStringExtra(EXTRA_IMAGE_NAME)
         val preferences = getSharedPreferences("album_settings", MODE_PRIVATE)
         english = preferences.getString("language", "简体中文") == "English"
         val themeMode = preferences.getString("theme_mode", "自动") ?: "自动"
@@ -119,6 +122,12 @@ class ImageSearchActivity : ComponentActivity() {
             settings.domStorageEnabled = true
             settings.loadsImagesAutomatically = true
             settings.setSupportZoom(true)
+            // Both sites are built for desktop browsers. Without a wide layout
+            // viewport their fixed-width results grids overlap on a phone, so
+            // let pages that declare their own viewport stay responsive while
+            // desktop pages fall back to the 980px layout and zoom out.
+            settings.useWideViewPort = true
+            settings.loadWithOverviewMode = true
             settings.builtInZoomControls = true
             settings.displayZoomControls = false
             settings.allowContentAccess = true
@@ -261,6 +270,44 @@ class ImageSearchActivity : ComponentActivity() {
             prepareSelectedImage(originalImageUri!!)
         }
         webView.loadUrl(source.startUrl)
+    }
+
+    /**
+     * Images picked in another app's share sheet arrive as `EXTRA_STREAM`; some
+     * senders only fill in the clip data. The URI permission is tied to this
+     * launch, so the copy has to happen while the activity is still alive.
+     */
+    @Suppress("DEPRECATION")
+    private fun Intent?.sharedImage(): Pair<Uri, String?>? {
+        if (this == null || action != Intent.ACTION_SEND) return null
+        val stream = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+        } else {
+            getParcelableExtra(Intent.EXTRA_STREAM)
+        }
+        val uri = stream
+            ?: clipData?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.uri
+            ?: data
+            ?: return null
+        return uri to displayName(uri)
+    }
+
+    private fun displayName(uri: Uri): String? {
+        if (uri.scheme == "content") {
+            val fromProvider = runCatching {
+                contentResolver.query(
+                    uri,
+                    arrayOf(OpenableColumns.DISPLAY_NAME),
+                    null,
+                    null,
+                    null
+                )?.use { cursor ->
+                    if (cursor.moveToFirst()) cursor.getString(0) else null
+                }
+            }.getOrNull()
+            if (!fromProvider.isNullOrBlank()) return fromProvider
+        }
+        return uri.lastPathSegment?.substringAfterLast('/')?.takeIf { it.isNotBlank() }
     }
 
     @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")

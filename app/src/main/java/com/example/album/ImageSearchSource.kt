@@ -32,5 +32,18 @@ enum class ImageSearchSource(
     companion object {
         fun fromKey(key: String?): ImageSearchSource =
             entries.firstOrNull { it.key == key } ?: SauceNao
+
+        /**
+         * The system share sheet offers one entry per site, declared as an
+         * `activity-alias` in AndroidManifest.xml. Because an alias is just a
+         * second component name for the same activity, the component that
+         * launched us is what tells the browser which site to open.
+         */
+        fun fromShareComponent(className: String?): ImageSearchSource? = when {
+            className == null -> null
+            className.endsWith("ImageSearchSauceNao") -> SauceNao
+            className.endsWith("ImageSearchAscii2d") -> Ascii2d
+            else -> null
+        }
     }
 }

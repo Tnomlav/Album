@@ -115,6 +115,32 @@
             android:process=":image_search"
             android:theme="@style/Theme.Album"
             android:windowSoftInputMode="adjustResize" />
+        <!-- Share-sheet entries for reverse image search: one alias per site, so
+             the chooser shows "SauceNAO 搜图" and "ascii2d 搜图" next to the
+             import entry. The alias name is what tells ImageSearchActivity which
+             site to open (see ImageSearchSource.fromShareComponent). -->
+        <activity-alias
+            android:name=".ImageSearchSauceNao"
+            android:targetActivity=".ImageSearchActivity"
+            android:exported="true"
+            android:label="@string/image_search_share_saucenao">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".ImageSearchAscii2d"
+            android:targetActivity=".ImageSearchActivity"
+            android:exported="true"
+            android:label="@string/image_search_share_ascii2d">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+        </activity-alias>
         <activity
             android:name=".MainActivity"
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|fontScale"
