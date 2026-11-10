@@ -37,6 +37,29 @@ cd /mnt/c/Album
   `git worktree add /tmp/album-build HEAD` 把源码放到 ext4 上构建，产物照样能装到手机。
 - 不要和 Android Studio 的构建同时跑：`app/build/` 和 `.gradle/` 是同一份目录。
 
+## 签名 release 包
+
+覆盖安装手机上的正式版必须是 release 签名，debug 包会报
+`INSTALL_FAILED_UPDATE_INCOMPATIBLE`。签名配置放在**仓库外**的
+`~/.gradle/gradle.properties`（不要提交到 Git）：
+
+```properties
+ALBUM_STORE_FILE=/mnt/c/Album/key/album-release.jks
+ALBUM_STORE_PASSWORD=…
+ALBUM_KEY_ALIAS=album
+ALBUM_KEY_PASSWORD=…
+```
+
+路径要写成 WSL 路径（`/mnt/c/...`），不能沿用 Windows 的 `C:/...`。然后：
+
+```bash
+./gradlew :app:assembleRelease
+adb -H 127.0.0.1 install -r app/build/outputs/apk/release/app-arm64-v8a-release.apk
+```
+
+签名构建成功后 `packageRelease` 会把 `version.properties` 的 patch 加一；只是本地装机、
+不打算发布时，构建完记得把它改回目标版本。
+
 ## 真机
 
 WSL 看不到 USB 设备（没有 `/dev/bus/usb`）。本机 WSL 是 **mirrored 网络**，Windows 的
