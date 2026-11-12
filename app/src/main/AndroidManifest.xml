@@ -129,13 +129,13 @@
             android:targetActivity=".ImageSearchActivity"
             android:exported="true"
             android:label="@string/image_search_share_saucenao">
-            <intent-filter>
+            <intent-filter android:priority="1">
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="*/*" />
             </intent-filter>
             <!-- "Open with" from file managers and galleries. -->
-            <intent-filter>
+            <intent-filter android:priority="1">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="image/*" />
@@ -146,13 +146,13 @@
             android:targetActivity=".ImageSearchActivity"
             android:exported="true"
             android:label="@string/image_search_share_ascii2d">
-            <intent-filter>
+            <intent-filter android:priority="0">
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="*/*" />
             </intent-filter>
             <!-- "Open with" from file managers and galleries. -->
-            <intent-filter>
+            <intent-filter android:priority="0">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="image/*" />
