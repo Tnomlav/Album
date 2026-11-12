@@ -106,24 +106,26 @@ class ImageSearchActivity : ComponentActivity() {
         }
         super.onCreate(savedInstanceState)
 
-        source = ImageSearchSource.fromShareComponent(intent?.component?.className)
-            ?: ImageSearchSource.fromKey(intent.getStringExtra(EXTRA_SOURCE))
-        val sharedImage = intent.sharedImage()
-        originalImageUri = sharedImage?.first ?: intent.getParcelableExtraCompat(EXTRA_IMAGE_URI)
-        imageName = sharedImage?.second ?: intent.getStringExtra(EXTRA_IMAGE_NAME)
-        // The share entries accept */* so that OEM drag surfaces which hand over
-        // a generic type still list them; anything that is not an image is
-        // refused here instead of being uploaded.
-        val sentImage = originalImageUri
-        if (intent?.action == Intent.ACTION_SEND && sentImage != null && !isImageShare(sentImage)) {
-            Toast.makeText(this, appText("只能搜索图片文件", english), Toast.LENGTH_SHORT).show()
-            finish()
-            return
-        }
         val preferences = getSharedPreferences("album_settings", MODE_PRIVATE)
         english = preferences.getString("language", "简体中文") == "English"
         val themeMode = preferences.getString("theme_mode", "自动") ?: "自动"
         val themeAccent = ThemeAccent.fromStored(preferences.getString("theme_color", null))
+
+        source = ImageSearchSource.fromShareComponent(intent?.component?.className)
+            ?: ImageSearchSource.fromKey(intent.getStringExtra(EXTRA_SOURCE))
+        val incoming = intent.incomingImage()
+        originalImageUri = incoming?.first ?: intent.getParcelableExtraCompat(EXTRA_IMAGE_URI)
+        imageName = incoming?.second ?: intent.getStringExtra(EXTRA_IMAGE_NAME)
+        // SEND entries accept any type so OEM drag surfaces still list them, and
+        // VIEW entries also arrive from file managers, so a non-image is refused
+        // here instead of being uploaded.
+        val sentImage = originalImageUri
+        val fromOutside = intent?.action == Intent.ACTION_SEND || intent?.action == Intent.ACTION_VIEW
+        if (fromOutside && sentImage != null && !isImageShare(sentImage)) {
+            Toast.makeText(this, appText("只能搜索图片文件", english), Toast.LENGTH_SHORT).show()
+            finish()
+            return
+        }
 
         webView = WebView(this).apply {
             val currentWebView = this
@@ -287,17 +289,22 @@ class ImageSearchActivity : ComponentActivity() {
      * launch, so the copy has to happen while the activity is still alive.
      */
     @Suppress("DEPRECATION")
-    private fun Intent?.sharedImage(): Pair<Uri, String?>? {
-        if (this == null || action != Intent.ACTION_SEND) return null
+    private fun Intent?.incomingImage(): Pair<Uri, String?>? {
+        if (this == null) return null
         val stream = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
         } else {
             getParcelableExtra(Intent.EXTRA_STREAM)
         }
-        val uri = stream
-            ?: clipData?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.uri
-            ?: data
-            ?: return null
+        val uri = when (action) {
+            Intent.ACTION_SEND -> stream
+                ?: clipData?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.uri
+                ?: data
+            // "Open with" hands the file over as the intent data.
+            Intent.ACTION_VIEW -> data
+                ?: clipData?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.uri
+            else -> null
+        } ?: return null
         return uri to displayName(uri)
     }
 
