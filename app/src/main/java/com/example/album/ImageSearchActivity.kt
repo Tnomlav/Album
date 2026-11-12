@@ -111,6 +111,15 @@ class ImageSearchActivity : ComponentActivity() {
         val sharedImage = intent.sharedImage()
         originalImageUri = sharedImage?.first ?: intent.getParcelableExtraCompat(EXTRA_IMAGE_URI)
         imageName = sharedImage?.second ?: intent.getStringExtra(EXTRA_IMAGE_NAME)
+        // The share entries accept */* so that OEM drag surfaces which hand over
+        // a generic type still list them; anything that is not an image is
+        // refused here instead of being uploaded.
+        val sentImage = originalImageUri
+        if (intent?.action == Intent.ACTION_SEND && sentImage != null && !isImageShare(sentImage)) {
+            Toast.makeText(this, appText("只能搜索图片文件", english), Toast.LENGTH_SHORT).show()
+            finish()
+            return
+        }
         val preferences = getSharedPreferences("album_settings", MODE_PRIVATE)
         english = preferences.getString("language", "简体中文") == "English"
         val themeMode = preferences.getString("theme_mode", "自动") ?: "自动"
@@ -290,6 +299,19 @@ class ImageSearchActivity : ComponentActivity() {
             ?: data
             ?: return null
         return uri to displayName(uri)
+    }
+
+    /**
+     * The share entries declare any MIME type, so the activity has to decide for
+     * itself whether what arrived can be searched. Providers that report no type
+     * at all are given the benefit of the doubt.
+     */
+    private fun isImageShare(uri: Uri): Boolean {
+        val declared = intent?.type.orEmpty()
+        if (declared.startsWith("image/")) return true
+        val resolved = runCatching { contentResolver.getType(uri) }.getOrNull().orEmpty()
+        if (resolved.startsWith("image/")) return true
+        return declared.isBlank() && resolved.isBlank()
     }
 
     private fun displayName(uri: Uri): String? {

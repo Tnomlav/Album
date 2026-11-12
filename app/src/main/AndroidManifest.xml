@@ -118,7 +118,12 @@
         <!-- Share-sheet entries for reverse image search: one alias per site, so
              the chooser shows "SauceNAO 搜图" and "ascii2d 搜图" next to the
              import entry. The alias name is what tells ImageSearchActivity which
-             site to open (see ImageSearchSource.fromShareComponent). -->
+             site to open (see ImageSearchSource.fromShareComponent).
+
+             They accept */* rather than image/* on purpose: some OEM share
+             surfaces (vivo's drag-to-island row) hand over the drag payload with
+             a generic type, and an image/* filter then never matches. The
+             activity rejects non-images at runtime instead. -->
         <activity-alias
             android:name=".ImageSearchSauceNao"
             android:targetActivity=".ImageSearchActivity"
@@ -127,7 +132,7 @@
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="image/*" />
+                <data android:mimeType="*/*" />
             </intent-filter>
         </activity-alias>
         <activity-alias
@@ -138,7 +143,7 @@
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="image/*" />
+                <data android:mimeType="*/*" />
             </intent-filter>
         </activity-alias>
         <activity

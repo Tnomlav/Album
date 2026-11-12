@@ -88,6 +88,7 @@ private val APP_ENGLISH = mapOf(
     "后台运行" to "Run in background",
     "网页加载失败" to "Web page failed to load",
     "无法打开搜图页面" to "Unable to open the image search page",
+    "只能搜索图片文件" to "Only image files can be searched",
     "重试" to "Retry",
     "加入幻灯片队列" to "Add to slideshow queue", "移出幻灯片队列" to "Remove from slideshow queue",
     "切换" to "Switch", "使用提示" to "Getting around",
