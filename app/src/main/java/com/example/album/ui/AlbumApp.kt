@@ -1154,9 +1154,14 @@ fun AlbumApp(
             // streamed through a conflated channel so folders appear as soon as
             // they are read instead of all at the end.
             val progress = Channel<com.example.album.data.PixivLibrarySnapshot>(Channel.CONFLATED)
+            val publishPartials = pixivLibraryImages == null
             val progressJob = scope.launch {
                 for (partial in progress) {
                     if (generation != pixivReloadGeneration) break
+                    // While a refresh runs, keep the complete list on screen
+                    // instead of replacing it with the half-walked one; a
+                    // partial snapshot only feeds the very first paint.
+                    if (!publishPartials) continue
                     pixivLibraryImages = partial.items
                     pixivFolderNames = partial.folderNames
                     pixivSourceFolderName = partial.sourceFolderName
@@ -1164,9 +1169,13 @@ fun AlbumApp(
                 }
             }
             val snapshot = try {
-                pixivRepository.loadLibrary(defaultPixivImages) { partial ->
-                    progress.trySend(partial)
-                }
+                pixivRepository.loadLibrary(
+                    defaultPixivImages,
+                    onProgress = { partial -> progress.trySend(partial) },
+                    // A finger pull is the user asking for the current tree, not
+                    // for a replay of the last walk.
+                    forceFresh = showIndicator
+                )
             } finally {
                 progress.close()
                 progressJob.cancel()
@@ -3925,6 +3934,8 @@ fun AlbumApp(
                     scanning = library.scanning,
                     suppressRefreshIndicator = !startupLibraryReadDone,
                     refreshSource = library.refreshSource,
+                    forcePullIndicator = pixivPageRefreshing,
+                    initialLoadComplete = pixivLibraryImages != null,
                     permissionGranted = true,
                     tagLoading = pixivTagsLoading && pixivSearchMode == PixivSearchMode.Tag,
                     sort = mediaSort,

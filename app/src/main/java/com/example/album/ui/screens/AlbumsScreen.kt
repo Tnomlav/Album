@@ -109,6 +109,8 @@ fun AlbumsScreen(
     loading: Boolean,
     scanning: Boolean = false,
     refreshSource: com.example.album.ui.RefreshSource? = null,
+    /** Pages with their own refresh pipeline (the Pixiv tab) drive the pull indicator themselves. */
+    forcePullIndicator: Boolean = false,
     /**
      * True while the app is doing the library read it starts by itself: that
      * read must not light up the pull-to-refresh indicator.
@@ -174,7 +176,8 @@ fun AlbumsScreen(
     // Startup scans, background observer reloads and post-operation reloads use
     // the same library scan but must not look like a finger pull; they stay
     // silent (the first scan shows the skeleton below instead).
-    val refreshing = refreshSource == com.example.album.ui.RefreshSource.UserPull && !suppressRefreshIndicator
+    val refreshing = (refreshSource == com.example.album.ui.RefreshSource.UserPull || forcePullIndicator) &&
+        !suppressRefreshIndicator
     val english = LocalAppEnglish.current
     fun itemsInDisplayOrder(items: List<MediaItem>): List<MediaItem> {
         return sortMediaItems(items, sort, sortDirection)

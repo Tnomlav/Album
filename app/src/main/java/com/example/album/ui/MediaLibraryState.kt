@@ -158,6 +158,9 @@ class MediaLibraryState(context: Context) {
     var recycleEntries by mutableStateOf<List<RecycleEntry>>(emptyList())
         private set
 
+    /** Signature of the snapshot last written to disk; unchanged scans skip the write. */
+    private var lastSavedSnapshotKey: String? = null
+
     init {
         // Publish the snapshot this process has already parsed. Reading and
         // parsing the file here used to stall the first frame: on a large
@@ -302,16 +305,31 @@ class MediaLibraryState(context: Context) {
             images = prepared.visibleImages
             videos = prepared.visibleVideos
             excludedMedia = prepared.excluded
-            withContext(Dispatchers.IO) {
-                com.example.album.data.MediaSnapshotStore.save(
-                    appContext,
-                    com.example.album.data.MediaSnapshotStore.Snapshot(
-                        images = prepared.images,
-                        videos = prepared.videos,
-                        localImages = prepared.localImages,
-                        localVideos = prepared.localVideos
+            // Writing the whole library JSON on every ContentObserver refresh made
+            // repeated scans noticeably longer. Only persist when the visible
+            // content actually changed.
+            val snapshotKey = listOf(
+                prepared.images.size,
+                prepared.videos.size,
+                prepared.localImages.size,
+                prepared.localVideos.size,
+                prepared.images.firstOrNull()?.uri?.toString(),
+                prepared.images.lastOrNull()?.uri?.toString(),
+                prepared.videos.firstOrNull()?.uri?.toString()
+            ).joinToString("|")
+            if (snapshotKey != lastSavedSnapshotKey) {
+                withContext(Dispatchers.IO) {
+                    com.example.album.data.MediaSnapshotStore.save(
+                        appContext,
+                        com.example.album.data.MediaSnapshotStore.Snapshot(
+                            images = prepared.images,
+                            videos = prepared.videos,
+                            localImages = prepared.localImages,
+                            localVideos = prepared.localVideos
+                        )
                     )
-                )
+                }
+                lastSavedSnapshotKey = snapshotKey
             }
             // Hashing the library to decide on background thumbnails is not
             // free; keep it off the main thread so the refresh spinner keeps

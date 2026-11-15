@@ -472,9 +472,16 @@ class PixivArchiveRepository(private val context: Context) {
      */
     suspend fun loadLibrary(
         fallbackDefaultItems: List<MediaItem>,
-        onProgress: (PixivLibrarySnapshot) -> Unit = {}
+        onProgress: (PixivLibrarySnapshot) -> Unit = {},
+        /**
+         * A refresh the user asked for must reflect the folder tree as it is
+         * now, so it walks every folder instead of replaying the previous walk
+         * index (which can be minutes or days old). Background loads keep the
+         * index so they stay cheap.
+         */
+        forceFresh: Boolean = false
     ): PixivLibrarySnapshot = withContext(Dispatchers.IO) {
-        val snapshot = buildLibrary(fallbackDefaultItems, onProgress)
+        val snapshot = buildLibrary(fallbackDefaultItems, onProgress, forceFresh)
         runCatching { writeLibraryCache(snapshot) }
         snapshot
     }
@@ -652,7 +659,8 @@ class PixivArchiveRepository(private val context: Context) {
 
     private suspend fun buildLibrary(
         fallbackDefaultItems: List<MediaItem>,
-        onProgress: (PixivLibrarySnapshot) -> Unit = {}
+        onProgress: (PixivLibrarySnapshot) -> Unit = {},
+        forceFresh: Boolean = false
     ): PixivLibrarySnapshot = withContext(Dispatchers.IO) {
         val preferences = context.getSharedPreferences("pixiv_archive", Context.MODE_PRIVATE)
         val showHiddenMedia = context.getSharedPreferences("album_settings", Context.MODE_PRIVATE)
@@ -677,7 +685,7 @@ class PixivArchiveRepository(private val context: Context) {
         // this index instead of being listed again; every folder listing is a
         // binder round trip into the document provider.
         val walkKey = libraryCacheKey()
-        val previousWalk = loadPixivWalkIndex(context, walkKey)
+        val previousWalk = if (forceFresh) PixivWalkIndex() else loadPixivWalkIndex(context, walkKey)
         val nextWalk = PixivWalkIndex()
         var walkStats = PixivWalkStats()
 
