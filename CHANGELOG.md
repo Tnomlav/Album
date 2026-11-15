@@ -1,5 +1,12 @@
 # Album Changelog
 
+## v1.3.59 - 2026-11-16（Phase 6：传输结果文案独立并可测）
+
+- 新增 TransferSummary：传输结束后的 toast 文案（动作、跳过、失败原因）从 AlbumApp
+  内联拼接中抽出；同时修掉英文模式下"等待确认删除源文件"仍显示中文的问题。
+- 新增 TransferSummaryTest：移动/复制/待确认/失败原因/中英文共 5 个用例。
+- 版本 1.3.59 / VERSION_CODE 312。
+
 ## v1.3.58 - 2026-11-16（Phase 6：快照写入测试与文档入口）
 
 - MediaSnapshotStore 的原子写与 schema 版本判断开放给测试；新增

@@ -2453,24 +2453,18 @@ fun AlbumApp(
                         refresher.request(scheduleThumbnailOptimization = false)
                     }
 
-                    val action = if (english) {
-                        if (request.mode == TransferMode.Copy || sourceDeleteRequestFailed) "Copied"
-                        else if (sourceDeletePending) "Awaiting source deletion confirmation"
-                        else "Moved"
-                    } else if (request.mode == TransferMode.Copy || sourceDeleteRequestFailed) "复制"
-                    else if (sourceDeletePending) "等待确认删除源文件"
-                    else "移动"
-                    val done = completed.size
-                    val details = buildList {
-                        add(if (english) "$action $done items" else "$action $done 项")
-                        if (skipped > 0) add(if (english) "Skipped $skipped items" else "跳过 $skipped 项")
-                        if (failed > 0) {
-                            val reasons = failureCounts.entries.joinToString(if (english) ", " else "、") {
-                                transferFailureLabel(it.key, english) + "×" + it.value
-                            }
-                            add((if (english) "Failed $failed: " else "失败 $failed 项：") + reasons)
-                        }
-                    }.joinToString(if (english) ", " else "，")
+                    val details = transferOutcomeText(
+                        TransferOutcome(
+                            mode = request.mode,
+                            completed = completed.size,
+                            skipped = skipped,
+                            failed = failed,
+                            failures = failureCounts,
+                            sourceDeletePending = sourceDeletePending,
+                            sourceDeleteRequestFailed = sourceDeleteRequestFailed
+                        ),
+                        english
+                    )
                     Toast.makeText(context, details, Toast.LENGTH_SHORT).show()
                 }
                 transferJob = transferJobHandle
@@ -4617,22 +4611,6 @@ private fun Uri.toSharedMediaItem(context: android.content.Context): MediaItem? 
         isDocument = true
     )
 }
-
-/** Human readable reason for a failed copy/move item. */
-private fun transferFailureLabel(
-    failure: com.example.album.data.TransferFailure,
-    english: Boolean
-): String = appText(
-    when (failure) {
-        com.example.album.data.TransferFailure.SourceUnreadable -> "源文件无法读取"
-        com.example.album.data.TransferFailure.DestinationUnwritable -> "目标文件夹不可写"
-        com.example.album.data.TransferFailure.ConflictUnresolved -> "同名冲突无法解决"
-        com.example.album.data.TransferFailure.VerificationFailed -> "写入后校验失败"
-        com.example.album.data.TransferFailure.SourceDeleteFailed -> "源文件删除失败"
-        com.example.album.data.TransferFailure.Unknown -> "未知原因"
-    },
-    english
-)
 
 /** Small floating card: progress plus a cancel button for the running transfer. */
 @Composable
