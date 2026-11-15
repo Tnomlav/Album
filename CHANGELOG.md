@@ -1,5 +1,13 @@
 # Album Changelog
 
+## v1.3.56 - 2026-11-16（Phase 5：壁纸队列收敛成单一来源）
+
+- 新增 WallpaperQueueController：队列的 loaded/uris/order 与保存 Job 从 AlbumApp 搬出，
+  新增/删除/按类型清空全部走 update() 一个入口，避免某次修改忘记落盘。
+- 壁纸页的添加、逐项移除、清空当前类型三处逻辑由控制器接管，README 里的行为不变。
+- AlbumApp 行数 4703 -> 4673（累计 5016 -> 4673）。
+- 版本 1.3.56 / VERSION_CODE 309。
+
 ## v1.3.55 - 2026-11-16（Phase 4：底栏与选择条搬出 AlbumApp）
 
 - 新增 AppBottomBar：选择子栏、页签行、长按拖拽换位与拖动幽灵全部搬进独立文件；

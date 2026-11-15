@@ -142,8 +142,6 @@ import com.example.album.data.displayAddress
 import com.example.album.data.PixivArchiveRepository
 import com.example.album.data.PixivTagIndexPhase
 import com.example.album.data.PixivTagIndexProgress
-import com.example.album.data.WallpaperQueueState
-import com.example.album.data.WallpaperQueueStore
 import com.example.album.data.SlideshowQueueStore
 import com.example.album.data.decodeFavoriteKeys
 import com.example.album.data.encodeFavoriteKeys
@@ -530,6 +528,7 @@ fun AlbumApp(
     val english = LocalAppEnglish.current
     val scope = rememberCoroutineScope()
     val library = remember { MediaLibraryState(context) }
+    val wallpaperQueue = remember(scope, context) { WallpaperQueueController(scope, context) }
     // Single entry point for reloads; see RefreshCoordinator.
     val refresher = remember(scope, library) { RefreshCoordinator(scope, library) }
     DisposableEffect(library) {
@@ -663,9 +662,6 @@ fun AlbumApp(
     var createFolderName by rememberSaveable { mutableStateOf("") }
     var favoriteUris by remember { mutableStateOf(preferences.getStringSet("favorites", emptySet()).orEmpty().toSet()) }
     var favoriteKeys by remember { mutableStateOf(decodeFavoriteKeys(preferences.getString("favorite_keys", null))) }
-    var wallpaperQueueLoaded by remember { mutableStateOf(false) }
-    var wallpaperQueueUris by remember { mutableStateOf<Set<String>>(emptySet()) }
-    var wallpaperQueueSaveJob by remember { mutableStateOf<Job?>(null) }
     var slideshowQueueOpen by rememberSaveable { mutableStateOf(false) }
     var slideshowQueueUris by remember { mutableStateOf<Set<String>>(emptySet()) }
     var slideshowQueueOrder by remember { mutableStateOf<List<String>>(emptyList()) }
@@ -699,41 +695,27 @@ fun AlbumApp(
 
     var selectedUris by remember { mutableStateOf<Set<String>>(emptySet()) }
     var selectedFolders by remember { mutableStateOf<Set<String>>(emptySet()) }
-    var wallpaperQueueOrder by remember { mutableStateOf<List<String>>(emptyList()) }
-    LaunchedEffect(context) {
-        val loaded = withContext(Dispatchers.IO) { WallpaperQueueStore.load(context) }
-        if (!wallpaperQueueLoaded) {
-            wallpaperQueueUris = loaded.uris
-            wallpaperQueueOrder = loaded.order
-            wallpaperQueueLoaded = true
-        }
-    }
-    fun persistWallpaperQueue(uris: Set<String>, order: List<String>) {
-        wallpaperQueueSaveJob?.cancel()
-        wallpaperQueueSaveJob = scope.launch(Dispatchers.IO) {
-            WallpaperQueueStore.save(context, WallpaperQueueState(uris, order))
-        }
-    }
+    LaunchedEffect(Unit) { wallpaperQueue.loadOnce() }
     // Re-applying a wallpaper used to be lost when the app was updated or
     // reinstalled: the launcher drops the live wallpaper and the private queue
     // can be gone. Restore it from the backup copy so one confirmation brings
     // the wallpaper back.
     var wallpaperRestoreAttempted by remember { mutableStateOf(false) }
-    LaunchedEffect(wallpaperQueueLoaded, wallpaperQueueUris, library.loadState, library.images.size, library.videos.size) {
-        if (!wallpaperQueueLoaded || wallpaperRestoreAttempted || library.loadState.isRefreshing) return@LaunchedEffect
+    LaunchedEffect(wallpaperQueue.loaded, wallpaperQueue.uris, library.loadState, library.images.size, library.videos.size) {
+        if (!wallpaperQueue.loaded || wallpaperRestoreAttempted || library.loadState.isRefreshing) return@LaunchedEffect
         val appliedKind = when {
             WallpaperAppliedStore.appliedSignature(context, WallpaperAppliedStore.KIND_DYNAMIC) != null -> WallpaperAppliedStore.KIND_DYNAMIC
             WallpaperAppliedStore.appliedSignature(context, WallpaperAppliedStore.KIND_STATIC) != null -> WallpaperAppliedStore.KIND_STATIC
             else -> null
         }
         val stillActive = appliedKind?.let { WallpaperAppliedStore.isWallpaperActive(context, it) } == true
-        val queuePresent = wallpaperQueueUris.isNotEmpty()
+        val queuePresent = wallpaperQueue.uris.isNotEmpty()
         // Keep a backup of the applied queue even when it was applied before
         // the backup existed: without one a dropped live wallpaper (a package
         // replacement does that on some launchers) cannot be restored.
         if (appliedKind != null && queuePresent) {
-            val ordered = wallpaperQueueOrder.filter { it in wallpaperQueueUris }
-                .ifEmpty { wallpaperQueueUris.toList() }
+            val ordered = wallpaperQueue.order.filter { it in wallpaperQueue.uris }
+                .ifEmpty { wallpaperQueue.uris.toList() }
             withContext(Dispatchers.IO) {
                 if (WallpaperBackup.load(context) == null) {
                     WallpaperBackup.save(context, appliedKind, ordered)
@@ -970,7 +952,7 @@ fun AlbumApp(
             .distinctBy { it.uri.toString() }
     } }
     val wallpaperQueueMedia by remember { derivedStateOf {
-        wallpaperLibraryMedia.filter { it.uri.toString() in wallpaperQueueUris }
+        wallpaperLibraryMedia.filter { it.uri.toString() in wallpaperQueue.uris }
     } }
     val wallpaperSearchMedia by remember(wallpaperLibraryMedia, wallpaperShowVideos) {
         derivedStateOf { wallpaperLibraryMedia.filter { it.isVideo == wallpaperShowVideos } }
@@ -980,13 +962,13 @@ fun AlbumApp(
         wallpaperShowVideos,
         wallpaperSort,
         wallpaperSortDirection,
-        wallpaperQueueOrder
+        wallpaperQueue.order
     ) {
         sortWallpaperMedia(
             media = wallpaperQueueMedia.filter { it.isVideo == wallpaperShowVideos },
             sort = wallpaperSort,
             sortDirection = wallpaperSortDirection,
-            queueOrder = wallpaperQueueOrder
+            queueOrder = wallpaperQueue.order
         )
     }
     val wallpaperApplySignature = remember(wallpaperApplyItems) {
@@ -1021,12 +1003,7 @@ fun AlbumApp(
     }
 
     fun addToWallpaperQueue(items: List<com.example.album.data.MediaItem>) {
-        wallpaperQueueLoaded = true
-        val updated = wallpaperQueueUris + items.map { it.uri.toString() }
-        val updatedOrder = wallpaperQueueOrder + items.map { it.uri.toString() }.filterNot { it in wallpaperQueueOrder }
-        wallpaperQueueUris = updated
-        wallpaperQueueOrder = updatedOrder
-        persistWallpaperQueue(updated, updatedOrder)
+        wallpaperQueue.add(items)
         Toast.makeText(
             context,
             if (english) "Added ${items.size} item(s) to wallpaper queue" else "已加入壁纸队列 ${items.size} 项",
@@ -1035,12 +1012,7 @@ fun AlbumApp(
     }
 
     fun removeFromWallpaperQueue(item: com.example.album.data.MediaItem) {
-        wallpaperQueueLoaded = true
-        val updated = wallpaperQueueUris - item.uri.toString()
-        val updatedOrder = wallpaperQueueOrder - item.uri.toString()
-        wallpaperQueueUris = updated
-        wallpaperQueueOrder = updatedOrder
-        persistWallpaperQueue(updated, updatedOrder)
+        wallpaperQueue.remove(item)
     }
     fun requestWallpaper(item: MediaItem) {
         // The wallpaper flows leave the app (system chooser / live wallpaper
@@ -2871,11 +2843,7 @@ fun AlbumApp(
                             val currentTypeUris = wallpaperQueueMedia
                                 .filter { it.isVideo == wallpaperShowVideos }
                                 .mapTo(mutableSetOf()) { it.uri.toString() }
-                            val updatedUris = wallpaperQueueUris - currentTypeUris
-                            val updatedOrder = wallpaperQueueOrder.filterNot { it in currentTypeUris }
-                            wallpaperQueueUris = updatedUris
-                            wallpaperQueueOrder = updatedOrder
-                            persistWallpaperQueue(updatedUris, updatedOrder)
+                            wallpaperQueue.removeAll(currentTypeUris)
                         }
                     }
                 },
@@ -3891,7 +3859,7 @@ fun AlbumApp(
                         folderLayout = wallpaperFolderLayout,
                         sort = wallpaperSort,
                         sortDirection = wallpaperSortDirection,
-                        queueOrder = wallpaperQueueOrder,
+                        queueOrder = wallpaperQueue.order,
                         onOpenMedia = ::openMedia,
                         onToggleSelection = { item ->
                             val key = item.uri.toString()
