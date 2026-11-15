@@ -20,7 +20,7 @@ object MediaSnapshotStore {
      * back to a full scan. Older versions are read as-is (the fields are
      * additive), so upgrading does not lose the instant first paint.
      */
-    private const val SCHEMA_VERSION = 2
+    internal const val SCHEMA_VERSION = 2
 
     data class Snapshot(
         val images: List<MediaItem>,
@@ -62,7 +62,7 @@ object MediaSnapshotStore {
             return@runCatching null
         }
         val root = JSONObject(file.readText())
-        if (root.optInt("version", 0) > SCHEMA_VERSION) return@runCatching null
+        if (!snapshotIsReadable(root.optInt("version", 0))) return@runCatching null
         Snapshot(
             images = decode(root.optJSONArray("images")),
             videos = decode(root.optJSONArray("videos")),
@@ -76,7 +76,7 @@ object MediaSnapshotStore {
      * Writes through a temporary file and fsyncs it before the rename, so a
      * process kill or a full disk cannot leave a half-written snapshot behind.
      */
-    private fun writeAtomically(file: File, contents: String) {
+    internal fun writeAtomically(file: File, contents: String) {
         val temporary = File(file.parentFile, file.name + ".tmp")
         java.io.FileOutputStream(temporary).use { output ->
             output.write(contents.toByteArray())
@@ -115,6 +115,9 @@ object MediaSnapshotStore {
         }
         return array
     }
+
+    /** A snapshot written by a newer app version must not be read as if it were ours. */
+    internal fun snapshotIsReadable(version: Int): Boolean = version <= SCHEMA_VERSION
 
     private fun decode(array: JSONArray?): List<MediaItem> {
         if (array == null) return emptyList()

@@ -1,5 +1,12 @@
 # Album Changelog
 
+## v1.3.58 - 2026-11-16（Phase 6：快照写入测试与文档入口）
+
+- MediaSnapshotStore 的原子写与 schema 版本判断开放给测试；新增
+  MediaSnapshotStoreFileTest（写入、覆盖、无残留临时文件、版本可读性）。
+- README 项目状态增加重建状态文档入口。
+- 版本 1.3.58 / VERSION_CODE 311。
+
 ## v1.3.57 - 2026-11-16（Phase 5：编辑器撤销栈独立，重建状态文档）
 
 - 新增 EditorHistory<T>：撤销/重做规则与 60 步上限从 ImageEditorDialog 里抽出来，
