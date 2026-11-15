@@ -216,7 +216,7 @@ import java.util.Locale
  * makes a warm walk finish in a few hundred milliseconds, and a spinner that
  * comes and goes that fast reads as "nothing happened".
  */
-private enum class MainTab(val label: String, val icon: ImageVector) {
+enum class MainTab(val label: String, val icon: ImageVector) {
     Albums("相册", Icons.Outlined.Collections),
     Videos("视频", Icons.Outlined.VideoLibrary),
     Timeline("时间轴", Icons.Outlined.WatchLater),
@@ -1070,11 +1070,6 @@ fun AlbumApp(
         ?: MainTab.Albums
     val primaryTab = homeTab
     var lastRootBackAt by rememberSaveable { mutableLongStateOf(0L) }
-    var bottomBarWidth by remember { mutableIntStateOf(0) }
-    var draggedNavTab by remember { mutableStateOf<MainTab?>(null) }
-    var navDragX by remember { mutableFloatStateOf(0f) }
-    var navDragY by remember { mutableFloatStateOf(0f) }
-    var suppressNavClickUntil by remember { mutableLongStateOf(0L) }
     val currentTabOrder by rememberUpdatedState(tabOrder)
     val hapticFeedback = LocalHapticFeedback.current
     val visibleImages by remember { derivedStateOf {
@@ -3251,231 +3246,58 @@ fun AlbumApp(
             }
         },
         bottomBar = {
-            androidx.compose.foundation.layout.Column {
-                if (selectionMode) SelectionSubBar(
-                    selected = if (selectingFolders) selectedFolders.size else selectedItemsForAction.size,
-                    total = if (selectingFolders) selectionMedia.map { it.folder }.distinct().size else selectionMedia.size,
-                    onSelectAll = {
-                        if (selectingFolders) {
-                            val all = selectionMedia.mapTo(mutableSetOf()) { it.folder }
-                            selectedFolders = if (all.isNotEmpty() && all.all { it in selectedFolders }) {
-                                selectedFolders - all
-                            } else {
-                                selectedFolders + all
-                            }
-                        } else {
-                            val visibleKeys = selectionMedia.mapTo(mutableSetOf()) { it.uri.toString() }
-                            selectedUris = if (visibleKeys.isNotEmpty() && visibleKeys.all { it in selectedUris }) {
-                                selectedUris - visibleKeys
-                            } else {
-                                selectedUris + visibleKeys
-                            }
-                        }
-                    },
-                    chromeAlpha = pageChromeAlpha
-                )
-            AnimatedVisibility(
-                visible = openedFolder == null && !wallpaperManagerOpen,
-                enter = slideInVertically(tween(170, easing = CubicBezierEasing(.22f, .8f, .28f, 1f))) { it } + fadeIn(tween(120)),
-                // Leaving the page hides the bar at once: the slide-out used to
-                // still be running while the folder page was already visible.
-                exit = ExitTransition.None
-            ) {
-            Surface(
-                modifier = Modifier.alpha(pageChromeAlpha),
-                color = androidx.compose.material3.MaterialTheme.colorScheme.surface
-            ) {
-                Box(
-                    modifier = Modifier.fillMaxWidth()
-                        .windowInsetsPadding(WindowInsets.navigationBars)
-                        .height(VaultDimens.BottomBarHeight)
-                        .onSizeChanged { bottomBarWidth = it.width }
-                ) {
-                val bottomTabs = enabledMainTabs(pixivTabEnabled)
-                val bottomTabWidth = bottomBarWidth.toFloat() / bottomTabs.size.coerceAtLeast(1)
-                val navDragThresholdPx = with(androidx.compose.ui.platform.LocalDensity.current) { 12.dp.toPx() }
-                bottomTabs.forEach { tab -> key(tab) {
-                    val selected = selectedTab == tab
-                    val slot = tabOrder.indexOf(tab).coerceAtLeast(0)
-                    val slotX by animateFloatAsState(
-                        targetValue = slot * bottomTabWidth,
-                        animationSpec = tween(180, easing = CubicBezierEasing(.22f, .8f, .28f, 1f)),
-                        label = "nav-slot-${tab.name}"
-                    )
-                    val sourceAlpha by animateFloatAsState(
-                        targetValue = if (draggedNavTab == tab) .25f else 1f,
-                        animationSpec = tween(120),
-                        label = "nav-drag-alpha-${tab.name}"
-                    )
-                    val navTint by animateColorAsState(
-                        if (selected) androidx.compose.material3.MaterialTheme.colorScheme.primary else androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
-                        tween(180),
-                        label = "nav-tint-${tab.name}"
-                    )
-                    val iconOffset by animateDpAsState(if (selected) 0.dp else 6.dp, tween(240, easing = CubicBezierEasing(.22f, .8f, .28f, 1f)), label = "nav-offset-${tab.name}")
-                    val labelAlpha by animateFloatAsState(if (selected) 1f else 0f, tween(140), label = "nav-label-${tab.name}")
-                    Column(
-                        modifier = Modifier.fillMaxWidth(1f / bottomTabs.size).fillMaxHeight()
-                            .graphicsLayer {
-                                translationX = slotX
-                                alpha = sourceAlpha
-                            }
-                            .pointerInput(tab, navReorderEnabled, bottomTabWidth) {
-                                if (!navReorderEnabled || bottomTabWidth <= 0) return@pointerInput
-                                var horizontalDragDistance = 0f
-                                detectDragGesturesAfterLongPress(
-                                    onDragStart = { position ->
-                                        val index = currentTabOrder.indexOf(tab).coerceAtLeast(0)
-                                        draggedNavTab = tab
-                                        navDragX = index * bottomTabWidth + position.x
-                                        navDragY = position.y
-                                        horizontalDragDistance = 0f
-                                        suppressNavClickUntil = android.os.SystemClock.elapsedRealtime() + 400L
-                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    },
-                                    onDrag = { change, amount ->
-                                        change.consume()
-                                        horizontalDragDistance += kotlin.math.abs(amount.x)
-                                        navDragX = (navDragX + amount.x).coerceIn(0f, bottomBarWidth.toFloat())
-                                        navDragY += amount.y
-                                        // Do not reorder on the small involuntary movement that often
-                                        // follows a long press. Reordering starts only after a real drag.
-                                        if (horizontalDragDistance < navDragThresholdPx) return@detectDragGesturesAfterLongPress
-                                        val order = currentTabOrder
-                                        val from = order.indexOf(tab)
-                                        val to = (navDragX / bottomTabWidth).toInt().coerceIn(order.indices)
-                                        if (from >= 0 && from != to) {
-                                            val reordered = order.toMutableList().apply {
-                                                val moved = removeAt(from)
-                                                add(to, moved)
-                                            }
-                                             tabOrder = reordered
-                                             albumSettings.edit().putString("nav_order", reordered.joinToString(",") { it.name }).apply()
-                                         }
-                                     },
-                                    onDragEnd = { draggedNavTab = null },
-                                    onDragCancel = { draggedNavTab = null }
-                                )
-                            }
-                            .clickable(
-                                interactionSource = remember(tab) { MutableInteractionSource() },
-                                indication = null
-                            ) {
-                            if (android.os.SystemClock.elapsedRealtime() < suppressNavClickUntil) return@clickable
-                            if (tab != selectedTab) {
-                                selectMainTab(tab)
-                                return@clickable
-                            }
-                            val atTop = when (tab) {
-                                MainTab.Timeline -> timelinePageAtTop
-                                MainTab.Albums, MainTab.Videos, MainTab.Pixiv -> albumPageAtTop
-                                else -> true
-                            }
-                            if (!atTop) {
-                                // Reset the stored position as well: any grid
-                                // that is recreated later starts at the top,
-                                // so the jump happens in one step.
-                                if (tab == MainTab.Timeline) {
-                                    timelineFirstVisibleItem = 0
-                                    timelineFirstVisibleOffset = 0
-                                } else {
-                                    albumFirstVisibleItem = 0
-                                    albumFirstVisibleOffset = 0
-                                }
-                                scrollToTopToken = System.nanoTime()
-                            } else {
-                                // Already at the top: a second tap refreshes.
-                                // The library pages replay the pull-to-refresh
-                                // gesture so the reload is visible and matches
-                                // what a finger pull does.
-                                when (tab) {
-                                    MainTab.Pixiv -> pixivPage.request(visible = { true }, defaultItems = defaultPixivImages)
-                                    MainTab.Albums, MainTab.Videos, MainTab.Timeline ->
-                                        pullRefreshToken = System.nanoTime()
-                                    else -> Unit
-                                }
-                            }
-                        },
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center
-                    ) {
-                        if (tab == MainTab.Pixiv) {
-                            Box(
-                                modifier = Modifier.height(24.dp).width(24.dp).offset { IntOffset(0, iconOffset.roundToPx()) }.background(Color.White),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    tabIcon(tab),
-                                    contentDescription = tabLabel(tab),
-                                    tint = navTint,
-                                    modifier = Modifier.fillMaxSize().graphicsLayer {
-                                        scaleX = 1.45f
-                                        scaleY = 1.45f
-                                    }
-                                )
-                            }
-                        } else {
-                            Icon(
-                                tabIcon(tab),
-                                contentDescription = tabLabel(tab),
-                                tint = navTint,
-                                modifier = Modifier.height(24.dp).offset { IntOffset(0, iconOffset.roundToPx()) }
-                            )
-                        }
-                        Text(
-                            tabLabel(tab),
-                            color = navTint,
-                            fontSize = VaultDimens.BottomLabel,
-                            maxLines = 1,
-                            softWrap = false,
-                            modifier = Modifier.padding(top = 2.dp).alpha(labelAlpha)
-                        )
+            AppBottomBar(
+                selectedTab = selectedTab,
+                tabs = enabledMainTabs(pixivTabEnabled),
+                tabOrder = tabOrder,
+                navReorderEnabled = navReorderEnabled,
+                selectionMode = selectionMode,
+                selectingFolders = selectingFolders,
+                selectedFolders = selectedFolders,
+                selectedUris = selectedUris,
+                selectedItemsForAction = selectedItemsForAction,
+                selectionMedia = selectionMedia,
+                chromeAlpha = pageChromeAlpha,
+                barVisible = openedFolder == null && !wallpaperManagerOpen,
+                icon = { tabIcon(it) },
+                label = { tabLabel(it) },
+                onSelectTab = { selectMainTab(it) },
+                onReselectTab = { tab ->
+                    val atTop = when (tab) {
+                        MainTab.Timeline -> timelinePageAtTop
+                        MainTab.Albums, MainTab.Videos, MainTab.Pixiv -> albumPageAtTop
+                        else -> true
                     }
-                } }
-                draggedNavTab?.let { dragged ->
-                    val ghostWidth = 72.dp
-                    val ghostHeight = 56.dp
-                    val density = androidx.compose.ui.platform.LocalDensity.current
-                    val ghostWidthPx = with(density) { ghostWidth.toPx() }
-                    val ghostHeightPx = with(density) { ghostHeight.toPx() }
-                    val ghostSelected = selectedTab == dragged
-                    val ghostTint = if (ghostSelected) {
-                        androidx.compose.material3.MaterialTheme.colorScheme.primary
+                    if (!atTop) {
+                        if (tab == MainTab.Timeline) {
+                            timelineFirstVisibleItem = 0
+                            timelineFirstVisibleOffset = 0
+                        } else {
+                            albumFirstVisibleItem = 0
+                            albumFirstVisibleOffset = 0
+                        }
+                        scrollToTopToken = System.nanoTime()
                     } else {
-                        androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant
-                    }
-                    Surface(
-                        modifier = Modifier
-                            .offset {
-                                IntOffset(
-                                    (navDragX - ghostWidthPx / 2f).roundToInt(),
-                                    (navDragY - ghostHeightPx / 2f).roundToInt()
-                                )
-                            }
-                            .width(ghostWidth)
-                            .height(ghostHeight)
-                            .graphicsLayer {
-                                scaleX = 1.08f
-                                scaleY = 1.08f
-                            }
-                            .zIndex(10f),
-                        shape = RoundedCornerShape(8.dp),
-                        color = androidx.compose.material3.MaterialTheme.colorScheme.surface.copy(alpha = .94f),
-                        shadowElevation = 6.dp
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center
-                        ) {
-                            Icon(dragged.icon, contentDescription = null, tint = ghostTint, modifier = Modifier.height(25.dp))
-                            Text(tabLabel(dragged), color = ghostTint, fontSize = VaultDimens.BottomLabel, maxLines = 1)
+                        when (tab) {
+                            MainTab.Pixiv -> pixivPage.request(
+                                visible = { true },
+                                defaultItems = defaultPixivImages
+                            )
+                            MainTab.Albums, MainTab.Videos, MainTab.Timeline ->
+                                pullRefreshToken = System.nanoTime()
+                            else -> Unit
                         }
                     }
-                }
-                }
-            }
-            }
-            }
+                },
+                onReorder = { order ->
+                    tabOrder = order
+                    albumSettings.edit()
+                        .putString("nav_order", order.joinToString(",") { it.name })
+                        .apply()
+                },
+                onSelectedFoldersChange = { selectedFolders = it },
+                onSelectedUrisChange = { selectedUris = it }
+            )
         },
         ) { padding ->
         Box(

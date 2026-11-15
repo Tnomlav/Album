@@ -1,5 +1,15 @@
 # Album Changelog
 
+## v1.3.55 - 2026-11-16（Phase 4：底栏与选择条搬出 AlbumApp）
+
+- 新增 AppBottomBar：选择子栏、页签行、长按拖拽换位与拖动幽灵全部搬进独立文件；
+  拖拽用的 5 个状态（宽度、拖动页签、X/Y、点击抑制时间）也随之下沉，AlbumApp 不再持有。
+- 页签点击语义留在调用方：选中新页签、再点当前页签（回顶/刷新）由 AlbumApp 传入，
+  底栏只负责绘制和拖拽；换位保存仍走原来的 nav_order 偏好。
+- MainTab 从文件私有改为公开（跨文件使用），VaultDimens 引用改到 theme 包。
+- AlbumApp 行数 4881 -> 4703，累计 5016 -> 4703。
+- 版本 1.3.55 / VERSION_CODE 308。
+
 ## v1.3.54 - 2026-11-16（Phase 4 起：Pixiv 页加载状态搬出 AlbumApp）
 
 - 新增 PixivPageController：快照、文件夹名、walk 统计、标签索引、版本号与下拉刷新
