@@ -514,7 +514,8 @@ class MediaRepository(private val context: Context) {
         destinationFolder: String,
         conflictPolicy: ConflictPolicy,
         preserveModifiedDate: Boolean,
-        mode: TransferMode = TransferMode.Copy
+        mode: TransferMode = TransferMode.Copy,
+        onProgress: ((Long) -> Unit)? = null
     ): TransferResult = withContext(Dispatchers.IO) {
         try {
         // Prefer a provider-side MediaStore move before consulting SAF. A
@@ -531,9 +532,9 @@ class MediaRepository(private val context: Context) {
             localFolders.findAuthorizedDirectory(destinationFolder)?.let { directory ->
             if (mode == TransferMode.Move) {
                 moveToDocumentDirectory(item, directory, conflictPolicy)?.let { return@withContext it }
-                return@withContext moveByCopyAndPermanentDelete(item, directory, conflictPolicy)
+                return@withContext moveByCopyAndPermanentDelete(item, directory, conflictPolicy, onProgress)
             }
-            return@withContext transferToDocumentDirectory(item, directory, conflictPolicy)
+            return@withContext transferToDocumentDirectory(item, directory, conflictPolicy, onProgress)
         }
         findWritablePhysicalDirectory(destinationFolder)?.let { directory ->
             if (mode == TransferMode.Move && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !item.isDocument) {
@@ -572,7 +573,7 @@ class MediaRepository(private val context: Context) {
                         movedDirectly = true
                     )
                 }
-                return@withContext moveByCopyAndPermanentDelete(item, destination, conflictPolicy)
+                return@withContext moveByCopyAndPermanentDelete(item, destination, conflictPolicy, onProgress)
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 val root = if (item.isVideo) Environment.DIRECTORY_MOVIES else Environment.DIRECTORY_PICTURES
@@ -586,11 +587,11 @@ class MediaRepository(private val context: Context) {
                     // management access. Keep Move semantics by copying into
                     // MediaStore here, then let the caller remove the source.
                     return@withContext transferToMediaStoreDirectory(
-                        item, collection, relativePath, conflictPolicy, preserveModifiedDate
+                        item, collection, relativePath, conflictPolicy, preserveModifiedDate, onProgress
                     )
                 }
             }
-            return@withContext transferToPhysicalDirectory(item, directory, conflictPolicy, preserveModifiedDate)
+            return@withContext transferToPhysicalDirectory(item, directory, conflictPolicy, preserveModifiedDate, onProgress)
         }
         val resolver = context.contentResolver
         val root = if (item.isVideo) Environment.DIRECTORY_MOVIES else Environment.DIRECTORY_PICTURES
@@ -646,7 +647,7 @@ class MediaRepository(private val context: Context) {
                 resolver.openOutputStream(target).use { output ->
                     requireNotNull(input)
                     requireNotNull(output)
-                    input.copyTo(output)
+                    copyWithProgress(input, output, onProgress)
                 }
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -680,7 +681,8 @@ class MediaRepository(private val context: Context) {
         collection: android.net.Uri,
         relativePath: String,
         conflictPolicy: ConflictPolicy,
-        preserveModifiedDate: Boolean
+        preserveModifiedDate: Boolean,
+        onProgress: ((Long) -> Unit)? = null
     ): TransferResult {
         val resolver = context.contentResolver
         val existing = findDestination(collection, relativePath, item.name)
@@ -693,11 +695,10 @@ class MediaRepository(private val context: Context) {
         val targetName = if (existing != null && conflictPolicy == ConflictPolicy.KeepBoth) {
             availableName(collection, relativePath, item.name)
         } else item.name
-        if (existing != null && conflictPolicy == ConflictPolicy.Overwrite &&
-            runCatching { resolver.delete(existing, null, null) }.getOrDefault(0) == 0
-        ) return TransferResult(item, success = false)
+        val replacing = existing != null && conflictPolicy == ConflictPolicy.Overwrite
+        val insertName = if (replacing) temporaryTransferName(targetName) else targetName
         val values = ContentValues().apply {
-            put(MediaStore.MediaColumns.DISPLAY_NAME, targetName)
+            put(MediaStore.MediaColumns.DISPLAY_NAME, insertName)
             put(MediaStore.MediaColumns.MIME_TYPE, transferMimeType(item))
             if (preserveModifiedDate) {
                 put(MediaStore.MediaColumns.DATE_MODIFIED, item.dateTaken / 1000L)
@@ -708,24 +709,33 @@ class MediaRepository(private val context: Context) {
             put(MediaStore.MediaColumns.IS_PENDING, 1)
         }
         val target = resolver.insert(collection, values)
-            ?: return TransferResult(item, success = false)
+            ?: return TransferResult(item, success = false, failure = TransferFailure.DestinationUnwritable)
         return runCatching {
             resolver.openInputStream(item.uri).use { input ->
                 resolver.openOutputStream(target).use { output ->
                     requireNotNull(input)
                     requireNotNull(output)
-                    input.copyTo(output)
+                    copyWithProgress(input, output, onProgress)
                 }
             }
             resolver.update(target, ContentValues().apply {
                 put(MediaStore.MediaColumns.IS_PENDING, 0)
             }, null, null)
+            if (replacing) {
+                if (resolver.delete(existing!!, null, null) <= 0) {
+                    throw IOException("Unable to replace the existing file")
+                }
+                resolver.update(target, ContentValues().apply {
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, targetName)
+                }, null, null)
+            }
             TransferResult(item, success = true, targetName = targetName)
         }.getOrElse {
             resolver.delete(target, null, null)
-            TransferResult(item, success = false)
+            TransferResult(item, success = false, failure = TransferFailure.Unknown)
         }
     }
+
 
     private fun tryDirectMediaStoreMove(
         item: MediaItem,
@@ -837,7 +847,8 @@ class MediaRepository(private val context: Context) {
     private fun moveByCopyAndPermanentDelete(
         item: MediaItem,
         directory: DocumentFile,
-        conflictPolicy: ConflictPolicy
+        conflictPolicy: ConflictPolicy,
+        onProgress: ((Long) -> Unit)? = null
     ): TransferResult {
         if (!directory.isDirectory || !directory.canWrite()) {
             return TransferResult(item, success = false, failure = TransferFailure.DestinationUnwritable)
@@ -859,7 +870,7 @@ class MediaRepository(private val context: Context) {
                 context.contentResolver.openOutputStream(target.uri).use { output ->
                     requireNotNull(input)
                     requireNotNull(output)
-                    input.copyTo(output)
+                    copyWithProgress(input, output, onProgress)
                 }
             }
             if (!target.exists()) throw IOException("Target file was not created")
@@ -872,8 +883,6 @@ class MediaRepository(private val context: Context) {
                 ) ?: throw IOException("Unable to rename the new copy")
             }
             if (!deleteUriPermanently(item.uri)) throw IOException("Unable to permanently remove original")
-            // The source has already been removed here. Tell the caller not to
-            // issue a second MediaStore/SAF delete request.
             TransferResult(item, success = true, targetName = targetChoice.name, movedDirectly = true)
         }.getOrElse { error ->
             deleteUriPermanently(finalUri)
@@ -888,6 +897,7 @@ class MediaRepository(private val context: Context) {
             )
         }
     }
+
 
 
     private fun findPersistedDocumentParent(targetUri: Uri): DocumentFile? {
@@ -917,7 +927,8 @@ class MediaRepository(private val context: Context) {
     private fun transferToDocumentDirectory(
         item: MediaItem,
         directory: DocumentFile,
-        conflictPolicy: ConflictPolicy
+        conflictPolicy: ConflictPolicy,
+        onProgress: ((Long) -> Unit)? = null
     ): TransferResult {
         if (!directory.isDirectory || !directory.canWrite()) {
             return TransferResult(item, success = false, failure = TransferFailure.DestinationUnwritable)
@@ -933,8 +944,6 @@ class MediaRepository(private val context: Context) {
         }
         val targetName = targetChoice.name
         val replacing = existing != null && conflictPolicy == ConflictPolicy.Overwrite
-        // Write under a temporary name, then replace the old file only after the
-        // copy is complete.
         val workingName = if (replacing) temporaryTransferName(targetName) else targetName
         val target = runCatching {
             directory.createFile(transferMimeType(item), workingName)
@@ -944,7 +953,7 @@ class MediaRepository(private val context: Context) {
                 context.contentResolver.openOutputStream(target.uri).use { output ->
                     requireNotNull(input)
                     requireNotNull(output)
-                    input.copyTo(output)
+                    copyWithProgress(input, output, onProgress)
                 }
             }
             if (!target.exists()) throw IOException("Target file was not created")
@@ -959,6 +968,7 @@ class MediaRepository(private val context: Context) {
             TransferResult(item, success = false, failure = TransferFailure.Unknown)
         }
     }
+
 
 
     private fun findWritablePhysicalDirectory(path: String): File? {
@@ -985,7 +995,8 @@ class MediaRepository(private val context: Context) {
         item: MediaItem,
         directory: File,
         conflictPolicy: ConflictPolicy,
-        preserveModifiedDate: Boolean
+        preserveModifiedDate: Boolean,
+        onProgress: ((Long) -> Unit)? = null
     ): TransferResult {
         val targetChoice = resolveTransferTargetName(
             item.name,
@@ -997,32 +1008,24 @@ class MediaRepository(private val context: Context) {
         }
         val targetName = targetChoice.name
         val target = File(directory, targetName)
-        val replacing = target.exists() && conflictPolicy == ConflictPolicy.Overwrite
-        val working = if (replacing) File(directory, temporaryTransferName(targetName)) else target
+        val timestamp = if (preserveModifiedDate) {
+            if (item.dateModified > 0L) item.dateModified * 1000L else item.dateTaken
+        } else {
+            0L
+        }
         return try {
-            context.contentResolver.openInputStream(item.uri).use { input ->
-                working.outputStream().use { output ->
-                    requireNotNull(input)
-                    requireNotNull(output)
-                    input.copyTo(output)
-                }
+            val written = context.contentResolver.openInputStream(item.uri).use { input ->
+                requireNotNull(input)
+                writeFileReplacing(target, input, onProgress, timestamp)
             }
-            if (!working.isFile) throw IOException("Target file was not created")
-            if (replacing) {
-                if (!target.delete()) throw IOException("Unable to replace the existing file")
-                if (!working.renameTo(target)) throw IOException("Unable to rename the new copy")
-            }
-            if (preserveModifiedDate) {
-                val timestamp = if (item.dateModified > 0L) item.dateModified * 1000L else item.dateTaken
-                if (timestamp > 0L) target.setLastModified(timestamp)
-            }
+            if (!written) throw IOException("Target file was not created")
             MediaScannerConnection.scanFile(context, arrayOf(target.absolutePath), arrayOf(transferMimeType(item)), null)
             TransferResult(item, success = true, targetName = targetName)
         } catch (_: Exception) {
-            runCatching { working.delete() }
             TransferResult(item, success = false, failure = TransferFailure.Unknown)
         }
     }
+
 
 
     private fun transferMimeType(item: MediaItem): String {

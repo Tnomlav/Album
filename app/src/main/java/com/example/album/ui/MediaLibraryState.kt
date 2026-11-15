@@ -676,15 +676,26 @@ class MediaLibraryState(context: Context) {
         destinationFolder: String,
         conflictPolicy: ConflictPolicy,
         preserveModifiedDate: Boolean,
-        mode: com.example.album.data.TransferMode = com.example.album.data.TransferMode.Copy
+        mode: com.example.album.data.TransferMode = com.example.album.data.TransferMode.Copy,
+        onProgress: (Float) -> Unit = {}
     ): List<TransferResult> = coroutineScope {
         // SAF and MediaStore both benefit from a small amount of parallelism,
         // while unbounded jobs make real devices slower due to I/O contention.
         val gate = Semaphore(3)
+        // Bytes are summed per item so three parallel copies still produce one
+        // monotonic overall percentage.
+        val totalBytes = items.sumOf { it.size.coerceAtLeast(1L) }.coerceAtLeast(1L)
+        val doneBytes = java.util.concurrent.atomic.AtomicLong(0L)
         items.map { item ->
             async {
                 gate.withPermit {
-                    repository.transfer(item, destinationFolder, conflictPolicy, preserveModifiedDate, mode)
+                    var reported = 0L
+                    repository.transfer(item, destinationFolder, conflictPolicy, preserveModifiedDate, mode) { copied ->
+                        val delta = (copied - reported).coerceAtLeast(0L)
+                        reported = copied
+                        val done = doneBytes.addAndGet(delta.coerceAtMost(item.size.coerceAtLeast(1L)))
+                        onProgress((done.toFloat() / totalBytes).coerceIn(0f, 1f))
+                    }
                 }
             }
         }.awaitAll()

@@ -53,6 +53,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.statusBars
@@ -587,6 +589,9 @@ fun AlbumApp(
     // The editor temporarily replaces the viewer; retain the item for return.
     var editorReturnMedia by remember { mutableStateOf<MediaItem?>(null) }
     var transferRequest by remember { mutableStateOf<TransferRequest?>(null) }
+    // Live percentage of the running copy/move, and its job so it can be cancelled.
+    var transferProgress by remember { mutableStateOf<Float?>(null) }
+    var transferJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     var pixivArchiveMoveUris by remember { mutableStateOf<Set<String>>(emptySet()) }
     var pendingDeletes by remember { mutableStateOf<List<MediaItem>>(emptyList()) }
     var pendingOptimisticDelete by remember { mutableStateOf<List<MediaItem>>(emptyList()) }
@@ -2410,6 +2415,7 @@ fun AlbumApp(
                 // Leave the destination screen immediately. The transfer and
                 // any follow-up refresh/delete work continue in this scope.
                 transferRequest = null
+                transferProgress = 0f
                 val optimisticMoveItems =
                     if (request.mode == TransferMode.Move) request.items.distinctBy { it.uri } else emptyList()
                 if (optimisticMoveItems.isNotEmpty()) {
@@ -2431,16 +2437,26 @@ fun AlbumApp(
                         Toast.LENGTH_LONG
                     ).show()
                 }
-                scope.launch(transferErrorHandler) {
+                val transferJobHandle = scope.launch(transferErrorHandler) {
                     // Let Compose commit the destination-page exit before
                     // starting transfer work and its media refresh.
                     yield()
                     val archiveMoveUris = pixivArchiveMoveUris
-                    val results = library.transfer(request.items, destination, policy, preserveDate, request.mode)
+                    val results = library.transfer(
+                        request.items,
+                        destination,
+                        policy,
+                        preserveDate,
+                        request.mode,
+                        onProgress = { transferProgress = it }
+                    )
                     val completed = results.filter { it.success && !it.skipped }
                     val completedItems = completed.map { it.item }
                     val skipped = results.count { it.skipped }
                     val failed = results.count { !it.success }
+                    val failureCounts = results.filter { !it.success }
+                        .groupingBy { it.failure ?: com.example.album.data.TransferFailure.Unknown }
+                        .eachCount()
                     if (request.mode == TransferMode.Move) {
                         library.restore(
                             results.filter { !it.success || it.skipped }
@@ -2591,10 +2607,17 @@ fun AlbumApp(
                     val details = buildList {
                         add(if (english) "$action $done items" else "$action $done 项")
                         if (skipped > 0) add(if (english) "Skipped $skipped items" else "跳过 $skipped 项")
-                        if (failed > 0) add(if (english) "Failed $failed items" else "失败 $failed 项")
+                        if (failed > 0) {
+                            val reasons = failureCounts.entries.joinToString(if (english) ", " else "、") {
+                                transferFailureLabel(it.key, english) + "×" + it.value
+                            }
+                            add((if (english) "Failed $failed: " else "失败 $failed 项：") + reasons)
+                        }
                     }.joinToString(if (english) ", " else "，")
                     Toast.makeText(context, details, Toast.LENGTH_SHORT).show()
                 }
+                transferJob = transferJobHandle
+                transferJobHandle.invokeOnCompletion { transferProgress = null }
             }
         )
         return
@@ -4607,13 +4630,30 @@ fun AlbumApp(
     }
     // Held back while a system delete dialog is up, so the two prompts never
     // stack and the retry cannot be swallowed by externalDeleteRequestInFlight.
+    transferProgress?.let { progress ->
+        TransferProgressPopup(progress, english) {
+            transferJob?.cancel()
+            transferJob = null
+            transferProgress = null
+            scope.launch {
+                library.refresh(library.permissionGranted, scheduleThumbnailOptimization = false)
+            }
+        }
+    }
+
     if (!externalDeleteRequestInFlight) pendingUnbackedDelete?.let { unbacked ->
         VaultConfirmationSheet(
             title = if (english) "Cannot move to Trash" else "无法移到回收站",
             body = if (english) {
-                "${unbacked.size} item(s) could not be copied into the Trash, usually because there is not enough free space. The originals are still here. Delete them for good instead?"
+                (if (unbacked.size == 1) "${unbacked.first().name} could not be"
+                else "${unbacked.size} items could not be") +
+                    " copied into the Trash, usually because there is not enough free space. " +
+                    "The originals are still here. Delete them for good instead?"
             } else {
-                "${unbacked.size} 项无法复制到回收站，通常是可用空间不足。原文件仍然保留。要改为永久删除吗？"
+                (if (unbacked.size == 1) "「${unbacked.first().name}」"
+                else "${unbacked.size} 项（" + unbacked.take(3).joinToString("、") { it.name } +
+                    (if (unbacked.size > 3) "…" else "") + "）") +
+                    "无法复制到回收站，通常是可用空间不足。原文件仍然保留。要改为永久删除吗？"
             },
             confirmLabel = if (english) "Delete permanently" else "永久删除",
             danger = true,
@@ -4894,4 +4934,56 @@ private fun Uri.toSharedMediaItem(context: android.content.Context): MediaItem? 
         isVideo = mime.startsWith("video/"),
         isDocument = true
     )
+}
+
+/** Human readable reason for a failed copy/move item. */
+private fun transferFailureLabel(
+    failure: com.example.album.data.TransferFailure,
+    english: Boolean
+): String = appText(
+    when (failure) {
+        com.example.album.data.TransferFailure.SourceUnreadable -> "源文件无法读取"
+        com.example.album.data.TransferFailure.DestinationUnwritable -> "目标文件夹不可写"
+        com.example.album.data.TransferFailure.ConflictUnresolved -> "同名冲突无法解决"
+        com.example.album.data.TransferFailure.VerificationFailed -> "写入后校验失败"
+        com.example.album.data.TransferFailure.SourceDeleteFailed -> "源文件删除失败"
+        com.example.album.data.TransferFailure.Unknown -> "未知原因"
+    },
+    english
+)
+
+/** Small floating card: progress plus a cancel button for the running transfer. */
+@Composable
+private fun TransferProgressPopup(progress: Float, english: Boolean, onCancel: () -> Unit) {
+    androidx.compose.ui.window.Popup(
+        alignment = Alignment.BottomCenter,
+        properties = androidx.compose.ui.window.PopupProperties(focusable = false)
+    ) {
+        Surface(
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp,
+            shadowElevation = 8.dp,
+            modifier = Modifier.padding(24.dp).widthIn(max = 360.dp)
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                androidx.compose.material3.CircularProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier.size(22.dp),
+                    strokeWidth = 2.dp
+                )
+                Spacer(Modifier.width(14.dp))
+                Text(
+                    if (english) "Working ${(progress * 100).toInt()}%" else "正在处理 ${(progress * 100).toInt()}%",
+                    modifier = Modifier.weight(1f)
+                )
+                androidx.compose.material3.TextButton(onClick = onCancel) {
+                    Text(if (english) "Cancel" else "取消")
+                }
+            }
+        }
+    }
 }
