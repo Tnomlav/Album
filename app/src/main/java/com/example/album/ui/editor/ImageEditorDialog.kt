@@ -165,8 +165,7 @@ fun ImageEditorDialog(
     var preview by remember(item.uri) { mutableStateOf(ThumbnailRepository.peek(item, 360, preferences)) }
     var source by remember(item.uri) { mutableStateOf<Bitmap?>(null) }
     var state by remember { mutableStateOf(ImageEditState()) }
-    var undoStack by remember { mutableStateOf<List<EditorHistorySnapshot>>(emptyList()) }
-    var redoStack by remember { mutableStateOf<List<EditorHistorySnapshot>>(emptyList()) }
+    val history = remember { EditorHistory<EditorHistorySnapshot>() }
     var panel by remember { mutableStateOf(EditorPanel.Compose) }
     var textSubtab by remember { mutableIntStateOf(0) }
     var resolutionOpen by remember { mutableStateOf(false) }
@@ -223,34 +222,25 @@ fun ImageEditorDialog(
     }
     fun commit(next: ImageEditState) {
         if (next == state) return
-        undoStack = (undoStack + snapshot()).takeLast(60)
+        history.record(snapshot())
         state = next
-        redoStack = emptyList()
     }
     fun applyLive(next: ImageEditState) {
         if (next != state) state = next
     }
     fun checkpoint(before: ImageEditState) {
         if (before == state) return
-        undoStack = (undoStack + EditorHistorySnapshot(before, outputScale, quality)).takeLast(60)
-        redoStack = emptyList()
+        history.record(EditorHistorySnapshot(before, outputScale, quality))
     }
     fun checkpoint(before: EditorHistorySnapshot) {
         if (before == snapshot()) return
-        undoStack = (undoStack + before).takeLast(60)
-        redoStack = emptyList()
+        history.record(before)
     }
     fun undo() {
-        val previous = undoStack.lastOrNull() ?: return
-        redoStack = (redoStack + snapshot()).takeLast(60)
-        undoStack = undoStack.dropLast(1)
-        restore(previous)
+        history.undo(snapshot())?.let(::restore)
     }
     fun redo() {
-        val next = redoStack.lastOrNull() ?: return
-        undoStack = (undoStack + snapshot()).takeLast(60)
-        redoStack = redoStack.dropLast(1)
-        restore(next)
+        history.redo(snapshot())?.let(::restore)
     }
 
     fun performSave(replaceOriginal: Boolean) {
@@ -377,8 +367,8 @@ fun ImageEditorDialog(
                 }
                 Box(Modifier.fillMaxWidth().zIndex(100f)) {
                     EditorTopBar(
-                    undoEnabled = undoStack.isNotEmpty(),
-                    redoEnabled = redoStack.isNotEmpty(),
+                    undoEnabled = history.canUndo,
+                    redoEnabled = history.canRedo,
                     resetEnabled = resetEnabled,
                     saveEnabled = saveEnabled,
                     resetLabel = if (english) "Reset ${appText(panel.label, true)}" else "重置${panel.label}",

@@ -1,5 +1,12 @@
 # Album Changelog
 
+## v1.3.57 - 2026-11-16（Phase 5：编辑器撤销栈独立，重建状态文档）
+
+- 新增 EditorHistory<T>：撤销/重做规则与 60 步上限从 ImageEditorDialog 里抽出来，
+  工具栏只看 canUndo/canRedo；新增 EditorHistoryTest（6 个用例，含 redo 分支丢弃与上限）。
+- 新增 docs/rebuild-status.md：记录 Phase 0-5 的提交、架构变化、取舍与真机验证清单。
+- 版本 1.3.57 / VERSION_CODE 310。
+
 ## v1.3.56 - 2026-11-16（Phase 5：壁纸队列收敛成单一来源）
 
 - 新增 WallpaperQueueController：队列的 loaded/uris/order 与保存 Job 从 AlbumApp 搬出，
