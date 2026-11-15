@@ -1,5 +1,14 @@
 # Album Changelog
 
+## v1.3.54 - 2026-11-16（Phase 4 起：Pixiv 页加载状态搬出 AlbumApp）
+
+- 新增 PixivPageController：快照、文件夹名、walk 统计、标签索引、版本号与下拉刷新
+  状态从 AlbumApp 搬进独立类（原先 7 个 remember + 2 个 Job/Generation 字段）。
+- 刷新规则集中一处：只有手指下拉才强制全量遍历、才显示指示器；分片快照只喂首屏；
+  页面不可见时请求作废（可见性在真正开始遍历时才求值，切页仍能取消）。
+- AlbumApp 行数 5016 → 4881，Pixiv 相关状态读写全部改为 pixivPage.* 调用。
+- 版本 1.3.54 / VERSION_CODE 307。
+
 ## v1.3.53 - 2026-11-16（Phase 3：能力模型、传输计划、MediaStore 写事务合并）
 
 - 新增 MediaCapabilities / storageKindOf：把 isDocument、API 级别、URI scheme 三处

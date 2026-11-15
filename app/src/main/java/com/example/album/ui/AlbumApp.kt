@@ -216,8 +216,6 @@ import java.util.Locale
  * makes a warm walk finish in a few hundred milliseconds, and a spinner that
  * comes and goes that fast reads as "nothing happened".
  */
-private const val MIN_PIXIV_REFRESH_INDICATOR_MS = 700L
-
 private enum class MainTab(val label: String, val icon: ImageVector) {
     Albums("相册", Icons.Outlined.Collections),
     Videos("视频", Icons.Outlined.VideoLibrary),
@@ -539,6 +537,8 @@ fun AlbumApp(
     }
     val lifecycleOwner = context as? LifecycleOwner
     val pixivRepository = remember { PixivArchiveRepository(context) }
+    // Loading/refresh state of the Pixiv page; see PixivPageController.
+    val pixivPage = remember(scope, pixivRepository) { PixivPageController(scope, pixivRepository) }
     pixivRepository.english = english
     val pixivArchiveSession = remember { PixivArchiveSession(context) }
     // The archive session builds user-visible status messages without a
@@ -628,8 +628,6 @@ fun AlbumApp(
     var wallpaperSelectionMode by rememberSaveable { mutableStateOf(false) }
     var wallpaperSelectedUris by remember { mutableStateOf<Set<String>>(emptySet()) }
     var wallpaperSelectionOrder by remember { mutableStateOf<List<String>>(emptyList()) }
-    var pixivReloadGeneration by remember { mutableIntStateOf(0) }
-    var pixivReloadJob by remember { mutableStateOf<Job?>(null) }
     var wallpaperColumns by rememberSaveable { mutableIntStateOf(4) }
     var wallpaperMediaLayout by rememberSaveable { mutableStateOf(MediaLayout.Grid) }
     var wallpaperFolderLayout by rememberSaveable { mutableStateOf(MediaLayout.Grid) }
@@ -943,21 +941,10 @@ fun AlbumApp(
         )
     }
     var pixivTabEnabled by remember { mutableStateOf(pixivEnabledAtStart) }
-    var pixivLibraryImages by remember { mutableStateOf<List<MediaItem>?>(null) }
-    var pixivFolderNames by remember { mutableStateOf(setOf("Pixiv")) }
-    var pixivSourceFolderName by remember { mutableStateOf("Pixiv") }
-    // Cost of the last Pixiv library walk, shown on the archive page so the
-    // folder-index reuse is visible instead of a matter of faith.
-    var pixivWalkStats by remember { mutableStateOf<com.example.album.data.PixivWalkStats?>(null) }
-    var pixivTagsByUri by remember { mutableStateOf<Map<String, List<String>>>(emptyMap()) }
-    // Bumped only when a full walk finishes. Partial snapshots during the walk
-    // update the grid but must not restart the (expensive) tag index build.
-    var pixivLibraryVersion by remember { mutableIntStateOf(0) }
     var pixivTagsLoading by remember { mutableStateOf(false) }
     var pixivTagIndexProgress by remember { mutableStateOf<PixivTagIndexProgress?>(null) }
     var showPixivTagIndexDialog by remember { mutableStateOf(false) }
     var pixivTagIndexDialogDismissed by remember { mutableStateOf(false) }
-    var pixivPageRefreshing by remember { mutableStateOf(false) }
     var pixivRefreshKey by remember { mutableIntStateOf(0) }
     var archiveMediaRefreshPending by remember { mutableStateOf(false) }
     var archiveMediaRefreshing by remember { mutableStateOf(false) }
@@ -1113,136 +1100,25 @@ fun AlbumApp(
             .filter { it.folder.equals("Pixiv", ignoreCase = true) }
             .distinctBy { it.uri.toString() }
     } }
-    suspend fun reloadPixivPage(forceWalk: Boolean = true, showIndicator: Boolean = false) {
-        if (selectedTab != MainTab.Pixiv || cleanupOpen) {
-            // The request was made while another page is showing: it never walks,
-            // so it must not leave the indicator it lit up running.
-            pixivPageRefreshing = false
-            return
-        }
-        val generation = ++pixivReloadGeneration
-        // Loading the cached snapshot is not a "refresh": showing the progress
-        // indicator for it is what made opening the app look like it was
-        // loading. Only a real SAF walk sets the flag.
-        var walking = false
-        var walkStartedAt = 0L
-        try {
-            // Show the previous snapshot immediately (SAF tree walks are slow)
-            // and replace it once the fresh walk finishes.
-            if (pixivLibraryImages == null) {
-                withContext(Dispatchers.IO) { pixivRepository.loadCachedLibrary() }?.let { cached ->
-                    if (generation != pixivReloadGeneration) return
-                    pixivLibraryImages = cached.items
-                    pixivFolderNames = cached.folderNames
-                    pixivSourceFolderName = cached.sourceFolderName
-                    pixivWalkStats = cached.walkStats
-                    pixivLibraryVersion++
-                }
-            }
-            if (!forceWalk && pixivLibraryImages != null) {
-                // Nothing to do: the cached snapshot (which survives app
-                // restarts) is what the page shows. Walking the SAF tree again
-                // on every entry is exactly what made opening the page feel
-                // like a load.
-                return
-            }
-            // The indicator is for the user's own pull: a walk the app starts by
-            // itself (tab changes, settings, archiving) must stay silent.
-            if (showIndicator) pixivPageRefreshing = true
-            walking = true
-            walkStartedAt = System.nanoTime()
-            // A full SAF walk can take several seconds. Partial snapshots are
-            // streamed through a conflated channel so folders appear as soon as
-            // they are read instead of all at the end.
-            val progress = Channel<com.example.album.data.PixivLibrarySnapshot>(Channel.CONFLATED)
-            val publishPartials = pixivLibraryImages == null
-            val progressJob = scope.launch {
-                for (partial in progress) {
-                    if (generation != pixivReloadGeneration) break
-                    // While a refresh runs, keep the complete list on screen
-                    // instead of replacing it with the half-walked one; a
-                    // partial snapshot only feeds the very first paint.
-                    if (!publishPartials) continue
-                    pixivLibraryImages = partial.items
-                    pixivFolderNames = partial.folderNames
-                    pixivSourceFolderName = partial.sourceFolderName
-                    pixivWalkStats = partial.walkStats
-                }
-            }
-            val snapshot = try {
-                pixivRepository.loadLibrary(
-                    defaultPixivImages,
-                    onProgress = { partial -> progress.trySend(partial) },
-                    // A finger pull is the user asking for the current tree, not
-                    // for a replay of the last walk.
-                    forceFresh = showIndicator
-                )
-            } finally {
-                progress.close()
-                progressJob.cancel()
-            }
-            if (generation != pixivReloadGeneration) return
-            pixivLibraryImages = snapshot.items
-            pixivTagsByUri = snapshot.tagsByUri
-            pixivFolderNames = snapshot.folderNames
-            pixivSourceFolderName = snapshot.sourceFolderName
-            pixivWalkStats = snapshot.walkStats
-            pixivLibraryVersion++
-        } finally {
-            // The latest request always clears the flag, even when it returned
-            // early from the cached snapshot: an older cancelled walk used to
-            // leave the pull-to-refresh spinner running for good.
-            // Once the folder index is warm the walk finishes in a few hundred
-            // milliseconds, which is short enough that the indicator could come
-            // and go inside a single frame -- "the pull did something" has to
-            // stay visible.
-            if (showIndicator && walkStartedAt > 0L) {
-                val elapsedMs = (System.nanoTime() - walkStartedAt) / 1_000_000L
-                if (elapsedMs < MIN_PIXIV_REFRESH_INDICATOR_MS) {
-                    delay(MIN_PIXIV_REFRESH_INDICATOR_MS - elapsedMs)
-                }
-            }
-            if (generation == pixivReloadGeneration) pixivPageRefreshing = false
-        }
-    }
-    /**
-     * [showIndicator] is only for the pull-to-refresh gesture: a load the app
-     * starts on its own should not look like something the user asked for.
-     */
-    fun requestPixivReload(forceWalk: Boolean = true, showIndicator: Boolean = false) {
-        pixivReloadJob?.cancel()
-        // Light the indicator up now: waiting for the 350ms debounce below left
-        // the gesture's spinner sitting still until the walk got going.
-        if (showIndicator) pixivPageRefreshing = true
-        pixivReloadJob = scope.launch {
-            // Triggers often arrive together (a library refresh plus an explicit
-            // request); the short wait collapses them into one SAF walk instead
-            // of cancelling and restarting a walk that just started.
-            // A cached-snapshot load (forceWalk = false) is cheap and is exactly
-            // what the page's first paint waits for, so it runs immediately.
-            if (forceWalk) delay(350L)
-            reloadPixivPage(forceWalk, showIndicator)
-        }
-    }
     LaunchedEffect(pixivTabEnabled, cleanupOpen) {
         // Show the cached snapshot only. The SAF walk is driven by the explicit
         // refresh below or by the first visit when nothing is cached, never by
         // opening the app or another page.
-        requestPixivReload(forceWalk = false)
+        pixivPage.request(visible = { selectedTab == MainTab.Pixiv && !cleanupOpen }, defaultItems = defaultPixivImages, forceWalk = false)
     }
     LaunchedEffect(Unit) {
         // Parse the Pixiv snapshot while the app is starting, so the page has it
         // in memory the moment it is opened instead of showing an empty grid
         // while the (library-sized) JSON is read.
-        withContext(Dispatchers.IO) { runCatching { pixivRepository.loadCachedLibrary() } }
+        pixivPage.loadCachedInBackground()
     }
     LaunchedEffect(pixivRefreshKey) {
-        if (pixivRefreshKey > 0) requestPixivReload(forceWalk = true)
+        if (pixivRefreshKey > 0) pixivPage.request(visible = { selectedTab == MainTab.Pixiv && !cleanupOpen }, defaultItems = defaultPixivImages, forceWalk = true)
     }
     LaunchedEffect(selectedTab) {
         // Entering the page again must not start another walk: the snapshot
         // that is already loaded stays on screen until the user refreshes.
-        if (selectedTab == MainTab.Pixiv && pixivLibraryImages == null) requestPixivReload(forceWalk = false)
+        if (selectedTab == MainTab.Pixiv && pixivPage.images == null) pixivPage.request(visible = { selectedTab == MainTab.Pixiv && !cleanupOpen }, defaultItems = defaultPixivImages, forceWalk = false)
     }
     val needsFolderSearchIndex by remember {
         derivedStateOf {
@@ -1258,7 +1134,7 @@ fun AlbumApp(
         }
     }
     val pixivImages by remember { derivedStateOf {
-        val source = pixivLibraryImages ?: defaultPixivImages
+        val source = pixivPage.images ?: defaultPixivImages
         if (favoriteFilter) source.filter { it.uri.toString() in favoriteUris } else source
     } }
     val pixivSearchImages by remember { derivedStateOf {
@@ -1266,7 +1142,7 @@ fun AlbumApp(
         // created) and the local Pixiv folder, which is what the pinned folder
         // shows. Names are compared case-insensitively: a SAF folder and the
         // matching MediaStore bucket rarely agree on case.
-        val allowedFolders = pixivFolderNames + pixivSourceFolderName
+        val allowedFolders = pixivPage.folderNames + pixivPage.sourceFolderName
         // Compare in lowercase through a set: the previous per-item
         // `any { equals(ignoreCase = true) }` lowercased nothing but walked the
         // whole folder list for every one of thousands of archive items.
@@ -1282,7 +1158,7 @@ fun AlbumApp(
         val localPixiv = defaultPixivImages.filterNot { it.name in archivedNames }
         (archived + localPixiv).distinctBy { it.uri.toString() }
     } }
-    LaunchedEffect(pixivSearchMode, appliedQuery, pixivLibraryVersion, favoriteFilter) {
+    LaunchedEffect(pixivSearchMode, appliedQuery, pixivPage.version, favoriteFilter) {
         // Load the tag index once for the current Pixiv library. Searching is
         // local filtering; tying this job to every keystroke cancels the
         // full read repeatedly on large archives and can leave no results.
@@ -1292,7 +1168,7 @@ fun AlbumApp(
         // read once the user actually searches by tag.
         if (pixivSearchMode == PixivSearchMode.Tag && appliedQuery.isNotBlank()) {
             pixivTagsLoading = true
-            pixivTagsByUri = emptyMap()
+            pixivPage.replaceTags(emptyMap())
             pixivTagIndexProgress = null
             pixivTagIndexDialogDismissed = false
             showPixivTagIndexDialog = false
@@ -1304,7 +1180,7 @@ fun AlbumApp(
             PixivTagIndexService.start(context)
             val collector = scope.launch {
                 for (batch in batchChannel) {
-                    pixivTagsByUri = pixivTagsByUri + batch
+                    pixivPage.addTags(batch)
                 }
             }
             val progressCollector = scope.launch {
@@ -1326,7 +1202,7 @@ fun AlbumApp(
                 }
                 batchChannel.close()
                 collector.join()
-                pixivTagsByUri = loaded
+                pixivPage.replaceTags(loaded)
             } finally {
                 batchChannel.close()
                 collector.cancel()
@@ -1338,17 +1214,17 @@ fun AlbumApp(
                 pixivTagsLoading = false
             }
         } else {
-            pixivTagsByUri = emptyMap()
+            pixivPage.replaceTags(emptyMap())
             pixivTagsLoading = false
         }
     }
     val albumImages by remember { derivedStateOf {
         (visibleImages + library.localImages).distinctBy { it.uri }
     } }
-    val pixivTagSearchIndex = remember(pixivSearchImages, pixivTagsByUri) {
-        if (pixivTagsByUri.isEmpty()) emptyList()
+    val pixivTagSearchIndex = remember(pixivSearchImages, pixivPage.tagsByUri) {
+        if (pixivPage.tagsByUri.isEmpty()) emptyList()
         else pixivSearchImages.map { item ->
-            PixivTagSearchEntry(item, pixivTagsByUri[item.uri.toString()].orEmpty())
+            PixivTagSearchEntry(item, pixivPage.tagsByUri[item.uri.toString()].orEmpty())
         }
     }
     val pixivTagResults by remember { derivedStateOf {
@@ -1361,7 +1237,7 @@ fun AlbumApp(
             val index = pixivTagSearchIndex
             if (index.isEmpty()) {
                 pixivSearchImages.filter { item ->
-                    pixivRepository.matchesTagQuery(pixivTagsByUri[item.uri.toString()].orEmpty(), tagQuery)
+                    pixivRepository.matchesTagQuery(pixivPage.tagsByUri[item.uri.toString()].orEmpty(), tagQuery)
                 }
             } else {
                 index.filter { entry -> pixivRepository.matchesTagQuery(entry.tags, tagQuery) }.map { it.item }
@@ -1486,11 +1362,11 @@ fun AlbumApp(
     }
 
     fun openTagEditor(item: MediaItem) {
-        tagEditorText = pixivTagsByUri[item.uri.toString()].orEmpty().joinToString("\n")
+        tagEditorText = pixivPage.tagsByUri[item.uri.toString()].orEmpty().joinToString("\n")
         tagEditorItem = item
         scope.launch {
             val tags = runCatching { withContext(Dispatchers.IO) { pixivRepository.readTags(item) } }
-                .getOrDefault(pixivTagsByUri[item.uri.toString()].orEmpty())
+                .getOrDefault(pixivPage.tagsByUri[item.uri.toString()].orEmpty())
             if (tagEditorItem?.uri == item.uri) tagEditorText = tags.joinToString("\n")
         }
     }
@@ -2497,7 +2373,7 @@ fun AlbumApp(
                         // no album with the nested name and shows an empty folder.
                         val pathParts = destination.split('/').map { it.trim() }.filter { it.isNotEmpty() }
                         val pixivFolder = if (request.fromPixivArchive) {
-                            pathParts.lastOrNull { it in pixivFolderNames }
+                            pathParts.lastOrNull { it in pixivPage.folderNames }
                         } else {
                             null
                         }
@@ -2640,7 +2516,7 @@ fun AlbumApp(
     if (pixivArchiveOpen) {
         PixivArchiveScreen(
             session = pixivArchiveSession,
-            walkStats = pixivWalkStats,
+            walkStats = pixivPage.walkStats,
             onStartScan = { source, maxBatchSize ->
                 if (pixivArchiveSession.state.value != ArchiveUiState.Scanning) {
                     pixivArchiveSession.beginScan()
@@ -3513,7 +3389,7 @@ fun AlbumApp(
                                 // gesture so the reload is visible and matches
                                 // what a finger pull does.
                                 when (tab) {
-                                    MainTab.Pixiv -> requestPixivReload()
+                                    MainTab.Pixiv -> pixivPage.request(visible = { true }, defaultItems = defaultPixivImages)
                                     MainTab.Albums, MainTab.Videos, MainTab.Timeline ->
                                         pullRefreshToken = System.nanoTime()
                                     else -> Unit
@@ -3911,16 +3787,16 @@ fun AlbumApp(
                     }
                     Box(Modifier.fillMaxWidth().weight(1f)) {
                 val pixivLoadState = library.loadState.copy(
-                    active = if (pixivPageRefreshing) com.example.album.ui.RefreshSource.UserPull
+                    active = if (pixivPage.refreshing) com.example.album.ui.RefreshSource.UserPull
                     else library.loadState.active,
-                    initialScanComplete = pixivLibraryImages != null
+                    initialScanComplete = pixivPage.images != null
                 )
                 AlbumsScreen(
                     media = if (pixivSearchMode == PixivSearchMode.Tag && appliedQuery.isNotBlank()) pixivTagResults else pixivSearchImages,
                     isVideo = false,
                     query = if (pixivSearchMode == PixivSearchMode.Tag) "" else appliedQuery,
                     searchingFolders = false,
-                    // Only the finger pull shows a spinner here: pixivPageRefreshing
+                    // Only the finger pull shows a spinner here: pixivPage.refreshing
                     // is set by that gesture alone. Loads the app starts by itself
                     // (the media library refresh, settings changes, archiving) stay
                     // silent on this page.
@@ -3964,7 +3840,7 @@ fun AlbumApp(
                     onAlbumSelectionGestureEnd = { selectionGestureActive = false; selectionMode = true },
                     onRefresh = {
                         // Only this path (the finger pull) shows the spinner.
-                        requestPixivReload(showIndicator = true)
+                        pixivPage.request(visible = { selectedTab == MainTab.Pixiv && !cleanupOpen }, defaultItems = defaultPixivImages, showIndicator = true)
                     },
                     openedFolder = openedFolder,
                     onOpenedFolderChange = { folder -> if (folder != null && selectionMode && selectingFolders) { selectedFolders = if (folder in selectedFolders) selectedFolders - folder else selectedFolders + folder } else openFolder(folder) },
@@ -4810,7 +4686,7 @@ fun AlbumApp(
                 tagEditorItem = null
                 scope.launch {
                     if (pixivRepository.updateTags(item, tags)) {
-                        pixivTagsByUri = pixivTagsByUri + (item.uri.toString() to tags)
+                        pixivPage.addTags(mapOf(item.uri.toString() to tags))
                         pixivRefreshKey++
                         Toast.makeText(context, if (english) "Tags saved" else "Tags 已保存", Toast.LENGTH_SHORT).show()
                     } else {
