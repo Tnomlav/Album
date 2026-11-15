@@ -74,6 +74,30 @@ private data class IndexedFolderSnapshot(
 class MediaLibraryState(context: Context) {
     private val appContext = context.applicationContext
     private val repository = MediaRepository(appContext)
+    private val imageSource: com.example.album.data.MediaSource =
+        com.example.album.data.MediaStoreImageSource(repository)
+    private val videoSource: com.example.album.data.MediaSource =
+        com.example.album.data.MediaStoreVideoSource(repository)
+
+    /**
+     * When the last successful scan finished (epoch millis). Seeded from the
+     * snapshot's savedAt, so a restart can still do an incremental refresh.
+     */
+    private var lastScanAtMillis: Long = 0L
+
+    /**
+     * The unfiltered MediaStore rows of the last scan.
+     *
+     * The delta has to be merged into these, not into [images] / [allImages]:
+     * those have the hidden and R-18 filters applied, so a merge would come out
+     * short and always trigger the full-scan fallback.
+     */
+    private var rawImages: List<MediaItem> = emptyList()
+    private var rawVideos: List<MediaItem> = emptyList()
+
+    /** Observer refreshes may read only the changed rows when this is on. */
+    private val incrementalRefreshEnabled: Boolean
+        get() = settingsPreferences.getBoolean("incremental_refresh", true)
     private val localFolders = LocalFolderRepository(appContext)
     private val cleanup = CleanupRepository(appContext)
     private val cleanupPreferences = context.getSharedPreferences("cleanup_preferences", Context.MODE_PRIVATE)
@@ -166,6 +190,7 @@ class MediaLibraryState(context: Context) {
             localVideos = cached.localVideos
             images = cached.images
             videos = cached.videos
+            lastScanAtMillis = cached.savedAt
             loadState = loadState.copy(initialScanComplete = true)
         }
     }
@@ -208,10 +233,21 @@ class MediaLibraryState(context: Context) {
                     localVideos = cached.localVideos
                     images = cached.images
                     videos = cached.videos
+                    rawImages = cached.images
+                    rawVideos = cached.videos
+                    if (lastScanAtMillis == 0L) lastScanAtMillis = cached.savedAt
                 }
             }
             val canReadImages = granted && hasImageReadAccess(appContext)
             val canReadVideos = granted && hasVideoReadAccess(appContext)
+            // Only the background observer refresh is worth doing incrementally:
+            // a pull or an operation expects the current truth, and both are
+            // rare enough that a full scan is acceptable there.
+            val incremental = source == RefreshSource.Observer &&
+                incrementalRefreshEnabled &&
+                lastScanAtMillis > 0L &&
+                System.currentTimeMillis() - lastScanAtMillis < INCREMENTAL_MAX_AGE_MS &&
+                (rawImages.isNotEmpty() || rawVideos.isNotEmpty())
             imagePermissionGranted = canReadImages
             videoPermissionGranted = canReadVideos
             val refreshResult = coroutineScope {
@@ -219,7 +255,7 @@ class MediaLibraryState(context: Context) {
                 val imagesTask = async {
                     if (!canReadImages) emptyList()
                     else try {
-                        repository.loadImages()
+                        readSource(imageSource, rawImages, incremental)
                     } catch (cancelled: CancellationException) {
                         throw cancelled
                     } catch (_: Exception) {
@@ -230,7 +266,7 @@ class MediaLibraryState(context: Context) {
                 val videosTask = async {
                     if (!canReadVideos) emptyList()
                     else try {
-                        repository.loadVideos()
+                        readSource(videoSource, rawVideos, incremental)
                     } catch (cancelled: CancellationException) {
                         throw cancelled
                     } catch (_: Exception) {
@@ -270,6 +306,9 @@ class MediaLibraryState(context: Context) {
                 RefreshResult(imagesTask.await(), videosTask.await(), localTask.await(), maintenanceTask.await(), errors.toList())
             }
             refreshError = refreshResult.errors.takeIf { it.isNotEmpty() }?.joinToString("、")
+            rawImages = refreshResult.images
+            rawVideos = refreshResult.videos
+            lastScanAtMillis = System.currentTimeMillis()
             val prepared = withContext(Dispatchers.Default) {
                 val showHiddenMedia = settingsPreferences.getBoolean("show_hidden_media", false)
                 // The R-18 filter only needs the identities the archiver
@@ -304,13 +343,16 @@ class MediaLibraryState(context: Context) {
             val localFolderCountSnapshot = withContext(Dispatchers.IO) { localFolders.treeUris().size }
             hasLocalFolders = localFolderCountSnapshot > 0
             localFolderCount = localFolderCountSnapshot
-            allImages = prepared.images
-            allVideos = prepared.videos
-            localImages = prepared.localImages
-            localVideos = prepared.localVideos
-            images = prepared.visibleImages
-            videos = prepared.visibleVideos
-            excludedMedia = prepared.excluded
+            // Reusing the previous list instance when the content is equal
+            // skips the whole-library recomposition that a background refresh
+            // used to trigger even when nothing changed.
+            allImages = prepared.images.reusedIfSame(allImages)
+            allVideos = prepared.videos.reusedIfSame(allVideos)
+            localImages = prepared.localImages.reusedIfSame(localImages)
+            localVideos = prepared.localVideos.reusedIfSame(localVideos)
+            images = prepared.visibleImages.reusedIfSame(images)
+            videos = prepared.visibleVideos.reusedIfSame(videos)
+            excludedMedia = prepared.excluded.reusedIfSame(excludedMedia)
             // Writing the whole library JSON on every ContentObserver refresh made
             // repeated scans noticeably longer. Only persist when the visible
             // content actually changed.
@@ -331,7 +373,8 @@ class MediaLibraryState(context: Context) {
                             images = prepared.images,
                             videos = prepared.videos,
                             localImages = prepared.localImages,
-                            localVideos = prepared.localVideos
+                            localVideos = prepared.localVideos,
+                            savedAt = System.currentTimeMillis()
                         )
                     )
                 }
@@ -368,6 +411,26 @@ class MediaLibraryState(context: Context) {
             // read the thumbnail memory/disk hit rate off logcat.
             withContext(Dispatchers.Default) { ThumbnailRepository.logStats("after scan") }
         }
+    }
+
+    /**
+     * Reads one MediaStore source, using the delta when it is trustworthy and
+     * falling back to a full scan whenever it is not.
+     */
+    private suspend fun readSource(
+        source: com.example.album.data.MediaSource,
+        current: List<MediaItem>,
+        incremental: Boolean
+    ): List<MediaItem> {
+        if (!incremental) return source.queryAll()
+        val changed = source.queryChangedSince(lastScanAtMillis) ?: return source.queryAll()
+        val alive = source.aliveKeys() ?: return source.queryAll()
+        val merged = com.example.album.data.mergeChangedItems(current, changed, alive) {
+            it.uri.toString()
+        }
+        // A row the store has but the delta missed would silently disappear;
+        // rescan instead.
+        return if (merged.complete) merged.items else source.queryAll()
     }
 
     private suspend fun refreshSearchableFolderIndex(accessKey: String) {
@@ -860,6 +923,10 @@ sealed interface MediaScanResult {
     data object NotRequested : MediaScanResult
 }
 
+/** Keeps the previous instance when two lists hold the same values. */
+private fun <T> List<T>.reusedIfSame(previous: List<T>): List<T> =
+    if (this == previous) previous else this
+
 /** Outcome of one delete attempt; see [MediaLibraryState.deleteMedia]. */
 sealed interface DeleteOutcome {
     data object Deleted : DeleteOutcome
@@ -902,3 +969,9 @@ private fun hasVideoReadAccess(context: Context): Boolean = when {
 
 /** Minimum time the pull indicator stays visible once a finger pull started it. */
 private const val MIN_PULL_INDICATOR_MS = 450L
+
+/**
+ * How stale a scan may be before the observer refresh stops trusting deltas.
+ * Older timestamps make a full scan cheaper than reconciling provider quirks.
+ */
+private const val INCREMENTAL_MAX_AGE_MS = 6L * 60L * 60L * 1000L

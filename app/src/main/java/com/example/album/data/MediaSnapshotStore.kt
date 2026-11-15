@@ -14,11 +14,21 @@ import java.io.File
 object MediaSnapshotStore {
     private const val FILE_NAME = "media_snapshot.json"
 
+    /**
+     * Bumped whenever the JSON shape or its meaning changes. A snapshot written
+     * by a newer version is ignored instead of being misread, and the app falls
+     * back to a full scan. Older versions are read as-is (the fields are
+     * additive), so upgrading does not lose the instant first paint.
+     */
+    private const val SCHEMA_VERSION = 2
+
     data class Snapshot(
         val images: List<MediaItem>,
         val videos: List<MediaItem>,
         val localImages: List<MediaItem>,
-        val localVideos: List<MediaItem>
+        val localVideos: List<MediaItem>,
+        /** Wall clock of the scan that produced this snapshot, in epoch millis. */
+        val savedAt: Long = 0L
     )
 
     // Last snapshot parsed or written in this process. Warm starts (returning to
@@ -35,17 +45,13 @@ object MediaSnapshotStore {
         inMemory = snapshot
         runCatching {
             val root = JSONObject()
+                .put("version", SCHEMA_VERSION)
+                .put("savedAt", snapshot.savedAt)
                 .put("images", encode(snapshot.images))
                 .put("videos", encode(snapshot.videos))
                 .put("localImages", encode(snapshot.localImages))
                 .put("localVideos", encode(snapshot.localVideos))
-            val file = File(context.filesDir, FILE_NAME)
-            val temporary = File(context.filesDir, "$FILE_NAME.tmp")
-            temporary.writeText(root.toString())
-            if (!temporary.renameTo(file)) {
-                file.writeText(root.toString())
-                temporary.delete()
-            }
+            writeAtomically(File(context.filesDir, FILE_NAME), root.toString())
         }
     }
 
@@ -56,13 +62,35 @@ object MediaSnapshotStore {
             return@runCatching null
         }
         val root = JSONObject(file.readText())
+        if (root.optInt("version", 0) > SCHEMA_VERSION) return@runCatching null
         Snapshot(
             images = decode(root.optJSONArray("images")),
             videos = decode(root.optJSONArray("videos")),
             localImages = decode(root.optJSONArray("localImages")),
-            localVideos = decode(root.optJSONArray("localVideos"))
+            localVideos = decode(root.optJSONArray("localVideos")),
+            savedAt = root.optLong("savedAt", 0L)
         ).takeIf { it.images.isNotEmpty() || it.videos.isNotEmpty() || it.localImages.isNotEmpty() || it.localVideos.isNotEmpty() }
     }.getOrNull().also { inMemory = it }
+
+    /**
+     * Writes through a temporary file and fsyncs it before the rename, so a
+     * process kill or a full disk cannot leave a half-written snapshot behind.
+     */
+    private fun writeAtomically(file: File, contents: String) {
+        val temporary = File(file.parentFile, file.name + ".tmp")
+        java.io.FileOutputStream(temporary).use { output ->
+            output.write(contents.toByteArray())
+            output.flush()
+            output.fd.sync()
+        }
+        if (!temporary.renameTo(file)) {
+            file.delete()
+            if (!temporary.renameTo(file)) {
+                temporary.copyTo(file, overwrite = true)
+                temporary.delete()
+            }
+        }
+    }
 
     private fun encode(items: List<MediaItem>): JSONArray {
         val array = JSONArray()

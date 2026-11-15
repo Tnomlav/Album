@@ -31,6 +31,44 @@ class MediaRepository(private val context: Context) {
 
     suspend fun loadVideos(): List<MediaItem> = loadMedia(isVideo = true)
 
+    /**
+     * Items whose [MediaStore.MediaColumns.DATE_MODIFIED] changed since
+     * [sinceSeconds] (epoch seconds). Used by the observer-driven incremental
+     * refresh: a library of thousands of rows is reduced to the handful that
+     * actually changed.
+     */
+    suspend fun loadImagesSince(sinceSeconds: Long): List<MediaItem> =
+        loadMedia(isVideo = false, modifiedSinceSeconds = sinceSeconds)
+
+    suspend fun loadVideosSince(sinceSeconds: Long): List<MediaItem> =
+        loadMedia(isVideo = true, modifiedSinceSeconds = sinceSeconds)
+
+    /**
+     * URIs currently present in the MediaStore collection, ids only.
+     *
+     * The incremental refresh compares this against its merged list; a mismatch
+     * means a row was added with no usable DATE_MODIFIED (or a change the
+     * selection missed), and the caller falls back to a full scan instead of
+     * showing a library that silently lost an item.
+     */
+    suspend fun aliveUris(isVideo: Boolean): Set<String> = withContext(Dispatchers.IO) {
+        val collection = mediaCollection(isVideo)
+        val uris = HashSet<String>()
+        context.contentResolver.query(
+            collection,
+            arrayOf(MediaStore.MediaColumns._ID),
+            null,
+            null,
+            null
+        )?.use { cursor ->
+            val idIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
+            while (cursor.moveToNext()) {
+                uris += ContentUris.withAppendedId(collection, cursor.getLong(idIndex)).toString()
+            }
+        }
+        uris
+    }
+
     suspend fun scanPublicMedia(): Int = withContext(Dispatchers.IO) {
         val publicRoots = listOf(
             Environment.DIRECTORY_DCIM,
@@ -121,15 +159,20 @@ class MediaRepository(private val context: Context) {
         }
     }
 
-    private suspend fun loadMedia(isVideo: Boolean): List<MediaItem> = withContext(Dispatchers.IO) {
-        val collection = when {
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && isVideo ->
-                MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q ->
-                MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
-            isVideo -> MediaStore.Video.Media.EXTERNAL_CONTENT_URI
-            else -> MediaStore.Images.Media.EXTERNAL_CONTENT_URI
-        }
+    private fun mediaCollection(isVideo: Boolean) = when {
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && isVideo ->
+            MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q ->
+            MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
+        isVideo -> MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+        else -> MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+    }
+
+    private suspend fun loadMedia(
+        isVideo: Boolean,
+        modifiedSinceSeconds: Long? = null
+    ): List<MediaItem> = withContext(Dispatchers.IO) {
+        val collection = mediaCollection(isVideo)
         val dateColumn = if (isVideo) MediaStore.Video.Media.DATE_TAKEN else MediaStore.Images.Media.DATE_TAKEN
         val projection = buildList {
             add(MediaStore.MediaColumns._ID)
@@ -146,12 +189,16 @@ class MediaRepository(private val context: Context) {
             if (isVideo) add(MediaStore.Video.Media.DURATION)
         }.toTypedArray()
 
+        val selection = modifiedSinceSeconds
+            ?.takeIf { it > 0L }
+            ?.let { "${MediaStore.MediaColumns.DATE_MODIFIED} >= ?" }
+        val selectionArgs = selection?.let { arrayOf(modifiedSinceSeconds.toString()) }
         val items = mutableListOf<MediaItem>()
         context.contentResolver.query(
             collection,
             projection,
-            null,
-            null,
+            selection,
+            selectionArgs,
             "$dateColumn DESC, ${MediaStore.MediaColumns.DATE_ADDED} DESC"
         )?.use { cursor ->
             val idIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)

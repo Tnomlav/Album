@@ -1,5 +1,18 @@
 # Album Changelog
 
+## v1.3.52 - 2026-11-16（Phase 2：数据源接缝、增量刷新、快照版本化）
+
+- 媒体快照加上 schemaVersion 与 savedAt：写入前 fsync、临时文件改名；更高版本的快照
+  不再被误读，旧版本快照仍可读，升级不丢首次打开的速度。
+- 新增 MediaSource 接缝（MediaStore 图片/视频）：统一 queryAll、queryChangedSince、
+  aliveKeys 三个问题，为 SAF 与 Pixiv 后续接入留好位置。
+- ContentObserver 刷新改为增量：只查 DATE_MODIFIED 变化的行，再用 aliveKeys 校对删除；
+  合并结果不完整（例如新行没有可用时间戳）、或上次扫描超过 6 小时，自动回退全量扫描。
+  设置项 incremental_refresh 可关闭（默认开启）。
+- 列表内容没变时复用旧实例，避免后台刷新触发整库重组。
+- 新增 IncrementalMergeTest 覆盖替换、追加、删除、不完整判定与不可变输入。
+- 版本 1.3.52 / VERSION_CODE 305。
+
 ## v1.3.51 - 2026-11-16（Phase 1：加载状态机与刷新协调器）
 
 - 新增 LoadState（initialScanComplete / active / queued）与 RefreshCoordinator，
