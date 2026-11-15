@@ -13,12 +13,23 @@ enum class ConflictPolicy(val label: String) {
     Skip("跳过")
 }
 
+/** Why a copy/move failed, so the UI can explain instead of only saying "failed". */
+enum class TransferFailure {
+    SourceUnreadable,
+    DestinationUnwritable,
+    ConflictUnresolved,
+    VerificationFailed,
+    SourceDeleteFailed,
+    Unknown
+}
+
 data class TransferResult(
     val item: MediaItem,
     val success: Boolean,
     val skipped: Boolean = false,
     val targetName: String? = null,
-    val movedDirectly: Boolean = false
+    val movedDirectly: Boolean = false,
+    val failure: TransferFailure? = null
 )
 
 /** Result of moving a document into an exact destination directory. */
@@ -65,6 +76,21 @@ internal fun resolveTransferTargetName(
             TransferTargetName(candidate)
         }
     }
+}
+
+
+/**
+ * Name used while an overwrite is in flight.
+ *
+ * The new copy is written under this name first; only after it is complete does
+ * the old destination get removed and this one take the real name. That keeps
+ * the destination file intact if the copy fails halfway.
+ */
+internal fun temporaryTransferName(originalName: String): String {
+    val dot = originalName.lastIndexOf('.')
+    val base = if (dot > 0) originalName.substring(0, dot) else originalName
+    val extension = if (dot > 0) originalName.substring(dot) else ""
+    return base + "~album-tmp" + System.nanoTime() + extension
 }
 
 internal fun resolveMediaStoreRelativePath(destinationFolder: String): String {

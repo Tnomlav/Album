@@ -614,17 +614,15 @@ class MediaRepository(private val context: Context) {
             availableName(collection, relativePath, item.name)
         } else item.name
 
-        if (existing != null && conflictPolicy == ConflictPolicy.Overwrite) {
-            runCatching { resolver.delete(existing, null, null) }
-                .getOrElse { return@withContext TransferResult(item, success = false) }
-        }
         if (mode == TransferMode.Move) {
             moveMediaStoreItem(item, collection, relativePath, existing, targetName, conflictPolicy)?.let {
                 return@withContext it
             }
         }
+        val replacing = existing != null && conflictPolicy == ConflictPolicy.Overwrite
+        val insertName = if (replacing) temporaryTransferName(targetName) else targetName
         val values = ContentValues().apply {
-            put(MediaStore.MediaColumns.DISPLAY_NAME, targetName)
+            put(MediaStore.MediaColumns.DISPLAY_NAME, insertName)
             put(MediaStore.MediaColumns.MIME_TYPE, transferMimeType(item))
             if (preserveModifiedDate) {
                 put(MediaStore.MediaColumns.DATE_MODIFIED, item.dateTaken / 1000L)
@@ -657,13 +655,23 @@ class MediaRepository(private val context: Context) {
                     if (preserveModifiedDate) put(MediaStore.MediaColumns.DATE_MODIFIED, item.dateTaken / 1000L)
                 }, null, null)
             }
+            if (replacing) {
+                // The new copy is complete, so the old file can be removed now.
+                // If this fails the new copy is dropped and nothing is lost.
+                if (resolver.delete(existing!!, null, null) <= 0) {
+                    throw IOException("Unable to replace the existing file")
+                }
+                resolver.update(target, ContentValues().apply {
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, targetName)
+                }, null, null)
+            }
             TransferResult(item, success = true, targetName = targetName)
         }.getOrElse {
             resolver.delete(target, null, null)
-            TransferResult(item, success = false)
+            TransferResult(item, success = false, failure = TransferFailure.Unknown)
         }
         } catch (_: Exception) {
-            TransferResult(item, success = false)
+            TransferResult(item, success = false, failure = TransferFailure.Unknown)
         }
     }
 
@@ -758,16 +766,53 @@ class MediaRepository(private val context: Context) {
     ): TransferResult? {
         if (existing == item.uri) return TransferResult(item, success = true, skipped = true, targetName = item.name, movedDirectly = true)
         if (existing != null && conflictPolicy == ConflictPolicy.KeepBoth && targetName == item.name) return null
+        val replacing = existing != null && conflictPolicy == ConflictPolicy.Overwrite
+        // Overwrite moves the source into the destination under a temporary
+        // name first; the old file is removed only once that move worked.
+        val workingName = if (replacing) temporaryTransferName(targetName) else targetName
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
-            put(MediaStore.MediaColumns.DISPLAY_NAME, targetName)
+            put(MediaStore.MediaColumns.DISPLAY_NAME, workingName)
         }
         val changed = runCatching { context.contentResolver.update(item.uri, values, null, null) }
             .getOrDefault(0)
-        return if (changed > 0) {
+        if (changed <= 0) return null
+        if (!replacing) {
+            return TransferResult(item, success = true, targetName = targetName, movedDirectly = true)
+        }
+        val removed = runCatching { context.contentResolver.delete(existing!!, null, null) }
+            .getOrDefault(0) > 0
+        if (!removed) {
+            undoMediaStoreMove(item)
+            return null
+        }
+        val named = runCatching {
+            context.contentResolver.update(item.uri, ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, targetName)
+            }, null, null)
+        }.getOrDefault(0)
+        return if (named > 0) {
             TransferResult(item, success = true, targetName = targetName, movedDirectly = true)
-        } else null
+        } else {
+            // The move worked; only the final rename did not. The file is in its
+            // new folder under the temporary name, so nothing was lost.
+            TransferResult(item, success = true, targetName = workingName, movedDirectly = true)
+        }
     }
+
+    /** Best-effort rollback when an overwrite could not remove the old file. */
+    private fun undoMediaStoreMove(item: MediaItem) {
+        runCatching {
+            val values = ContentValues().apply {
+                item.relativePath?.trim()?.takeIf { it.isNotEmpty() }?.let {
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, it)
+                }
+                put(MediaStore.MediaColumns.DISPLAY_NAME, item.name)
+            }
+            context.contentResolver.update(item.uri, values, null, null)
+        }
+    }
+
 
     private suspend fun moveToDocumentDirectory(
         item: MediaItem,
@@ -794,7 +839,9 @@ class MediaRepository(private val context: Context) {
         directory: DocumentFile,
         conflictPolicy: ConflictPolicy
     ): TransferResult {
-        if (!directory.isDirectory || !directory.canWrite()) return TransferResult(item, success = false)
+        if (!directory.isDirectory || !directory.canWrite()) {
+            return TransferResult(item, success = false, failure = TransferFailure.DestinationUnwritable)
+        }
         val targetChoice = resolveTransferTargetName(
             item.name,
             runCatching { directory.listFiles().mapNotNull { it.name }.toSet() }.getOrDefault(emptySet()),
@@ -802,11 +849,11 @@ class MediaRepository(private val context: Context) {
         )
         if (targetChoice.skipped) return TransferResult(item, success = true, skipped = true, targetName = item.name)
         val existing = runCatching { directory.findFile(item.name) }.getOrNull()
-        if (existing != null && conflictPolicy == ConflictPolicy.Overwrite && !deleteUriPermanently(existing.uri)) {
-            return TransferResult(item, success = false)
-        }
-        val target = runCatching { directory.createFile(transferMimeType(item), targetChoice.name) }.getOrNull()
-            ?: return TransferResult(item, success = false)
+        val replacing = existing != null && conflictPolicy == ConflictPolicy.Overwrite
+        val workingName = if (replacing) temporaryTransferName(targetChoice.name) else targetChoice.name
+        val target = runCatching { directory.createFile(transferMimeType(item), workingName) }.getOrNull()
+            ?: return TransferResult(item, success = false, failure = TransferFailure.DestinationUnwritable)
+        var finalUri = target.uri
         return runCatching {
             context.contentResolver.openInputStream(item.uri).use { input ->
                 context.contentResolver.openOutputStream(target.uri).use { output ->
@@ -816,15 +863,32 @@ class MediaRepository(private val context: Context) {
                 }
             }
             if (!target.exists()) throw IOException("Target file was not created")
+            if (replacing) {
+                if (!deleteUriPermanently(existing!!.uri)) throw IOException("Unable to replace the existing file")
+                finalUri = DocumentsContract.renameDocument(
+                    context.contentResolver,
+                    target.uri,
+                    targetChoice.name
+                ) ?: throw IOException("Unable to rename the new copy")
+            }
             if (!deleteUriPermanently(item.uri)) throw IOException("Unable to permanently remove original")
             // The source has already been removed here. Tell the caller not to
             // issue a second MediaStore/SAF delete request.
             TransferResult(item, success = true, targetName = targetChoice.name, movedDirectly = true)
-        }.getOrElse {
-            deleteUriPermanently(target.uri)
-            TransferResult(item, success = false)
+        }.getOrElse { error ->
+            deleteUriPermanently(finalUri)
+            TransferResult(
+                item,
+                success = false,
+                failure = if (error.message?.contains("permanently remove original") == true) {
+                    TransferFailure.SourceDeleteFailed
+                } else {
+                    TransferFailure.Unknown
+                }
+            )
         }
     }
+
 
     private fun findPersistedDocumentParent(targetUri: Uri): DocumentFile? {
         val treeUris = buildSet {
@@ -855,7 +919,9 @@ class MediaRepository(private val context: Context) {
         directory: DocumentFile,
         conflictPolicy: ConflictPolicy
     ): TransferResult {
-        if (!directory.isDirectory || !directory.canWrite()) return TransferResult(item, success = false)
+        if (!directory.isDirectory || !directory.canWrite()) {
+            return TransferResult(item, success = false, failure = TransferFailure.DestinationUnwritable)
+        }
         val existing = runCatching { directory.findFile(item.name) }.getOrNull()
         val targetChoice = resolveTransferTargetName(
             item.name,
@@ -866,13 +932,13 @@ class MediaRepository(private val context: Context) {
             return TransferResult(item, success = true, skipped = true, targetName = item.name)
         }
         val targetName = targetChoice.name
-        if (existing != null && conflictPolicy == ConflictPolicy.Overwrite &&
-            !runCatching { existing.delete() }.getOrDefault(false)
-        ) return TransferResult(item, success = false)
-
+        val replacing = existing != null && conflictPolicy == ConflictPolicy.Overwrite
+        // Write under a temporary name, then replace the old file only after the
+        // copy is complete.
+        val workingName = if (replacing) temporaryTransferName(targetName) else targetName
         val target = runCatching {
-            directory.createFile(transferMimeType(item), targetName)
-        }.getOrNull() ?: return TransferResult(item, success = false)
+            directory.createFile(transferMimeType(item), workingName)
+        }.getOrNull() ?: return TransferResult(item, success = false, failure = TransferFailure.DestinationUnwritable)
         return try {
             context.contentResolver.openInputStream(item.uri).use { input ->
                 context.contentResolver.openOutputStream(target.uri).use { output ->
@@ -882,12 +948,18 @@ class MediaRepository(private val context: Context) {
                 }
             }
             if (!target.exists()) throw IOException("Target file was not created")
+            if (replacing) {
+                if (!existing!!.delete()) throw IOException("Unable to replace the existing file")
+                DocumentsContract.renameDocument(context.contentResolver, target.uri, targetName)
+                    ?: throw IOException("Unable to rename the new copy")
+            }
             TransferResult(item, success = true, targetName = targetName)
         } catch (_: Exception) {
             runCatching { target.delete() }
-            TransferResult(item, success = false)
+            TransferResult(item, success = false, failure = TransferFailure.Unknown)
         }
     }
+
 
     private fun findWritablePhysicalDirectory(path: String): File? {
         val normalized = path.trim('/').replace("\\", "/")
@@ -915,7 +987,6 @@ class MediaRepository(private val context: Context) {
         conflictPolicy: ConflictPolicy,
         preserveModifiedDate: Boolean
     ): TransferResult {
-        val original = File(directory, item.name)
         val targetChoice = resolveTransferTargetName(
             item.name,
             directory.listFiles().orEmpty().map { it.name }.toSet(),
@@ -926,17 +997,21 @@ class MediaRepository(private val context: Context) {
         }
         val targetName = targetChoice.name
         val target = File(directory, targetName)
-        if (target.exists() && conflictPolicy == ConflictPolicy.Overwrite && !target.delete()) {
-            return TransferResult(item, success = false)
-        }
+        val replacing = target.exists() && conflictPolicy == ConflictPolicy.Overwrite
+        val working = if (replacing) File(directory, temporaryTransferName(targetName)) else target
         return try {
             context.contentResolver.openInputStream(item.uri).use { input ->
-                target.outputStream().use { output ->
+                working.outputStream().use { output ->
                     requireNotNull(input)
+                    requireNotNull(output)
                     input.copyTo(output)
                 }
             }
-            if (!target.isFile) throw IOException("Target file was not created")
+            if (!working.isFile) throw IOException("Target file was not created")
+            if (replacing) {
+                if (!target.delete()) throw IOException("Unable to replace the existing file")
+                if (!working.renameTo(target)) throw IOException("Unable to rename the new copy")
+            }
             if (preserveModifiedDate) {
                 val timestamp = if (item.dateModified > 0L) item.dateModified * 1000L else item.dateTaken
                 if (timestamp > 0L) target.setLastModified(timestamp)
@@ -944,10 +1019,11 @@ class MediaRepository(private val context: Context) {
             MediaScannerConnection.scanFile(context, arrayOf(target.absolutePath), arrayOf(transferMimeType(item)), null)
             TransferResult(item, success = true, targetName = targetName)
         } catch (_: Exception) {
-            runCatching { target.delete() }
-            TransferResult(item, success = false)
+            runCatching { working.delete() }
+            TransferResult(item, success = false, failure = TransferFailure.Unknown)
         }
     }
+
 
     private fun transferMimeType(item: MediaItem): String {
         val declared = item.mimeType.takeIf { it.contains('/') && !it.endsWith("/*") }

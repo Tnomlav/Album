@@ -1298,6 +1298,10 @@ internal fun Media3VideoPlayer(
                 .background(Color.Black)
         ) {
         key(videoSurfaceToken) {
+            // The surface widget differs per engine (PlayerView's TextureView
+            // for the platform player, VLCVideoLayout for LibVLC), so a runtime
+            // engine switch has to rebuild the view instead of reusing it.
+            androidx.compose.runtime.key(useVlcEngine) {
             AndroidView(
                 factory = { viewContext ->
                     if (useVlcEngine) {
@@ -1326,6 +1330,7 @@ internal fun Media3VideoPlayer(
                     scaleX = if (mirrorVideo) -1f else 1f
                 }
             )
+            }
         }
         if (miniMode || pictureInPictureMode) {
             MiniWindowControls(

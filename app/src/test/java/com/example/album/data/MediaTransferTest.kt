@@ -31,6 +31,22 @@ class MediaTransferTest {
     }
 
     @Test
+    fun temporaryNameKeepsExtensionAndNeverLooksLikeTheTarget() {
+        val temp = temporaryTransferName("photo.jpg")
+        assertTrue(temp.endsWith(".jpg"))
+        assertTrue(temp.startsWith("photo~album-tmp"))
+        assertFalse(temp == "photo.jpg")
+        assertTrue(temp != temporaryTransferName("photo.jpg"))
+    }
+
+    @Test
+    fun temporaryNameHandlesNamesWithoutExtension() {
+        val temp = temporaryTransferName("clip")
+        assertTrue(temp.startsWith("clip~album-tmp"))
+        assertFalse(temp.contains('.'))
+    }
+
+    @Test
     fun keepBothAdvancesPastAllExistingSuffixes() {
         assertEquals(
             TransferTargetName("photo (3).jpg"),

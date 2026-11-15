@@ -760,13 +760,22 @@ class CleanupRepository(private val context: Context) {
     /** Copies one item into the private recycle folder; null when the copy fails. */
     private fun copyIntoRecycle(item: MediaItem): RecycleEntry? {
         var target: File? = null
+        var movedOriginal: File? = null
         return runCatching {
             val id = UUID.randomUUID().toString()
             val extension = item.name.substringAfterLast('.', if (item.isVideo) "mp4" else "jpg")
             target = File(recycleDirectory, "$id.$extension")
-            openMediaInputStream(context, item.uri).use { input ->
-                requireNotNull(input)
-                requireNotNull(target).outputStream().use(input::copyTo)
+            // A file:// source on the same volume is moved instead of copied:
+            // deleting a 1 GB video should not need another 1 GB of free space.
+            val moved = runCatching { moveFileIntoRecycle(item, requireNotNull(target)) }
+                .getOrDefault(false)
+            if (moved) {
+                movedOriginal = item.uri.path?.let(::File)
+            } else {
+                openMediaInputStream(context, item.uri).use { input ->
+                    requireNotNull(input)
+                    requireNotNull(target).outputStream().use(input::copyTo)
+                }
             }
             RecycleEntry(
                 id = id,
@@ -783,10 +792,22 @@ class CleanupRepository(private val context: Context) {
                 deletedAt = System.currentTimeMillis()
             )
         }.getOrElse {
-            // A failed copy must not leave an untracked partial backup consuming storage.
-            runCatching { target?.delete() }
+            // A failed copy must not leave an untracked partial backup consuming
+            // storage. If the original was moved here, put it back first.
+            val restored = movedOriginal?.let { original ->
+                runCatching { target?.renameTo(original) }.getOrDefault(false)
+            } ?: false
+            if (!restored) runCatching { target?.delete() }
             null
         }
+    }
+
+    private fun moveFileIntoRecycle(item: MediaItem, destination: File): Boolean {
+        if (!item.uri.scheme.equals("file", ignoreCase = true)) return false
+        val source = item.uri.path?.let(::File) ?: return false
+        if (!source.isFile) return false
+        if (!source.renameTo(destination)) return false
+        return destination.length() > 0L
     }
 
     suspend fun stageForSystemRecycle(items: List<MediaItem>): List<RecycleEntry> = withContext(Dispatchers.IO) {
