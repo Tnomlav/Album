@@ -17,7 +17,7 @@
 | Phase 5 壁纸队列 | `3ed0323` | `WallpaperQueueController`：单一修改入口 + 必落盘 | 同上 |
 | Phase 5 编辑器 | `18e3f56` | `EditorHistory<T>`：撤销/重做规则、60 步上限集中 | `EditorHistoryTest` |
 | Phase 6 快照测试 | `5152e16` | 原子写与 schema 版本判断可测；README 增加文档入口 | `MediaSnapshotStoreFileTest` |
-| Phase 6 传输文案 | （本次提交） | `TransferSummary`：toast 文案独立，顺带修英文模式漏翻 | `TransferSummaryTest` |
+| Phase 6 传输文案 |  | `TransferSummary`：toast 文案独立，顺带修英文模式漏翻 | `TransferSummaryTest` |
 
 ## 架构上的变化
 
