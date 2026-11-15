@@ -172,6 +172,7 @@ import com.example.album.ui.components.VaultWheelChoiceSheet
 import com.example.album.ui.components.VaultDateSheet
 import com.example.album.ui.components.VaultTextInputDialog
 import com.example.album.ui.components.VaultConfirmationSheet
+import com.example.album.ui.components.UnbackedDeleteSheet
 import com.example.album.ui.components.VaultInfoSheet
 import com.example.album.ui.editor.ImageEditorDialog
 import com.example.album.ui.screens.AlbumsScreen
@@ -600,6 +601,9 @@ fun AlbumApp(
     // Items the recycle bin refused to hold (almost always "not enough room").
     // They keep their originals until the user decides what to do with them.
     var pendingUnbackedDelete by remember { mutableStateOf<List<MediaItem>?>(null) }
+    // Which of the items that could not reach the recycle bin are ticked for a
+    // permanent delete. Everything starts ticked, matching the old default.
+    var pendingUnbackedSelection by remember { mutableStateOf<Set<String>>(emptySet()) }
     var pendingRename by remember { mutableStateOf<Pair<MediaItem, String>?>(null) }
     var pendingRecycleIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var externalDeleteRequestInFlight by remember { mutableStateOf(false) }
@@ -4642,27 +4646,35 @@ fun AlbumApp(
     }
 
     if (!externalDeleteRequestInFlight) pendingUnbackedDelete?.let { unbacked ->
-        VaultConfirmationSheet(
-            title = if (english) "Cannot move to Trash" else "无法移到回收站",
-            body = if (english) {
-                (if (unbacked.size == 1) "${unbacked.first().name} could not be"
-                else "${unbacked.size} items could not be") +
-                    " copied into the Trash, usually because there is not enough free space. " +
-                    "The originals are still here. Delete them for good instead?"
-            } else {
-                (if (unbacked.size == 1) "「${unbacked.first().name}」"
-                else "${unbacked.size} 项（" + unbacked.take(3).joinToString("、") { it.name } +
-                    (if (unbacked.size > 3) "…" else "") + "）") +
-                    "无法复制到回收站，通常是可用空间不足。原文件仍然保留。要改为永久删除吗？"
+        // Tick everything that could not be backed up, then let the user drop
+        // individual files from the permanent delete instead of forcing one
+        // all-or-nothing decision for the whole batch.
+        LaunchedEffect(unbacked.map { it.uri.toString() }) {
+            pendingUnbackedSelection = unbacked.mapTo(hashSetOf()) { it.uri.toString() }
+        }
+        UnbackedDeleteSheet(
+            items = unbacked,
+            selected = pendingUnbackedSelection,
+            onToggle = { uri ->
+                pendingUnbackedSelection = if (uri in pendingUnbackedSelection) {
+                    pendingUnbackedSelection - uri
+                } else {
+                    pendingUnbackedSelection + uri
+                }
             },
-            confirmLabel = if (english) "Delete permanently" else "永久删除",
-            danger = true,
-            onDismiss = { pendingUnbackedDelete = null },
-            onConfirm = {
+            onDismiss = {
                 pendingUnbackedDelete = null
-                pixivFilesChanged = true
-                pixivArchivePendingDeleteUris = unbacked.mapTo(hashSetOf()) { it.uri.toString() }
-                scope.launch { performDelete(unbacked, permanent = true) }
+                pendingUnbackedSelection = emptySet()
+            },
+            onDeleteSelected = {
+                val selected = unbacked.filter { it.uri.toString() in pendingUnbackedSelection }
+                pendingUnbackedDelete = null
+                pendingUnbackedSelection = emptySet()
+                if (selected.isNotEmpty()) {
+                    pixivFilesChanged = true
+                    pixivArchivePendingDeleteUris = selected.mapTo(hashSetOf()) { it.uri.toString() }
+                    scope.launch { performDelete(selected, permanent = true) }
+                }
             }
         )
     }

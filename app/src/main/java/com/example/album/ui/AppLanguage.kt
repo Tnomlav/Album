@@ -95,6 +95,10 @@ private val APP_ENGLISH = mapOf(
     "写入后校验失败" to "The copy could not be verified",
     "源文件删除失败" to "The original file could not be removed",
     "未知原因" to "Unknown reason",
+    "无法移到回收站" to "Cannot move to Trash",
+    "以下项目无法复制到回收站（通常是可用空间不足）。勾选要永久删除的，其余会保留。" to
+        "These items could not be copied into the Trash, usually because there is not enough free space. Tick the ones to delete permanently; the rest are kept.",
+    "永久删除所选" to "Delete selected permanently",
     "重试" to "Retry",
     "加入幻灯片队列" to "Add to slideshow queue", "移出幻灯片队列" to "Remove from slideshow queue",
     "切换" to "Switch", "使用提示" to "Getting around",
