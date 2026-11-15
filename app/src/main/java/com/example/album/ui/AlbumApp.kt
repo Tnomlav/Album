@@ -2285,14 +2285,14 @@ fun AlbumApp(
     // provider already indexes new files, so the walk stays on the menu entry.
     val refreshLibrary: () -> Unit = {
         scope.launch {
-            library.refresh(library.permissionGranted)
+            library.refresh(library.permissionGranted, source = com.example.album.ui.RefreshSource.UserPull)
             if (selectedTab == MainTab.Pixiv) pixivRefreshKey++
         }
     }
 
     LaunchedEffect(library.permissionGranted) {
         val granted = hasMediaPermission(context)
-        library.refresh(granted)
+        library.refresh(granted, source = com.example.album.ui.RefreshSource.Startup)
         startupLibraryReadDone = true
         val initialPermissionsPrompted = albumSettings.getBoolean("runtime_permissions_prompted", false)
         val missingInitialPermissions = missingPermissions(context, requiredAppPermissions())
@@ -2355,7 +2355,7 @@ fun AlbumApp(
                 observerRefreshJob[0]?.cancel()
                 observerRefreshJob[0] = scope.launch {
                     delay(400L)
-                    library.refresh(true)
+                    library.refresh(true, source = com.example.album.ui.RefreshSource.Observer)
                 }
             }
         }
@@ -3690,6 +3690,7 @@ fun AlbumApp(
                     loading = library.loading,
                     scanning = library.scanning,
                     suppressRefreshIndicator = !startupLibraryReadDone,
+                    refreshSource = library.refreshSource,
                     initialLoadComplete = library.initialLoadComplete,
                     permissionGranted = if (albumShowsVideos) library.videoPermissionGranted else library.imagePermissionGranted,
                     sort = mediaSort,
@@ -3776,6 +3777,7 @@ fun AlbumApp(
                     loading = library.loading,
                     scanning = library.scanning,
                     suppressRefreshIndicator = !startupLibraryReadDone,
+                    refreshSource = library.refreshSource,
                     initialLoadComplete = library.initialLoadComplete,
                     permissionGranted = library.videoPermissionGranted,
                     sort = mediaSort,
@@ -3852,6 +3854,7 @@ fun AlbumApp(
                     loading = library.loading,
                     scanning = library.scanning,
                     suppressRefreshIndicator = !startupLibraryReadDone,
+                    refreshSource = library.refreshSource,
                     initialLoadComplete = library.initialLoadComplete,
                     permissionGranted = if (timelineShowsVideos) library.videoPermissionGranted else library.imagePermissionGranted,
                     isVideo = timelineShowsVideos,
@@ -3921,6 +3924,7 @@ fun AlbumApp(
                     loading = pixivPageRefreshing,
                     scanning = library.scanning,
                     suppressRefreshIndicator = !startupLibraryReadDone,
+                    refreshSource = library.refreshSource,
                     permissionGranted = true,
                     tagLoading = pixivTagsLoading && pixivSearchMode == PixivSearchMode.Tag,
                     sort = mediaSort,

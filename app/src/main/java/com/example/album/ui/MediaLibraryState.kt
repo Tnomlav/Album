@@ -114,6 +114,15 @@ class MediaLibraryState(context: Context) {
     // progress indicator (see initialLoadComplete in the screens).
     var loading by mutableStateOf(false)
         private set
+    /**
+     * Why the library is scanning right now, or null when it is idle.
+     *
+     * The pull-to-refresh indicator is only appropriate for [RefreshSource.UserPull];
+     * a background observer refresh or a post-delete reload used to light up the
+     * same spinner, which read as "the app refreshed itself behind my back".
+     */
+    var refreshSource by mutableStateOf<RefreshSource?>(null)
+        private set
     /** False until the first library scan finishes. */
     var initialLoadComplete by mutableStateOf(false)
         private set
@@ -171,10 +180,13 @@ class MediaLibraryState(context: Context) {
 
     suspend fun refresh(
         granted: Boolean,
-        scheduleThumbnailOptimization: Boolean = true
+        scheduleThumbnailOptimization: Boolean = true,
+        source: RefreshSource = RefreshSource.Operation
     ) = refreshMutex.withLock {
         permissionGranted = granted
         loading = true
+        refreshSource = source
+        val startedAt = android.os.SystemClock.elapsedRealtime()
         refreshError = null
         try {
             // Show the previous snapshot immediately; MediaStore queries on a
@@ -311,7 +323,18 @@ class MediaLibraryState(context: Context) {
                 ThumbnailRepository.cancelBackgroundOptimization()
             }
         } finally {
+            // A pull that finishes in a few milliseconds would otherwise only
+            // flash the indicator; keep it up long enough to read.
+            if (source == RefreshSource.UserPull) {
+                val elapsed = android.os.SystemClock.elapsedRealtime() - startedAt
+                if (elapsed < MIN_PULL_INDICATOR_MS) {
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
+                        kotlinx.coroutines.delay(MIN_PULL_INDICATOR_MS - elapsed)
+                    }
+                }
+            }
             loading = false
+            refreshSource = null
             // Remember that at least one scan finished: until then an empty
             // library means "not loaded yet", not "no media".
             initialLoadComplete = true
@@ -851,3 +874,14 @@ private fun hasVideoReadAccess(context: Context): Boolean = when {
         ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_VIDEO) == PackageManager.PERMISSION_GRANTED
     else -> ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
 }
+
+/** Where a library scan came from. Only a finger pull should show the pull indicator. */
+enum class RefreshSource {
+    Startup,
+    UserPull,
+    Observer,
+    Operation
+}
+
+/** Minimum time the pull indicator stays visible once a finger pull started it. */
+private const val MIN_PULL_INDICATOR_MS = 450L

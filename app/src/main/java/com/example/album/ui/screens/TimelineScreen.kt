@@ -44,6 +44,7 @@ import com.example.album.ui.LocalAppEnglish
 import com.example.album.ui.appText
 import com.example.album.ui.searchTextMatches
 import com.example.album.ui.components.PressableMediaThumbnail
+import com.example.album.ui.components.LibrarySkeleton
 import com.example.album.ui.components.PullRefreshIndicator
 import com.example.album.ui.components.rememberPullRefreshConnection
 import com.example.album.ui.components.rememberPullToRefresh
@@ -68,6 +69,7 @@ fun TimelineScreen(
     query: String,
     loading: Boolean,
     scanning: Boolean = false,
+    refreshSource: com.example.album.ui.RefreshSource? = null,
     /** See [AlbumsScreen]: the start-up library read stays invisible. */
     suppressRefreshIndicator: Boolean = false,
     /** False until the first library scan finishes; see AlbumsScreen. */
@@ -104,12 +106,19 @@ fun TimelineScreen(
     pullRequestToken: Long = 0L,
     onClearQuery: () -> Unit = {}
 ) {
-    val refreshing = (loading || scanning) && !suppressRefreshIndicator
+    // Only a finger pull shows the pull indicator; start-up and background
+    // scans stay silent (see AlbumsScreen).
+    val refreshing = refreshSource == com.example.album.ui.RefreshSource.UserPull && !suppressRefreshIndicator
     val english = LocalAppEnglish.current
     // See AlbumsScreen: until the first scan finishes, an empty timeline means
     // "not loaded yet", not "no media" (and not "no permission").
-    if ((refreshing || !initialLoadComplete) && media.isEmpty()) {
-        // See AlbumsScreen: no spinner while the library is still being read.
+    if (media.isEmpty() && !initialLoadComplete) {
+        // See AlbumsScreen: a skeleton instead of a blank page while the first
+        // scan is still running.
+        LibrarySkeleton(columns = columns)
+        return
+    }
+    if (media.isEmpty() && refreshing) {
         Box(Modifier.fillMaxSize())
         return
     }

@@ -73,6 +73,7 @@ import com.example.album.ui.components.AlbumTile
 import com.example.album.ui.components.MediaThumbnail
 import com.example.album.ui.components.PressableMediaThumbnail
 import com.example.album.ui.components.emptyFolderTone
+import com.example.album.ui.components.LibrarySkeleton
 import com.example.album.ui.components.PullRefreshIndicator
 import com.example.album.ui.components.rememberPullRefreshConnection
 import com.example.album.ui.components.rememberPullToRefresh
@@ -107,6 +108,7 @@ fun AlbumsScreen(
     searchingFolders: Boolean = false,
     loading: Boolean,
     scanning: Boolean = false,
+    refreshSource: com.example.album.ui.RefreshSource? = null,
     /**
      * True while the app is doing the library read it starts by itself: that
      * read must not light up the pull-to-refresh indicator.
@@ -168,10 +170,11 @@ fun AlbumsScreen(
     scrollRequest: com.example.album.ui.PageScrollRequest? = null,
     onClearQuery: () -> Unit = {}
 ) {
-    // The pull-to-refresh indicator is for refreshes the user asked for. The
-    // first scan of a fresh start used to light it up, which looked like the
-    // album page was loading something behind the user's back.
-    val refreshing = (loading || scanning) && initialLoadComplete && !suppressRefreshIndicator
+    // The pull-to-refresh indicator is only for refreshes the user asked for.
+    // Startup scans, background observer reloads and post-operation reloads use
+    // the same library scan but must not look like a finger pull; they stay
+    // silent (the first scan shows the skeleton below instead).
+    val refreshing = refreshSource == com.example.album.ui.RefreshSource.UserPull && !suppressRefreshIndicator
     val english = LocalAppEnglish.current
     fun itemsInDisplayOrder(items: List<MediaItem>): List<MediaItem> {
         return sortMediaItems(items, sort, sortDirection)
@@ -232,8 +235,9 @@ fun AlbumsScreen(
         // spinner that appears out of nowhere, so this case renders nothing
         // (the pull-to-refresh indicator still covers refreshes the user asks
         // for).
-        media.isEmpty() && !initialLoadComplete -> Box(Modifier.fillMaxSize())
-        media.isEmpty() && refreshing -> Box(Modifier.fillMaxSize())
+        media.isEmpty() && !initialLoadComplete -> LibrarySkeleton(
+            columns = if (openedFolder == null) albumColumns else folderColumns
+        )
         !permissionGranted && media.isEmpty() -> PermissionEmpty(onRequestPermission)
         tagLoading && media.isEmpty() -> TagIndexLoading()
         media.isEmpty() && openedFolder.equals("Pixiv", ignoreCase = true) && onOpenPixivArchive != null ->

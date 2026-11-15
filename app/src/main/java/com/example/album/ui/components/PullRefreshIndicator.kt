@@ -153,12 +153,41 @@ fun rememberPullToRefresh(
 ): PullToRefresh {
     var distance by androidx.compose.runtime.remember { mutableFloatStateOf(0f) }
     val density = androidx.compose.ui.platform.LocalDensity.current
-    val trigger = with(density) { 96.dp.toPx() }
-    val maxPull = with(density) { 144.dp.toPx() }
+    // A shorter throw than before: the old 96dp trigger with the same
+    // resistance felt like it needed two swipes to arm.
+    val trigger = with(density) { 72.dp.toPx() }
+    val maxPull = with(density) { 120.dp.toPx() }
+    val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
+    var armed by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(distance, enabled, refreshing) {
+        if (!enabled || refreshing) {
+            armed = false
+            return@LaunchedEffect
+        }
+        val nowArmed = distance >= trigger
+        if (nowArmed && !armed) {
+            haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+        }
+        armed = nowArmed
+    }
+    // A pull asks the library to reload; the scan may have to wait for one
+    // that is already running, so the indicator stays armed until it actually
+    // starts instead of snapping back for a moment.
+    var awaitingStart by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     // Loading/scanning alone must not move the content like a pull gesture.
-    val pullRefreshing = refreshing && distance > 0f
+    val pullRefreshing = (refreshing || awaitingStart) && distance > 0f
     androidx.compose.runtime.LaunchedEffect(refreshing) {
-        if (!refreshing) distance = 0f
+        if (refreshing) {
+            awaitingStart = false
+        } else if (!awaitingStart) {
+            distance = 0f
+        }
+    }
+    androidx.compose.runtime.LaunchedEffect(awaitingStart) {
+        if (awaitingStart) {
+            kotlinx.coroutines.delay(5000L)
+            awaitingStart = false
+        }
     }
     androidx.compose.runtime.LaunchedEffect(requestToken) {
         if (requestToken <= 0L || !enabled || !atTop()) return@LaunchedEffect
@@ -170,6 +199,7 @@ fun rememberPullToRefresh(
             trigger,
             tween(220, easing = CubicBezierEasing(.22f, .8f, .28f, 1f))
         ) { distance = value }
+        awaitingStart = true
         onRefresh()
     }
     val offset by androidx.compose.animation.core.animateFloatAsState(
@@ -192,6 +222,7 @@ fun rememberPullToRefresh(
         onRelease = { distance = 0f },
         onRefreshStarted = {
             distance = trigger
+            awaitingStart = true
             onRefresh()
         }
     )
@@ -209,7 +240,7 @@ fun PullRefreshIndicator(
     val rotation by rememberInfiniteTransition(label = "pull-refresh-rotation").animateFloat(
         initialValue = 0f,
         targetValue = 360f,
-        animationSpec = infiniteRepeatable(tween(720, easing = LinearEasing), RepeatMode.Restart),
+        animationSpec = infiniteRepeatable(tween(900, easing = LinearEasing), RepeatMode.Restart),
         label = "pull-refresh-rotation"
     )
     AnimatedVisibility(
@@ -218,11 +249,37 @@ fun PullRefreshIndicator(
         enter = fadeIn(tween(160)) + scaleIn(tween(180), initialScale = .72f),
         exit = fadeOut(tween(160)) + scaleOut(tween(160), targetScale = .72f)
     ) {
-        Box(Modifier.fillMaxWidth().height(54.dp), contentAlignment = Alignment.Center) {
-            val accent = MaterialTheme.colorScheme.primary
-            Canvas(Modifier.size(20.dp)) {
-                drawArc(Color.Gray.copy(alpha = .38f), 0f, 360f, false, style = Stroke(2.dp.toPx()))
-                drawArc(accent, if (refreshing) rotation - 90f else -90f + progress * 210f, if (refreshing) 105f else progress * 300f, false, style = Stroke(2.dp.toPx(), cap = StrokeCap.Butt))
+        Box(Modifier.fillMaxWidth().height(56.dp), contentAlignment = Alignment.Center) {
+            androidx.compose.material3.Surface(
+                shape = androidx.compose.foundation.shape.CircleShape,
+                color = MaterialTheme.colorScheme.surface.copy(alpha = .94f),
+                tonalElevation = 3.dp,
+                shadowElevation = 2.dp,
+                modifier = Modifier.size(40.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    val accent = MaterialTheme.colorScheme.primary
+                    Canvas(Modifier.size(22.dp)) {
+                        drawArc(
+                            Color.Gray.copy(alpha = .30f),
+                            0f,
+                            360f,
+                            false,
+                            style = Stroke(2.dp.toPx())
+                        )
+                        // While dragging the arc grows and turns with the pull;
+                        // once refreshing it becomes a steady spinner.
+                        val start = if (refreshing) rotation - 90f else -90f + progress * 120f
+                        val sweep = if (refreshing) 100f else 36f + progress * 264f
+                        drawArc(
+                            accent,
+                            start,
+                            sweep,
+                            false,
+                            style = Stroke(2.dp.toPx(), cap = StrokeCap.Round)
+                        )
+                    }
+                }
             }
         }
     }
