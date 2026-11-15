@@ -1,5 +1,14 @@
 # Album Changelog
 
+## v1.3.50 - 2026-11-16（版本号单一来源，构建不再自行加一）
+
+- 构建不再在打包后修改 version.properties：之前每次构建都会把 patch 加一，导致装上的
+  APK 版本比仓库里的版本新，出现"1.3.42 装成 1.3.43"这类对不上的情况。
+- 新增 :app:bumpVersion 任务用于发布后显式推进版本，:app:printVersion 打印本次构建版本。
+- 新增 scripts/check_apk_version.py，对比 APK 与 version.properties；CI 每次构建后都会跑，
+  不一致直接失败。
+- 版本 1.3.50 / VERSION_CODE 303。
+
 ## v1.3.49 - 2026-11-16（扫描内容没变时不重写媒体快照）
 
 - 每次刷新都会把整库媒体快照（数千项 JSON）写一遍；现在按"数量 + 首尾 URI"算签名，内容没变就跳过写盘，ContentObserver 触发的重复刷新明显变短。

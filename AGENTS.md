@@ -41,9 +41,12 @@
 
 - 唯一来源是 `version.properties`。任何其它文件（README、`app/release/`）都不要再写
   "当前版本号"。
-- 每次升版时 `VERSION_PATCH` 增加 `1`，`VERSION_CODE` 每次构建也按 `1` 递增。
-- 签名 release 构建成功后 `packageRelease` 会自动把 patch 号加一；如果只是本地验证
-  构建、并不打算发布，记得把 `version.properties` 改回本次目标版本。
+- 一次构建的版本就是 `version.properties` 里写的版本，**构建过程不再改动它**。
+  之前 `packageRelease` 构建后自动加一，导致装上的 APK 和仓库里的版本号对不上。
+- 升版二选一：手动改 `version.properties`（patch +1、code +1），或在发布完成后执行
+  `./gradlew.bat :app:bumpVersion` 准备下一个 patch。
+- 发布前校验：`python3 scripts/check_apk_version.py <apk>`，CI 也会跑同一步，不一致
+  会直接失败。
 - 发布流程见 [RELEASING.md](RELEASING.md)；更新清单必须作为 Release 资产上传，资产名
   固定为 `album-update.json`。
 

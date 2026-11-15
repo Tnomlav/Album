@@ -9,6 +9,8 @@
 1. **准备版本**：编辑 `version.properties`
    （`VERSION_CODE`、`VERSION_MAJOR`、`VERSION_MINOR`、`VERSION_PATCH`）。
    一次发布只改这里。每次升版时 `VERSION_PATCH` 增加 `1`。
+   构建不会自动改这个文件；发布完成后执行 `./gradlew.bat :app:bumpVersion`
+   准备下一个 patch（也可以手动改）。
 
 2. **写发布说明**：在 `CHANGELOG.md` 顶部新增一节，内容对应用户能看到的变化。
 
@@ -21,6 +23,14 @@
    `app/build/reports/lint-results-debug.html` 与
    `app/build/reports/tests/testDebugUnitTest/index.html` 是这次的证据。
    有真机时再跑一次 `connectedDebugAndroidTest`。
+
+   再确认 APK 的版本与 `version.properties` 一致：
+
+   ```powershell
+   python scripts\check_apk_version.py app\build\outputs\apk\release\app-arm64-v8a-release.apk
+   ```
+
+   CI 会对同一个产物跑这一步；不一致会直接失败。
 
 4. **生成更新清单**（必须和 APK 来自同一次构建）：
 

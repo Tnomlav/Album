@@ -122,20 +122,41 @@ android {
     }
 }
 
-// Android Studio's Generate Signed Bundle/APK runs packageRelease. Advance
-// the persisted version only after that task succeeds, so failed builds do
-// not consume a version number.
-tasks.matching { it.name == "packageRelease" }.configureEach {
-    outputs.upToDateWhen { false }
+// The version in version.properties is the version of the build. Nothing bumps
+// it during a build: a signed build that runs twice used to leave the APK and
+// the file disagreeing, which is what produced "the installed version is newer
+// than the repository" confusion. Advance it deliberately, either by editing
+// the file or by running :app:bumpVersion after a release is published.
+tasks.register("bumpVersion") {
+    group = "release"
+    description = "Advance VERSION_PATCH and VERSION_CODE in version.properties."
     doLast {
-        if (releaseStoreFile.isBlank()) return@doLast
-        val nextProperties = Properties().apply {
+        val next = Properties().apply {
             putAll(releaseVersionProperties)
-            val patch = getProperty("VERSION_PATCH", "0").toInt()
-            setProperty("VERSION_PATCH", (patch + 1).toString())
+            setProperty(
+                "VERSION_PATCH",
+                (releaseVersionProperties.getProperty("VERSION_PATCH", "0").toInt() + 1).toString()
+            )
             setProperty("VERSION_CODE", (releaseVersionCode + 1).toString())
         }
-        releaseVersionFile.outputStream().use { nextProperties.store(it, "Album release version; updated after each successful signed release build") }
+        releaseVersionFile.outputStream().use {
+            next.store(it, "Album release version; updated by ./gradlew :app:bumpVersion")
+        }
+        println(
+            "version.properties -> " +
+                "${next.getProperty("VERSION_MAJOR")}." +
+                "${next.getProperty("VERSION_MINOR")}." +
+                "${next.getProperty("VERSION_PATCH")} " +
+                "(code ${next.getProperty("VERSION_CODE")})"
+        )
+    }
+}
+
+tasks.register("printVersion") {
+    group = "release"
+    description = "Print the version this build will carry."
+    doLast {
+        println("versionName=$releaseVersionName versionCode=$releaseVersionCode")
     }
 }
 
