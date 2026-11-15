@@ -1,5 +1,12 @@
 # Album Changelog
 
+## v1.3.36 - 2026-11-15（播放器合并为一套界面）
+
+- 删掉第二套播放器界面：以前遇到 WMV、部分 AVI/MPEG 或平台解码失败的文件会整屏换成 LibVLC 自己的控件，现在始终是同一套播放器界面，顶栏、菜单、手势、小窗、画中画都一致。
+- LibVLC 改成挂在 Media3 的 Player 接口后面的引擎（SimpleBasePlayer 适配器），界面只认一个 Player；平台引擎播不了的文件在同一个界面里自动换引擎，进度、倍速和控件状态不换皮肤。
+- 平台引擎继续负责 MP4/AVI/MPG/MKV；WMV/ASF、RM/RMVB、OGM 直接由 LibVLC 引擎接管。
+- 切换提示由「已切换为兼容播放器」改为「已切换为兼容解码」。
+
 ## v1.3.35 - 2026-11-13（搜图入口统一 SauceNAO 优先）
 
 - 分享面板和「打开方式」里的两个搜图入口给 SauceNAO 更高的 intent-filter 优先级，排序上排在 ascii2d 前面；否则按标签字母序排会把 ascii2d 排到前面。

@@ -450,23 +450,9 @@ fun MediaViewer(
             }
         ) {
             if (current.isVideo) {
-                if (useVlcPlayer || vlcFallbackForCurrent) {
-                    android.util.Log.i("AlbumVlcFallback", "rendering LibVLC player for ${current.name}")
-                    VlcVideoPlayer(
-                        current = current,
-                        onBack = ::closeViewer,
-                        pictureInPictureMode = pictureInPictureMode,
-                        onEnterPictureInPicture = onEnterPictureInPicture,
-                        onAutoEnterPictureInPictureChange = onAutoEnterPictureInPictureChange,
-                        miniMode = videoMiniMode,
-                        onMiniModeChange = { videoMiniMode = it },
-                        favorite = favorite(current),
-                        onFavorite = { onFavorite(current) },
-                        onShare = { share(context, current, english) },
-                        onWallpaper = onWallpaper?.let { action -> { action(current) } } ?: {},
-                        onInfo = { showInfo = true }
-                    )
-                } else {
+                // One screen for every file: the platform player is the default
+                // engine and LibVLC takes over (same chrome, same controls) for
+                // containers or codecs the platform cannot decode.
                 Media3VideoPlayer(
                     current = current,
                     videos = viewerItems,
@@ -481,24 +467,24 @@ fun MediaViewer(
                     onEnterPictureInPicture = onEnterPictureInPicture,
                     favorite = favorite(current),
                     onFavorite = { onFavorite(current) },
-                     onShare = { share(context, current, english) },
-                     onWallpaper = onWallpaper?.let { action -> { action(current) } } ?: {},
-                     onInfo = { showInfo = true },
-                     onSettings = { showVideoSettings = true },
-                     settingsVersion = videoSettingsVersion,
+                    onShare = { share(context, current, english) },
+                    onWallpaper = onWallpaper?.let { action -> { action(current) } } ?: {},
+                    onInfo = { showInfo = true },
+                    onSettings = { showVideoSettings = true },
+                    settingsVersion = videoSettingsVersion,
                     onAutoEnterPictureInPictureChange = onAutoEnterPictureInPictureChange,
-                     onPlaybackError = {
+                    useVlcEngine = useVlcPlayer || vlcFallbackForCurrent,
+                    onPlaybackError = {
                         if (!vlcFallbackForCurrent) {
                             vlcFallbackForCurrent = true
                             Toast.makeText(
                                 context,
-                                if (english) "Switched to the compatible player" else "已切换为兼容播放器",
+                                if (english) "Switched to the compatible engine" else "已切换为兼容解码",
                                 Toast.LENGTH_SHORT
                             ).show()
                         }
                     }
                 )
-                }
             } else {
                 // How far the picture is dragged horizontally, in pixels. The
                 // page follows the finger and the neighbour is pulled in from

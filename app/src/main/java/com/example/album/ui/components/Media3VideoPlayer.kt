@@ -251,8 +251,12 @@ private fun frameAlignedPosition(player: ExoPlayer, requestedPositionMs: Long): 
     return duration?.let { aligned.coerceIn(0L, it) } ?: aligned.coerceAtLeast(0L)
 }
 
-private fun seekToVideoFrame(player: ExoPlayer, requestedPositionMs: Long) {
-    player.seekTo(frameAlignedPosition(player, requestedPositionMs))
+private fun seekToVideoFrame(player: Player, requestedPositionMs: Long) {
+    if (player is ExoPlayer) {
+        player.seekTo(frameAlignedPosition(player, requestedPositionMs))
+    } else {
+        player.seekTo(requestedPositionMs.coerceAtLeast(0L))
+    }
 }
 
 private val HtmlFullscreenIcon: ImageVector by lazy {
@@ -358,7 +362,10 @@ internal fun Media3VideoPlayer(
     onSettings: () -> Unit = {},
     settingsVersion: Int = 0,
     onAutoEnterPictureInPictureChange: (Boolean, Int, Int) -> Unit = { _, _, _ -> },
-    onPlaybackError: () -> Unit = {}
+    onPlaybackError: () -> Unit = {},
+    // True for files the platform player cannot decode: the same screen is
+    // driven by the bundled LibVLC engine instead.
+    useVlcEngine: Boolean = false
 ) {
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
@@ -653,7 +660,10 @@ internal fun Media3VideoPlayer(
         if (!preferences.getBoolean("video_progress", true)) return 0L
         return preferences.getLong(videoProgressKey(item.uri), 0L).coerceAtLeast(0L)
     }
-    val player = remember(videos) {
+    val player: Player = remember(videos, useVlcEngine) {
+        if (useVlcEngine) {
+            VlcMedia3Player(context, videos, currentIndex, startPositionFor(videos[currentIndex]))
+        } else {
         ExoPlayer.Builder(context, albumRenderersFactory(context))
             // MPEG-1 program streams need the extra extractor; everything else
             // keeps using the Media3 defaults.
@@ -714,6 +724,13 @@ internal fun Media3VideoPlayer(
                 prepare()
                 playWhenReady = preferences.getBoolean("video_autoplay", true)
         }
+        }
+    }
+    // Both engines start the same way: open the media once, then follow the
+    // autoplay preference. Without this the LibVLC engine would stay IDLE.
+    LaunchedEffect(player) {
+        if (player.playbackState == Player.STATE_IDLE) player.prepare()
+        player.playWhenReady = preferences.getBoolean("video_autoplay", true)
     }
     // ExoPlayer may dispatch a media-item transition after the next tap has
     // already arrived. Keep the latest requested item independently so rapid
@@ -725,7 +742,7 @@ internal fun Media3VideoPlayer(
         // The size reported by the decoder belongs to the file that was just
         // playing; drop it until this item reports its own.
         decodedVideoSize = IntSize.Zero
-        if (!current.isVideo || !usesMedia3LegacyContainer(current)) return@LaunchedEffect
+        if (!current.isVideo || useVlcEngine || !usesMedia3LegacyContainer(current)) return@LaunchedEffect
         // AVI/MPEG-PS files that Media3 opens but cannot describe produce no
         // track at all: the player would sit on a black screen forever, so
         // give it a moment and then hand the file to LibVLC.
@@ -1283,14 +1300,28 @@ internal fun Media3VideoPlayer(
         key(videoSurfaceToken) {
             AndroidView(
                 factory = { viewContext ->
-                    (PlayerView.inflate(viewContext, com.example.album.R.layout.view_media3_video_player, null) as PlayerView).apply {
-                        this.player = player
-                        controllerShowTimeoutMs = 3_000
-                        controllerHideOnTouch = true
-                        controllerAutoShow = true
+                    if (useVlcEngine) {
+                        // LibVLC owns this surface: VLCVideoLayout keeps the
+                        // picture fitted, exactly like the old VLC screen did.
+                        org.videolan.libvlc.util.VLCVideoLayout(viewContext).apply {
+                            (player as? VlcMedia3Player)?.attachVideoLayout(this)
+                        }
+                    } else {
+                        (PlayerView.inflate(viewContext, com.example.album.R.layout.view_media3_video_player, null) as PlayerView).apply {
+                            this.player = player
+                            controllerShowTimeoutMs = 3_000
+                            controllerHideOnTouch = true
+                            controllerAutoShow = true
+                        }
                     }
                 },
-                update = { it.player = player },
+                update = { view ->
+                    if (view is PlayerView) {
+                        view.player = player
+                    } else if (view is org.videolan.libvlc.util.VLCVideoLayout) {
+                        (player as? VlcMedia3Player)?.attachVideoLayout(view)
+                    }
+                },
                 modifier = Modifier.fillMaxSize().graphicsLayer {
                     scaleX = if (mirrorVideo) -1f else 1f
                 }
@@ -1431,7 +1462,11 @@ internal fun Media3VideoPlayer(
                                         val next = (player.currentPosition + (dragAmount.x / gestureWidth.coerceAtLeast(1) * gestureSkip).toLong())
                                             .coerceIn(0L, player.duration.coerceAtLeast(0L))
                                         seekToVideoFrame(player, next)
-                                        val alignedNext = frameAlignedPosition(player, next)
+                                        val alignedNext = if (player is ExoPlayer) {
+                                            frameAlignedPosition(player, next)
+                                        } else {
+                                            next
+                                        }
                                         gestureHud = timeText(alignedNext)
                                     }
                                 }
@@ -1856,7 +1891,7 @@ internal fun MiniWindowOverlay(
 
 @Composable
 private fun MiniWindowControls(
-    player: ExoPlayer,
+    player: Player,
     playing: Boolean,
     seekIncrement: Long,
     english: Boolean,

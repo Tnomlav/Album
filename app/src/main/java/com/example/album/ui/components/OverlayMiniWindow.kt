@@ -17,7 +17,7 @@ import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.LinearLayout
-import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
 import kotlin.math.abs
 import kotlin.math.min
@@ -31,7 +31,7 @@ import kotlin.math.roundToInt
  */
 internal class OverlayMiniWindow(
     private val context: Context,
-    private val player: ExoPlayer,
+    private val player: Player,
     private val onRestore: () -> Unit,
     private val onClose: () -> Unit,
     private val onTogglePlay: () -> Unit,
