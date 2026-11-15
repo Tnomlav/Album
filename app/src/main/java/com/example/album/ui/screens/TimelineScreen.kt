@@ -67,13 +67,8 @@ import kotlinx.coroutines.flow.sample
 fun TimelineScreen(
     media: List<MediaItem>,
     query: String,
-    loading: Boolean,
-    scanning: Boolean = false,
-    refreshSource: com.example.album.ui.RefreshSource? = null,
-    /** See [AlbumsScreen]: the start-up library read stays invisible. */
-    suppressRefreshIndicator: Boolean = false,
-    /** False until the first library scan finishes; see AlbumsScreen. */
-    initialLoadComplete: Boolean = true,
+    /** See [AlbumsScreen]. */
+    loadState: com.example.album.ui.LoadState = com.example.album.ui.LoadState.Ready,
     searchingFolders: Boolean = false,
     permissionGranted: Boolean,
     isVideo: Boolean,
@@ -108,11 +103,11 @@ fun TimelineScreen(
 ) {
     // Only a finger pull shows the pull indicator; start-up and background
     // scans stay silent (see AlbumsScreen).
-    val refreshing = refreshSource == com.example.album.ui.RefreshSource.UserPull && !suppressRefreshIndicator
+    val refreshing = loadState.isUserPull
     val english = LocalAppEnglish.current
     // See AlbumsScreen: until the first scan finishes, an empty timeline means
     // "not loaded yet", not "no media" (and not "no permission").
-    if (media.isEmpty() && !initialLoadComplete) {
+    if (media.isEmpty() && !loadState.initialScanComplete) {
         // See AlbumsScreen: a skeleton instead of a blank page while the first
         // scan is still running.
         LibrarySkeleton(columns = columns)

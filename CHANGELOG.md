@@ -1,5 +1,17 @@
 # Album Changelog
 
+## v1.3.51 - 2026-11-16（Phase 1：加载状态机与刷新协调器）
+
+- 新增 LoadState（initialScanComplete / active / queued）与 RefreshCoordinator，
+  取代 loading、refreshSource、initialLoadComplete 三份状态和散落的手工刷新调用。
+- 刷新请求现在同步标记为 queued，下拉指示器在手指松开的同一帧就有状态可读，
+  不再依赖 UI 侧猜测。
+- 删除 suppressRefreshIndicator、startupLibraryReadDone、forcePullIndicator 三个参数：
+  启动扫描用 Startup 来源、Pixiv 用自己的 walk 标记合并进 LoadState。
+- AlbumApp 里的直接 library.refresh 调用统一走 refresher.request(source)。
+- 新增 LoadStateTest 覆盖来源判定（active/queued/Ready）。
+- 版本 1.3.51 / VERSION_CODE 304。
+
 ## v1.3.50 - 2026-11-16（版本号单一来源，构建不再自行加一）
 
 - 构建不再在打包后修改 version.properties：之前每次构建都会把 patch 加一，导致装上的

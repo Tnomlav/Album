@@ -532,6 +532,8 @@ fun AlbumApp(
     val english = LocalAppEnglish.current
     val scope = rememberCoroutineScope()
     val library = remember { MediaLibraryState(context) }
+    // Single entry point for reloads; see RefreshCoordinator.
+    val refresher = remember(scope, library) { RefreshCoordinator(scope, library) }
     DisposableEffect(library) {
         onDispose { library.close() }
     }
@@ -719,8 +721,8 @@ fun AlbumApp(
     // can be gone. Restore it from the backup copy so one confirmation brings
     // the wallpaper back.
     var wallpaperRestoreAttempted by remember { mutableStateOf(false) }
-    LaunchedEffect(wallpaperQueueLoaded, wallpaperQueueUris, library.loading, library.images.size, library.videos.size) {
-        if (!wallpaperQueueLoaded || wallpaperRestoreAttempted || library.loading) return@LaunchedEffect
+    LaunchedEffect(wallpaperQueueLoaded, wallpaperQueueUris, library.loadState, library.images.size, library.videos.size) {
+        if (!wallpaperQueueLoaded || wallpaperRestoreAttempted || library.loadState.isRefreshing) return@LaunchedEffect
         val appliedKind = when {
             WallpaperAppliedStore.appliedSignature(context, WallpaperAppliedStore.KIND_DYNAMIC) != null -> WallpaperAppliedStore.KIND_DYNAMIC
             WallpaperAppliedStore.appliedSignature(context, WallpaperAppliedStore.KIND_STATIC) != null -> WallpaperAppliedStore.KIND_STATIC
@@ -962,7 +964,6 @@ fun AlbumApp(
     // The library read the app runs on its own at start-up is invisible: the
     // user did not ask for it, and the pull-to-refresh spinner it lit up is
     // what made every cold start look like a reload.
-    var startupLibraryReadDone by remember { mutableStateOf(false) }
     // True while a page that can change files has actually changed something.
     // Leaving such a page only re-walks the Pixiv library when this is set, so
     // simply opening and closing the archive page no longer rescans it.
@@ -1469,7 +1470,7 @@ fun AlbumApp(
                     // the background used to trigger a full reload every time.
                     val granted = hasMediaPermission(context)
                     if (granted != library.permissionGranted) {
-                        scope.launch { library.refresh(granted) }
+                        refresher.request(granted = granted)
                     }
                 }
                 Lifecycle.Event.ON_STOP -> {
@@ -1906,7 +1907,7 @@ fun AlbumApp(
                 if (archiveMediaRefreshPending) {
                     archiveMediaRefreshPending = false
                     scope.launch {
-                        library.refresh(library.permissionGranted, scheduleThumbnailOptimization = false)
+                        refresher.request(scheduleThumbnailOptimization = false)
                     }
                 }
             }
@@ -1965,7 +1966,7 @@ fun AlbumApp(
             selectedUris = emptySet()
             selectionMode = false
             scope.launch {
-                library.refresh(library.permissionGranted, scheduleThumbnailOptimization = false)
+                refresher.request(scheduleThumbnailOptimization = false)
             }
         } else if (pendingRecycleIds.isNotEmpty()) {
             library.discardRecycle(pendingRecycleIds)
@@ -2036,7 +2037,7 @@ fun AlbumApp(
         val restoring = pendingTrashRestore
         if (result.resultCode == Activity.RESULT_OK) {
             library.removeRecycleRecords(restoring)
-            scope.launch { library.refresh(library.permissionGranted) }
+            refresher.request()
             Toast.makeText(context, if (english) "Restored ${restoring.size} items" else "已还原 ${restoring.size} 项", Toast.LENGTH_SHORT).show()
         }
         pendingTrashRestore = emptyList()
@@ -2070,7 +2071,7 @@ fun AlbumApp(
     }
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         val granted = hasMediaPermission(context)
-        scope.launch { library.refresh(granted) }
+        refresher.request(granted = granted)
         if (
             granted &&
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
@@ -2089,7 +2090,7 @@ fun AlbumApp(
     val requestPermission: () -> Unit = {
         val missing = missingPermissions(context, requiredMediaPermissions())
         if (missing.isEmpty()) {
-            scope.launch { library.refresh(true) }
+            refresher.request(granted = true)
         } else {
             permissionLauncher.launch(missing)
         }
@@ -2293,16 +2294,13 @@ fun AlbumApp(
     // every pull feel slow even when nothing had changed; the system media
     // provider already indexes new files, so the walk stays on the menu entry.
     val refreshLibrary: () -> Unit = {
-        scope.launch {
-            library.refresh(library.permissionGranted, source = com.example.album.ui.RefreshSource.UserPull)
-            if (selectedTab == MainTab.Pixiv) pixivRefreshKey++
-        }
+        refresher.request(com.example.album.ui.RefreshSource.UserPull)
+        if (selectedTab == MainTab.Pixiv) pixivRefreshKey++
     }
 
     LaunchedEffect(library.permissionGranted) {
         val granted = hasMediaPermission(context)
-        library.refresh(granted, source = com.example.album.ui.RefreshSource.Startup)
-        startupLibraryReadDone = true
+        refresher.request(com.example.album.ui.RefreshSource.Startup, granted = granted)
         val initialPermissionsPrompted = albumSettings.getBoolean("runtime_permissions_prompted", false)
         val missingInitialPermissions = missingPermissions(context, requiredAppPermissions())
         if (!initialPermissionsPrompted && missingInitialPermissions.isNotEmpty()) {
@@ -2364,7 +2362,10 @@ fun AlbumApp(
                 observerRefreshJob[0]?.cancel()
                 observerRefreshJob[0] = scope.launch {
                     delay(400L)
-                    library.refresh(true, source = com.example.album.ui.RefreshSource.Observer)
+                    refresher.request(
+                        com.example.album.ui.RefreshSource.Observer,
+                        granted = true
+                    )
                 }
             }
         }
@@ -2442,7 +2443,7 @@ fun AlbumApp(
                     pixivArchiveMoveUris = emptySet()
                     library.restore(optimisticMoveItems)
                     scope.launch {
-                        library.refresh(library.permissionGranted, scheduleThumbnailOptimization = false)
+                        refresher.request(scheduleThumbnailOptimization = false)
                     }
                     Toast.makeText(
                         context,
@@ -2606,7 +2607,7 @@ fun AlbumApp(
                     }
 
                     if (!sourceDeletePending) {
-                        library.refresh(library.permissionGranted, scheduleThumbnailOptimization = false)
+                        refresher.request(scheduleThumbnailOptimization = false)
                     }
 
                     val action = if (english) {
@@ -2685,7 +2686,7 @@ fun AlbumApp(
                 // media index already in place.
                 scope.launch {
                     try {
-                        library.refresh(library.permissionGranted, scheduleThumbnailOptimization = false)
+                        refresher.request(scheduleThumbnailOptimization = false)
                     } finally {
                         archiveMediaRefreshing = false
                         pixivRefreshKey++
@@ -2724,7 +2725,7 @@ fun AlbumApp(
                 if (renamed == null) {
                     Toast.makeText(context, appText("重命名失败", english), Toast.LENGTH_SHORT).show()
                 }
-                if (renamed != null) scope.launch { library.refresh(library.permissionGranted, scheduleThumbnailOptimization = false) }
+                if (renamed != null) scope.launch { refresher.request(scheduleThumbnailOptimization = false) }
                 renamed?.uri
             },
             onShare = { items ->
@@ -2779,7 +2780,7 @@ fun AlbumApp(
                 if (archiveMediaRefreshPending) {
                     archiveMediaRefreshPending = false
                     scope.launch {
-                        library.refresh(library.permissionGranted, scheduleThumbnailOptimization = false)
+                        refresher.request(scheduleThumbnailOptimization = false)
                     }
                 }
             },
@@ -3696,11 +3697,7 @@ fun AlbumApp(
                     isVideo = albumShowsVideos,
                     query = appliedQuery,
                     searchingFolders = library.searchableFoldersLoading || !library.searchableFoldersReady,
-                    loading = library.loading,
-                    scanning = library.scanning,
-                    suppressRefreshIndicator = !startupLibraryReadDone,
-                    refreshSource = library.refreshSource,
-                    initialLoadComplete = library.initialLoadComplete,
+                    loadState = library.loadState,
                     permissionGranted = if (albumShowsVideos) library.videoPermissionGranted else library.imagePermissionGranted,
                     sort = mediaSort,
                     sortDirection = sortDirection,
@@ -3783,11 +3780,7 @@ fun AlbumApp(
                     isVideo = true,
                     query = appliedQuery,
                     searchingFolders = library.searchableFoldersLoading || !library.searchableFoldersReady,
-                    loading = library.loading,
-                    scanning = library.scanning,
-                    suppressRefreshIndicator = !startupLibraryReadDone,
-                    refreshSource = library.refreshSource,
-                    initialLoadComplete = library.initialLoadComplete,
+                    loadState = library.loadState,
                     permissionGranted = library.videoPermissionGranted,
                     sort = mediaSort,
                     sortDirection = sortDirection,
@@ -3860,11 +3853,7 @@ fun AlbumApp(
                 MainTab.Timeline -> TimelineScreen(
                     media = if (timelineShowsVideos) visibleVideos else visibleImages,
                     query = appliedQuery,
-                    loading = library.loading,
-                    scanning = library.scanning,
-                    suppressRefreshIndicator = !startupLibraryReadDone,
-                    refreshSource = library.refreshSource,
-                    initialLoadComplete = library.initialLoadComplete,
+                    loadState = library.loadState,
                     permissionGranted = if (timelineShowsVideos) library.videoPermissionGranted else library.imagePermissionGranted,
                     isVideo = timelineShowsVideos,
                     columns = timelineColumns,
@@ -3921,6 +3910,11 @@ fun AlbumApp(
                         }
                     }
                     Box(Modifier.fillMaxWidth().weight(1f)) {
+                val pixivLoadState = library.loadState.copy(
+                    active = if (pixivPageRefreshing) com.example.album.ui.RefreshSource.UserPull
+                    else library.loadState.active,
+                    initialScanComplete = pixivLibraryImages != null
+                )
                 AlbumsScreen(
                     media = if (pixivSearchMode == PixivSearchMode.Tag && appliedQuery.isNotBlank()) pixivTagResults else pixivSearchImages,
                     isVideo = false,
@@ -3930,12 +3924,7 @@ fun AlbumApp(
                     // is set by that gesture alone. Loads the app starts by itself
                     // (the media library refresh, settings changes, archiving) stay
                     // silent on this page.
-                    loading = pixivPageRefreshing,
-                    scanning = library.scanning,
-                    suppressRefreshIndicator = !startupLibraryReadDone,
-                    refreshSource = library.refreshSource,
-                    forcePullIndicator = pixivPageRefreshing,
-                    initialLoadComplete = pixivLibraryImages != null,
+                    loadState = pixivLoadState,
                     permissionGranted = true,
                     tagLoading = pixivTagsLoading && pixivSearchMode == PixivSearchMode.Tag,
                     sort = mediaSort,
@@ -4103,7 +4092,7 @@ fun AlbumApp(
                             // in the filter store, so record them before the
                             // library re-filters.
                             val marked = pixivRepository.backfillAdultTags()
-                            if (marked > 0) library.refresh(library.permissionGranted)
+                            if (marked > 0) refresher.request()
                             Toast.makeText(
                                 context,
                                 if (marked > 0) {
@@ -4343,7 +4332,7 @@ fun AlbumApp(
             enterFromViewer = editorReturnMedia != null,
             onDismiss = ::finishEditing,
             onSaved = {
-                scope.launch { library.refresh(library.permissionGranted) }
+                refresher.request()
                 finishEditing()
             }
         )
@@ -4655,7 +4644,7 @@ fun AlbumApp(
             transferJob = null
             transferProgress = null
             scope.launch {
-                library.refresh(library.permissionGranted, scheduleThumbnailOptimization = false)
+                refresher.request(scheduleThumbnailOptimization = false)
             }
         }
     }
@@ -4779,7 +4768,7 @@ fun AlbumApp(
                         if (renamed == 0) {
                             Toast.makeText(context, appText("重命名失败", english), Toast.LENGTH_SHORT).show()
                         } else {
-                            library.refresh(library.permissionGranted)
+                            refresher.request()
                         }
                     }
                 }

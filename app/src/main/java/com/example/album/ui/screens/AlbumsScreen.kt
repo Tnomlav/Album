@@ -106,21 +106,11 @@ fun AlbumsScreen(
     isVideo: Boolean,
     query: String,
     searchingFolders: Boolean = false,
-    loading: Boolean,
-    scanning: Boolean = false,
-    refreshSource: com.example.album.ui.RefreshSource? = null,
-    /** Pages with their own refresh pipeline (the Pixiv tab) drive the pull indicator themselves. */
-    forcePullIndicator: Boolean = false,
     /**
-     * True while the app is doing the library read it starts by itself: that
-     * read must not light up the pull-to-refresh indicator.
+     * Everything the page needs to know about loading: whether the first scan
+     * finished and whether the running (or queued) scan is a finger pull.
      */
-    suppressRefreshIndicator: Boolean = false,
-    /**
-     * False until the first library scan finishes. An empty library must show
-     * the loading state then, instead of briefly claiming there is no media.
-     */
-    initialLoadComplete: Boolean = true,
+    loadState: com.example.album.ui.LoadState = com.example.album.ui.LoadState.Ready,
     permissionGranted: Boolean,
     tagLoading: Boolean = false,
     sort: MediaSort,
@@ -174,10 +164,8 @@ fun AlbumsScreen(
 ) {
     // The pull-to-refresh indicator is only for refreshes the user asked for.
     // Startup scans, background observer reloads and post-operation reloads use
-    // the same library scan but must not look like a finger pull; they stay
-    // silent (the first scan shows the skeleton below instead).
-    val refreshing = (refreshSource == com.example.album.ui.RefreshSource.UserPull || forcePullIndicator) &&
-        !suppressRefreshIndicator
+    // the same library scan but stay silent (the first scan shows the skeleton).
+    val refreshing = loadState.isUserPull
     val english = LocalAppEnglish.current
     fun itemsInDisplayOrder(items: List<MediaItem>): List<MediaItem> {
         return sortMediaItems(items, sort, sortDirection)
@@ -238,7 +226,7 @@ fun AlbumsScreen(
         // spinner that appears out of nowhere, so this case renders nothing
         // (the pull-to-refresh indicator still covers refreshes the user asks
         // for).
-        media.isEmpty() && !initialLoadComplete -> LibrarySkeleton(
+        media.isEmpty() && !loadState.initialScanComplete -> LibrarySkeleton(
             columns = if (openedFolder == null) albumColumns else folderColumns
         )
         !permissionGranted && media.isEmpty() -> PermissionEmpty(onRequestPermission)

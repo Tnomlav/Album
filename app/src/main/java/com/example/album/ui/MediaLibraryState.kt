@@ -109,22 +109,15 @@ class MediaLibraryState(context: Context) {
         private set
     var localVideos by mutableStateOf<List<MediaItem>>(emptyList())
         private set
-    // Starts false: when a cached snapshot exists the library appears straight
-    // away and the refresh stays invisible. An empty library still shows the
-    // progress indicator (see initialLoadComplete in the screens).
-    var loading by mutableStateOf(false)
-        private set
     /**
-     * Why the library is scanning right now, or null when it is idle.
+     * Everything the UI needs to know about loading: whether the first scan
+     * finished, which scan is running, and which one is waiting behind it.
      *
-     * The pull-to-refresh indicator is only appropriate for [RefreshSource.UserPull];
-     * a background observer refresh or a post-delete reload used to light up the
-     * same spinner, which read as "the app refreshed itself behind my back".
+     * This used to be three independent flags (`loading`, `refreshSource`,
+     * `initialLoadComplete`); a refresh that was queued behind another scan
+     * could not be expressed, so pull-to-refresh needed extra UI-side flags.
      */
-    var refreshSource by mutableStateOf<RefreshSource?>(null)
-        private set
-    /** False until the first library scan finishes. */
-    var initialLoadComplete by mutableStateOf(false)
+    var loadState by mutableStateOf(LoadState())
         private set
     var refreshError by mutableStateOf<String?>(null)
         private set
@@ -173,7 +166,7 @@ class MediaLibraryState(context: Context) {
             localVideos = cached.localVideos
             images = cached.images
             videos = cached.videos
-            initialLoadComplete = true
+            loadState = loadState.copy(initialScanComplete = true)
         }
     }
 
@@ -181,14 +174,27 @@ class MediaLibraryState(context: Context) {
         val days = settingsPreferences.getString("retention", "60天")?.filter(Char::isDigit)?.toIntOrNull() ?: 60
     } */
 
+    /**
+     * Marks a request as waiting before its coroutine reaches the mutex, so the
+     * UI can show "the pull is being served" in the same frame as the gesture
+     * instead of after the queued scan actually starts.
+     */
+    fun markQueued(source: RefreshSource) {
+        loadState = loadState.copy(queued = source)
+    }
+
+    /** Clears [source] from the queue when its request never reached the mutex (cancelled). */
+    fun clearQueued(source: RefreshSource) {
+        if (loadState.queued == source) loadState = loadState.copy(queued = null)
+    }
+
     suspend fun refresh(
         granted: Boolean,
         scheduleThumbnailOptimization: Boolean = true,
         source: RefreshSource = RefreshSource.Operation
     ) = refreshMutex.withLock {
         permissionGranted = granted
-        loading = true
-        refreshSource = source
+        loadState = loadState.copy(active = source, queued = null)
         val startedAt = android.os.SystemClock.elapsedRealtime()
         refreshError = null
         try {
@@ -356,11 +362,7 @@ class MediaLibraryState(context: Context) {
                     }
                 }
             }
-            loading = false
-            refreshSource = null
-            // Remember that at least one scan finished: until then an empty
-            // library means "not loaded yet", not "no media".
-            initialLoadComplete = true
+            loadState = loadState.copy(active = null, initialScanComplete = true)
             // One cache-audit line per library scan, next to the per-200
             // progress lines: pulling to refresh on a big library is enough to
             // read the thumbnail memory/disk hit rate off logcat.
@@ -896,14 +898,6 @@ private fun hasVideoReadAccess(context: Context): Boolean = when {
     Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU ->
         ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_VIDEO) == PackageManager.PERMISSION_GRANTED
     else -> ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
-}
-
-/** Where a library scan came from. Only a finger pull should show the pull indicator. */
-enum class RefreshSource {
-    Startup,
-    UserPull,
-    Observer,
-    Operation
 }
 
 /** Minimum time the pull indicator stays visible once a finger pull started it. */
