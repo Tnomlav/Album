@@ -191,8 +191,14 @@ fun rememberPullToRefresh(
     }
     androidx.compose.runtime.LaunchedEffect(awaitingStart) {
         if (awaitingStart) {
-            kotlinx.coroutines.delay(5000L)
-            awaitingStart = false
+            // A fast scan can start and finish between two frames, so the UI may
+            // never observe `refreshing` turning true. Without this the content
+            // would stay pulled down with a frozen arc forever.
+            kotlinx.coroutines.delay(1500L)
+            if (awaitingStart) {
+                awaitingStart = false
+                distance = 0f
+            }
         }
     }
     androidx.compose.runtime.LaunchedEffect(requestToken) {
@@ -243,12 +249,24 @@ fun PullRefreshIndicator(
     modifier: Modifier = Modifier
 ) {
     val progress = (pullDistance / triggerDistance.coerceAtLeast(1f)).coerceIn(0f, 1f)
-    val rotation by rememberInfiniteTransition(label = "pull-refresh-rotation").animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(tween(900, easing = LinearEasing), RepeatMode.Restart),
-        label = "pull-refresh-rotation"
-    )
+    // The spin is driven by the composition's frame clock directly. An infinite
+    // transition looked frozen on devices where the first frames after the
+    // refresh started were dropped, and this keeps the angle advancing.
+    var rotation by androidx.compose.runtime.remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
+    androidx.compose.runtime.LaunchedEffect(refreshing) {
+        if (!refreshing) {
+            rotation = 0f
+            return@LaunchedEffect
+        }
+        var last = androidx.compose.runtime.withFrameNanos { it }
+        while (true) {
+            androidx.compose.runtime.withFrameNanos { now ->
+                val deltaMs = (now - last) / 1_000_000f
+                last = now
+                rotation = (rotation + deltaMs / 900f * 360f) % 360f
+            }
+        }
+    }
     AnimatedVisibility(
         visible = refreshing || progress > .02f,
         modifier = modifier.fillMaxWidth().zIndex(21f),
