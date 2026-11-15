@@ -313,14 +313,19 @@ class MediaLibraryState(context: Context) {
                     )
                 )
             }
-            if (scheduleThumbnailOptimization) {
-                ThumbnailRepository.scheduleBackgroundOptimization(
-                    appContext,
-                    (prepared.images + prepared.videos).distinctBy { it.uri },
-                    settingsPreferences
-                )
-            } else {
-                ThumbnailRepository.cancelBackgroundOptimization()
+            // Hashing the library to decide on background thumbnails is not
+            // free; keep it off the main thread so the refresh spinner keeps
+            // its frames.
+            withContext(Dispatchers.Default) {
+                if (scheduleThumbnailOptimization) {
+                    ThumbnailRepository.scheduleBackgroundOptimization(
+                        appContext,
+                        (prepared.images + prepared.videos).distinctBy { it.uri },
+                        settingsPreferences
+                    )
+                } else {
+                    ThumbnailRepository.cancelBackgroundOptimization()
+                }
             }
         } finally {
             // A pull that finishes in a few milliseconds would otherwise only
@@ -341,7 +346,7 @@ class MediaLibraryState(context: Context) {
             // One cache-audit line per library scan, next to the per-200
             // progress lines: pulling to refresh on a big library is enough to
             // read the thumbnail memory/disk hit rate off logcat.
-            ThumbnailRepository.logStats("after scan")
+            withContext(Dispatchers.Default) { ThumbnailRepository.logStats("after scan") }
         }
     }
 

@@ -422,7 +422,7 @@ private fun OptimizedTimelineGrid(
             },
             modifier = Modifier.align(Alignment.CenterEnd)
         )
-        PullRefreshIndicator(pull.distance, loading, pull.triggerDistance, Modifier.align(Alignment.TopCenter).padding(top = 8.dp))
+        PullRefreshIndicator(pull.distance, pull.spinning, pull.triggerDistance, Modifier.align(Alignment.TopCenter).padding(top = 8.dp))
     }
 }
 
@@ -600,7 +600,7 @@ private fun AdaptiveTimeline(
             },
             modifier = Modifier.align(Alignment.CenterEnd)
         )
-        PullRefreshIndicator(pull.distance, loading, pull.triggerDistance, Modifier.align(Alignment.TopCenter).padding(top = 8.dp))
+        PullRefreshIndicator(pull.distance, pull.spinning, pull.triggerDistance, Modifier.align(Alignment.TopCenter).padding(top = 8.dp))
     }
 }
 

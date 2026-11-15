@@ -467,7 +467,7 @@ private fun AlbumGrid(albums: List<MediaAlbum>, columns: Int, refreshing: Boolea
             },
             modifier = Modifier.align(Alignment.CenterEnd)
         )
-        PullRefreshIndicator(pull.distance, refreshing, pull.triggerDistance, Modifier.align(Alignment.TopCenter).padding(top = 8.dp))
+        PullRefreshIndicator(pull.distance, pull.spinning, pull.triggerDistance, Modifier.align(Alignment.TopCenter).padding(top = 8.dp))
     }
 }
 
@@ -640,7 +640,7 @@ private fun FolderGrid(
         },
         modifier = Modifier.align(Alignment.CenterEnd)
     )
-    PullRefreshIndicator(pull.distance, refreshing, pull.triggerDistance, Modifier.align(Alignment.TopCenter).padding(top = 8.dp))
+    PullRefreshIndicator(pull.distance, pull.spinning, pull.triggerDistance, Modifier.align(Alignment.TopCenter).padding(top = 8.dp))
     }
 }
 
@@ -787,7 +787,7 @@ private fun AdaptiveFolderGrid(
             },
             modifier = Modifier.align(Alignment.CenterEnd)
         )
-        PullRefreshIndicator(pull.distance, refreshing, pull.triggerDistance, Modifier.align(Alignment.TopCenter).padding(top = 8.dp))
+        PullRefreshIndicator(pull.distance, pull.spinning, pull.triggerDistance, Modifier.align(Alignment.TopCenter).padding(top = 8.dp))
     }
 }
 

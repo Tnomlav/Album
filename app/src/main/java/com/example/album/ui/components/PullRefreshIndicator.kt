@@ -113,7 +113,13 @@ class PullToRefresh(
     val distance: Float,
     val offset: Float,
     val triggerDistance: Float,
-    val connection: NestedScrollConnection
+    val connection: NestedScrollConnection,
+    /**
+     * True while the user's pull is being served, including the moment it is
+     * queued behind a scan that is already running. The indicator must spin for
+     * that whole time, otherwise a queued pull looks frozen.
+     */
+    val spinning: Boolean
 )
 
 /**
@@ -226,7 +232,7 @@ fun rememberPullToRefresh(
             onRefresh()
         }
     )
-    return PullToRefresh(distance, offset, trigger, connection)
+    return PullToRefresh(distance, offset, trigger, connection, pullRefreshing)
 }
 
 @Composable
