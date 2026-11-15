@@ -1,5 +1,17 @@
 # Album Changelog
 
+## v1.3.53 - 2026-11-16（Phase 3：能力模型、传输计划、MediaStore 写事务合并）
+
+- 新增 MediaCapabilities / storageKindOf：把 isDocument、API 级别、URI scheme 三处
+  推断收敛成能力查询；SupportsProviderMove/DirectWrite/PreservesTimestamps/Rename。
+- 新增 planTransfer 纯函数：按模式、来源种类、API 级别给出有序策略链（ProviderMove、
+  MediaStoreCopy、DirectoryCopy、CopyThenDelete），配 7 个单测。
+- MediaRepository 里两段重复的 MediaStore 写入合并成 insertIntoMediaStore：临时名、
+  IS_PENDING、复制、发布、删旧、改名的顺序只有一处实现，兼容 Android 9 及以下的
+  DATA 路径。
+- 传输入口改为按计划判断能否走 provider move；行为与之前一致。
+- 版本 1.3.53 / VERSION_CODE 306。
+
 ## v1.3.52 - 2026-11-16（Phase 2：数据源接缝、增量刷新、快照版本化）
 
 - 媒体快照加上 schemaVersion 与 savedAt：写入前 fsync、临时文件改名；更高版本的快照

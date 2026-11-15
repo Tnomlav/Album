@@ -569,7 +569,11 @@ class MediaRepository(private val context: Context) {
         // destination can have a persisted tree permission even when the
         // source is MediaStore; checking SAF first silently downgraded Move
         // to copy-then-delete.
-            if (mode == TransferMode.Move) {
+            // The planner decides whether a provider-side move is even possible
+            // on this platform for this source; the attempt itself still returns
+            // null when the destination is not a MediaStore-writable directory.
+            val plan = planTransfer(mode, storageKindOf(item), Build.VERSION.SDK_INT)
+            if (plan.tryProviderMoveFirst) {
                 tryDirectMediaStoreMove(item, destinationFolder, conflictPolicy)?.let {
                     return@withContext it
                 }
@@ -667,57 +671,21 @@ class MediaRepository(private val context: Context) {
                 return@withContext it
             }
         }
-        val replacing = existing != null && conflictPolicy == ConflictPolicy.Overwrite
-        val insertName = if (replacing) temporaryTransferName(targetName) else targetName
-        val values = ContentValues().apply {
-            put(MediaStore.MediaColumns.DISPLAY_NAME, insertName)
-            put(MediaStore.MediaColumns.MIME_TYPE, transferMimeType(item))
-            if (preserveModifiedDate) {
-                put(MediaStore.MediaColumns.DATE_MODIFIED, item.dateTaken / 1000L)
-                if (item.isVideo) put(MediaStore.Video.Media.DATE_TAKEN, item.dateTaken)
-                else put(MediaStore.Images.Media.DATE_TAKEN, item.dateTaken)
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
-                put(MediaStore.MediaColumns.IS_PENDING, 1)
-            } else {
-                val destinationPath = relativePath.removeSuffix("/")
-                val directory = File(Environment.getExternalStorageDirectory(), destinationPath)
-                if (!directory.exists()) directory.mkdirs()
-                put(MediaStore.MediaColumns.DATA, File(directory, targetName).absolutePath)
-            }
+        val legacyDirectory = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) null else {
+            File(Environment.getExternalStorageDirectory(), relativePath.removeSuffix("/"))
         }
-        val target = resolver.insert(collection, values)
-            ?: return@withContext TransferResult(item, success = false)
-        runCatching {
-            resolver.openInputStream(item.uri).use { input ->
-                resolver.openOutputStream(target).use { output ->
-                    requireNotNull(input)
-                    requireNotNull(output)
-                    copyWithProgress(input, output, onProgress)
-                }
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                resolver.update(target, ContentValues().apply {
-                    put(MediaStore.MediaColumns.IS_PENDING, 0)
-                    if (preserveModifiedDate) put(MediaStore.MediaColumns.DATE_MODIFIED, item.dateTaken / 1000L)
-                }, null, null)
-            }
-            if (replacing) {
-                // The new copy is complete, so the old file can be removed now.
-                // If this fails the new copy is dropped and nothing is lost.
-                if (resolver.delete(existing!!, null, null) <= 0) {
-                    throw IOException("Unable to replace the existing file")
-                }
-                resolver.update(target, ContentValues().apply {
-                    put(MediaStore.MediaColumns.DISPLAY_NAME, targetName)
-                }, null, null)
-            }
-            TransferResult(item, success = true, targetName = targetName)
-        }.getOrElse {
-            resolver.delete(target, null, null)
-            TransferResult(item, success = false, failure = TransferFailure.Unknown)
-        }
+        return@withContext insertIntoMediaStore(
+            item = item,
+            collection = collection,
+            relativePath = relativePath,
+            targetName = targetName,
+            existing = existing,
+            replacing = existing != null && conflictPolicy == ConflictPolicy.Overwrite,
+            preserveModifiedDate = preserveModifiedDate,
+            onProgress = onProgress,
+            insertFailure = null,
+            legacyDirectory = legacyDirectory
+        )
         } catch (_: Exception) {
             TransferResult(item, success = false, failure = TransferFailure.Unknown)
         }
@@ -731,7 +699,6 @@ class MediaRepository(private val context: Context) {
         preserveModifiedDate: Boolean,
         onProgress: ((Long) -> Unit)? = null
     ): TransferResult {
-        val resolver = context.contentResolver
         val existing = findDestination(collection, relativePath, item.name)
         if (existing == item.uri) {
             return TransferResult(item, success = true, skipped = true, targetName = item.name)
@@ -742,7 +709,40 @@ class MediaRepository(private val context: Context) {
         val targetName = if (existing != null && conflictPolicy == ConflictPolicy.KeepBoth) {
             availableName(collection, relativePath, item.name)
         } else item.name
-        val replacing = existing != null && conflictPolicy == ConflictPolicy.Overwrite
+        return insertIntoMediaStore(
+            item = item,
+            collection = collection,
+            relativePath = relativePath,
+            targetName = targetName,
+            existing = existing,
+            replacing = existing != null && conflictPolicy == ConflictPolicy.Overwrite,
+            preserveModifiedDate = preserveModifiedDate,
+            onProgress = onProgress,
+            insertFailure = TransferFailure.DestinationUnwritable
+        )
+    }
+
+    /**
+     * Writes a copy through the MediaStore and commits it in one place.
+     *
+     * The new row is inserted as pending under a temporary name; only after the
+     * bytes are copied and the row is published does the old destination get
+     * removed and the temporary name become the real one. A failure at any step
+     * drops the partial row, so the destination is never a half-written file.
+     */
+    private fun insertIntoMediaStore(
+        item: MediaItem,
+        collection: android.net.Uri,
+        relativePath: String,
+        targetName: String,
+        existing: android.net.Uri?,
+        replacing: Boolean,
+        preserveModifiedDate: Boolean,
+        onProgress: ((Long) -> Unit)?,
+        insertFailure: TransferFailure?,
+        legacyDirectory: File? = null
+    ): TransferResult {
+        val resolver = context.contentResolver
         val insertName = if (replacing) temporaryTransferName(targetName) else targetName
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, insertName)
@@ -752,11 +752,16 @@ class MediaRepository(private val context: Context) {
                 if (item.isVideo) put(MediaStore.Video.Media.DATE_TAKEN, item.dateTaken)
                 else put(MediaStore.Images.Media.DATE_TAKEN, item.dateTaken)
             }
-            put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
-            put(MediaStore.MediaColumns.IS_PENDING, 1)
+            if (legacyDirectory != null) {
+                if (!legacyDirectory.exists()) legacyDirectory.mkdirs()
+                put(MediaStore.MediaColumns.DATA, File(legacyDirectory, targetName).absolutePath)
+            } else {
+                put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
+                put(MediaStore.MediaColumns.IS_PENDING, 1)
+            }
         }
         val target = resolver.insert(collection, values)
-            ?: return TransferResult(item, success = false, failure = TransferFailure.DestinationUnwritable)
+            ?: return TransferResult(item, success = false, failure = insertFailure)
         return runCatching {
             resolver.openInputStream(item.uri).use { input ->
                 resolver.openOutputStream(target).use { output ->
@@ -765,9 +770,12 @@ class MediaRepository(private val context: Context) {
                     copyWithProgress(input, output, onProgress)
                 }
             }
-            resolver.update(target, ContentValues().apply {
-                put(MediaStore.MediaColumns.IS_PENDING, 0)
-            }, null, null)
+            if (legacyDirectory == null) {
+                resolver.update(target, ContentValues().apply {
+                    put(MediaStore.MediaColumns.IS_PENDING, 0)
+                    if (preserveModifiedDate) put(MediaStore.MediaColumns.DATE_MODIFIED, item.dateTaken / 1000L)
+                }, null, null)
+            }
             if (replacing) {
                 if (resolver.delete(existing!!, null, null) <= 0) {
                     throw IOException("Unable to replace the existing file")
@@ -789,7 +797,11 @@ class MediaRepository(private val context: Context) {
         destinationFolder: String,
         conflictPolicy: ConflictPolicy
     ): TransferResult? {
-        if (item.isDocument || Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
+        // The explicit API guard keeps lint able to see that the VOLUME_EXTERNAL_PRIMARY
+        // constants below are only reached on Android 10+.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q ||
+            !capabilitiesOf(storageKindOf(item), Build.VERSION.SDK_INT).supportsProviderMove
+        ) return null
         val directory = findWritablePhysicalDirectory(destinationFolder) ?: return null
         val relativePath = mediaStoreRelativePathForDirectory(directory) ?: return null
         val collection = if (item.isVideo) {
