@@ -2,6 +2,8 @@ package com.example.album.ui
 
 import com.example.album.data.MediaAlbum
 import com.example.album.data.MediaItem
+import com.example.album.data.albumDisplayName
+import com.example.album.data.folderKey
 
 internal fun searchTextMatches(query: String, vararg values: String): Boolean {
     val text = query.trim()
@@ -51,11 +53,13 @@ internal fun searchAlbums(
         return sortMediaItems(items, sort, sortDirection)
     }
 
-    val grouped = media.groupBy { it.folder }
+    // Group by the full path so same-named folders in different locations stay
+    // separate, but label each album with its leaf name.
+    val grouped = media.groupBy { it.folderKey() }
     val albums = (grouped.keys + additionalFolderNames).distinct()
-        .map { name ->
-            val items = orderedItems(grouped[name].orEmpty())
-            MediaAlbum(name, items, items.firstOrNull())
+        .map { key ->
+            val items = orderedItems(grouped[key].orEmpty())
+            MediaAlbum(albumDisplayName(key), items, items.firstOrNull(), key)
         }
         .filter { album ->
             folderMatchesSearch(
@@ -96,6 +100,8 @@ internal fun filterAlbums(
                 album.name,
                 if (matchItems) album.items else emptyList(),
                 if (matchItems) additionalFileNames[album.name].orEmpty() else emptySet()
-            )
+            ) ||
+            // Searching by path ("DCIM/Camera") should find the folder too.
+            searchTextMatches(query, album.key)
     }
 }

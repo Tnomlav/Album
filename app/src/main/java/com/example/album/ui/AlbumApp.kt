@@ -134,6 +134,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 import com.example.album.data.MediaItem
+import com.example.album.data.folderKey
 import com.example.album.ImageSearchActivity
 import com.example.album.ImageSearchSource
 import com.example.album.PixivTagIndexService
@@ -1217,21 +1218,21 @@ fun AlbumApp(
     } }
     val currentSelectionMedia by remember { derivedStateOf {
         val openedMediaScope = if (openedFolder != null) {
-            folderScope?.takeIf { items -> items.all { it.folder == openedFolder } }
+            folderScope?.takeIf { items -> items.all { it.folderKey() == openedFolder } }
         } else null
         when (selectedTab) {
             MainTab.Videos -> openedMediaScope
-                ?: openedFolder?.let { folder -> visibleVideos.filter { it.folder == folder } }
+                ?: openedFolder?.let { folder -> visibleVideos.filter { it.folderKey() == folder } }
                 ?: visibleVideos
             MainTab.Albums -> openedMediaScope
-                ?: openedFolder?.let { folder -> albumImages.filter { it.folder == folder } }
+                ?: openedFolder?.let { folder -> albumImages.filter { it.folderKey() == folder } }
                 ?: albumImages
             MainTab.Timeline -> if (timelineShowsVideos) visibleVideos else visibleImages
             MainTab.Pixiv -> if (pixivSearchMode == PixivSearchMode.Tag && appliedQuery.isNotBlank()) {
                 pixivTagResults
             } else {
                 openedMediaScope
-                    ?: openedFolder?.let { folder -> pixivSearchImages.filter { it.folder == folder } }
+                    ?: openedFolder?.let { folder -> pixivSearchImages.filter { it.folderKey() == folder } }
                     ?: pixivSearchImages
             }
             MainTab.Tools -> emptyList()
@@ -1298,7 +1299,7 @@ fun AlbumApp(
         source.distinctBy { it.uri.toString() }
     } }
     val selectedItemsForAction by remember { derivedStateOf {
-        if (selectingFolders) completeSelectionMedia.filter { it.folder in selectedFolders }
+        if (selectingFolders) completeSelectionMedia.filter { it.folderKey() in selectedFolders }
         else completeSelectionMedia.filter { it.uri.toString() in selectedUris }
     } }
     val singleSelectedImage = selectedItemsForAction.singleOrNull()
@@ -1379,7 +1380,7 @@ fun AlbumApp(
         // not sort that list a second time: reversing a stable sort twice can
         // change the order of files that share the same timestamp or name.
         val hasExactFolderOrder = openedFolder != null && folderScope?.let { scope ->
-            scope.isNotEmpty() && scope.all { it.folder == openedFolder } &&
+            scope.isNotEmpty() && scope.all { it.folderKey() == openedFolder } &&
                 scope.any { it.uri == item.uri }
         } == true
         val externalScope = externalVideoPlaylist?.takeIf { list ->
@@ -3015,7 +3016,7 @@ fun AlbumApp(
                 // Tools page drops it entirely.
                 if (tab != MainTab.Settings && tab != MainTab.Tools) VaultTopBar(
                 title = if (openedFolder != null) {
-                    openedFolder.orEmpty()
+                    com.example.album.data.albumDisplayName(openedFolder.orEmpty())
                 } else if (tab == MainTab.Timeline) {
                     if (appLanguage == "English") "Timeline" else "时间轴"
                 } else tabLabel(tab),
@@ -3430,13 +3431,13 @@ fun AlbumApp(
                         selectionFolderFirstVisibleOffset = offset
                         selectionMode = true
                         selectingFolders = true
-                        selectedFolders = selectedFolders + album.name
+                        selectedFolders = selectedFolders + album.key
                     },
-                    onSelectionGestureStartAlbum = { album -> selectionGestureActive = true; freezeSelectionSort(); selectingFolders = true; selectedFolders = selectedFolders + album.name },
+                    onSelectionGestureStartAlbum = { album -> selectionGestureActive = true; freezeSelectionSort(); selectingFolders = true; selectedFolders = selectedFolders + album.key },
                     onBatchSelectAlbums = { albums ->
                         freezeSelectionSort()
                         selectingFolders = true
-                        selectedFolders = selectedFolders + albums.map { it.name }
+                        selectedFolders = selectedFolders + albums.map { it.key }
                     },
                     onAlbumSelectionGestureEnd = { selectionGestureActive = false; selectionMode = true },
                     onRefresh = { refreshLibrary() },
@@ -3450,7 +3451,7 @@ fun AlbumApp(
                     selectedFolders = selectedFolders,
                     additionalAlbumNames = if (appliedQuery.isBlank()) emptySet() else library.searchableFolderNames + library.searchableFolderChildren.values.flatten(),
                     additionalFileNames = if (appliedQuery.isBlank()) emptyMap() else library.searchableFolderFiles,
-                    additionalChildFolderNames = if (openedFolder == null) emptySet() else library.searchableFolderChildren[openedFolder].orEmpty(),
+                    additionalChildFolderNames = if (openedFolder == null) emptySet() else (library.searchableFolderChildren[openedFolder.orEmpty()] ?: library.searchableFolderChildren[com.example.album.data.albumDisplayName(openedFolder.orEmpty())]).orEmpty(),
                     onClearQuery = { query = "" }
                     ,onOpenPixivArchive = {
                         pixivArchiveOpen = true
@@ -3508,13 +3509,13 @@ fun AlbumApp(
                         selectionFolderFirstVisibleOffset = offset
                         selectionMode = true
                         selectingFolders = true
-                        selectedFolders = selectedFolders + album.name
+                        selectedFolders = selectedFolders + album.key
                     },
-                    onSelectionGestureStartAlbum = { album -> selectionGestureActive = true; freezeSelectionSort(); selectingFolders = true; selectedFolders = selectedFolders + album.name },
+                    onSelectionGestureStartAlbum = { album -> selectionGestureActive = true; freezeSelectionSort(); selectingFolders = true; selectedFolders = selectedFolders + album.key },
                     onBatchSelectAlbums = { albums ->
                         freezeSelectionSort()
                         selectingFolders = true
-                        selectedFolders = selectedFolders + albums.map { it.name }
+                        selectedFolders = selectedFolders + albums.map { it.key }
                     },
                     onAlbumSelectionGestureEnd = { selectionGestureActive = false; selectionMode = true },
                     onRefresh = { refreshLibrary() },
@@ -3528,7 +3529,7 @@ fun AlbumApp(
                     selectedFolders = selectedFolders,
                     additionalAlbumNames = if (appliedQuery.isBlank()) emptySet() else library.searchableFolderNames + library.searchableFolderChildren.values.flatten(),
                     additionalFileNames = if (appliedQuery.isBlank()) emptyMap() else library.searchableFolderFiles,
-                    additionalChildFolderNames = if (openedFolder == null) emptySet() else library.searchableFolderChildren[openedFolder].orEmpty(),
+                    additionalChildFolderNames = if (openedFolder == null) emptySet() else (library.searchableFolderChildren[openedFolder.orEmpty()] ?: library.searchableFolderChildren[com.example.album.data.albumDisplayName(openedFolder.orEmpty())]).orEmpty(),
                     onClearQuery = { query = "" }
                 )
                 MainTab.Timeline -> TimelineScreen(
@@ -3634,13 +3635,13 @@ fun AlbumApp(
                         selectionFolderFirstVisibleOffset = offset
                         selectionMode = true
                         selectingFolders = true
-                        selectedFolders = selectedFolders + album.name
+                        selectedFolders = selectedFolders + album.key
                     },
-                    onSelectionGestureStartAlbum = { album -> selectionGestureActive = true; freezeSelectionSort(); selectingFolders = true; selectedFolders = selectedFolders + album.name },
+                    onSelectionGestureStartAlbum = { album -> selectionGestureActive = true; freezeSelectionSort(); selectingFolders = true; selectedFolders = selectedFolders + album.key },
                     onBatchSelectAlbums = { albums ->
                         freezeSelectionSort()
                         selectingFolders = true
-                        selectedFolders = selectedFolders + albums.map { it.name }
+                        selectedFolders = selectedFolders + albums.map { it.key }
                     },
                     onAlbumSelectionGestureEnd = { selectionGestureActive = false; selectionMode = true },
                     onRefresh = {

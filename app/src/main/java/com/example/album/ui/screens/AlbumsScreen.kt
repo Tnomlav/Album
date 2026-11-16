@@ -67,6 +67,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import com.example.album.data.MediaAlbum
+import com.example.album.data.folderKey
 import com.example.album.data.MediaItem
 import com.example.album.data.displayAspectRatio
 import com.example.album.ui.components.AlbumTile
@@ -198,11 +199,15 @@ fun AlbumsScreen(
             val sorted = itemsInDisplayOrder(media)
             MediaAlbum("__flat__", sorted, sorted.firstOrNull())
         } else openedFolder?.let { folder ->
-            val folderItems = media.filter { it.folder == folder }
+            // Key matching keeps same-named folders apart; the leaf fallback
+            // covers virtual folders from the search index, which are only
+            // known by name.
+            val folderItems = media.filter { it.folderKey() == folder }
+                .ifEmpty { media.filter { it.folder == folder } }
             val items = folderItems.filter { query.isBlank() || it.name.contains(query, true) }
             val sorted = itemsInDisplayOrder(items)
             val cover = itemsInDisplayOrder(folderItems).firstOrNull()
-            MediaAlbum(folder, sorted, cover)
+            MediaAlbum(com.example.album.data.albumDisplayName(folder), sorted, cover, folder)
         }
     }
     val childAlbums = remember(media, additionalChildFolderNames, sort, sortDirection) {
@@ -231,7 +236,7 @@ fun AlbumsScreen(
         )
         !permissionGranted && media.isEmpty() -> PermissionEmpty(onRequestPermission)
         tagLoading && media.isEmpty() -> TagIndexLoading()
-        media.isEmpty() && openedFolder.equals("Pixiv", ignoreCase = true) && onOpenPixivArchive != null ->
+        media.isEmpty() && com.example.album.data.albumDisplayName(openedFolder.orEmpty()).equals("Pixiv", ignoreCase = true) && onOpenPixivArchive != null ->
             FolderGrid(
                 MediaAlbum("Pixiv", emptyList(), null),
                 columns = folderColumns,
@@ -433,18 +438,18 @@ private fun AlbumGrid(albums: List<MediaAlbum>, columns: Int, refreshing: Boolea
             horizontalArrangement = Arrangement.spacedBy(VaultDimens.AlbumGap),
             verticalArrangement = Arrangement.spacedBy(VaultDimens.AlbumGap)
         ) {
-            items(albums, key = { it.name }) { album ->
+            items(albums, key = { it.key }) { album ->
                 val pixivFolder = isPixivFolderName(album.name)
                 if (album.items.isEmpty()) {
-                    EmptyAlbumTile(album.name, showPixivMark = pixivFolder) { onOpenAlbum(album.name) }
+                    EmptyAlbumTile(album.name, showPixivMark = pixivFolder) { onOpenAlbum(album.key) }
                 } else {
                     AlbumTile(
                         album = album,
                         onLongClick = {},
                         sharedElementEnabled = sharedElementEnabled,
-                        selected = if (selectionPreview) album.name in selectedFolders else null,
+                        selected = if (selectionPreview) album.key in selectedFolders else null,
                         showPixivMark = pixivFolder
-                    ) { onOpenAlbum(album.name) }
+                    ) { onOpenAlbum(album.key) }
                 }
             }
         }

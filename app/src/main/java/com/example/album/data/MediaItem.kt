@@ -53,10 +53,16 @@ val MediaItem.displayAspectRatio: Float
     get() = if (width > 0 && height > 0) (width.toFloat() / height).coerceIn(.45f, 2.4f) else 1f
 
 data class MediaAlbum(
+    /** What the tile shows: the folder's leaf name. */
     val name: String,
     val items: List<MediaItem>,
     // Keep the cover independent from the folder's current display sort.
-    val coverItem: MediaItem? = null
+    val coverItem: MediaItem? = null,
+    /**
+     * Folder identity (the full path). Two folders with the same leaf name have
+     * different keys, which is what keeps their contents apart.
+     */
+    val key: String = name
 ) {
     val cover: MediaItem get() = coverItem ?: items.first()
 }

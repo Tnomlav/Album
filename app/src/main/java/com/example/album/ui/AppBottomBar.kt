@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.example.album.data.MediaItem
+import com.example.album.data.folderKey
 import com.example.album.ui.components.SelectionSubBar
 import com.example.album.ui.theme.VaultDimens
 import kotlin.math.abs
@@ -104,7 +105,7 @@ fun AppBottomBar(
             total = if (selectingFolders) selectionMedia.map { it.folder }.distinct().size else selectionMedia.size,
             onSelectAll = {
                 if (selectingFolders) {
-                    val all = selectionMedia.mapTo(mutableSetOf()) { it.folder }
+                    val all = selectionMedia.mapTo(mutableSetOf()) { it.folderKey() }
                     onSelectedFoldersChange(
                         if (all.isNotEmpty() && all.all { it in selectedFolders }) selectedFolders - all
                         else selectedFolders + all

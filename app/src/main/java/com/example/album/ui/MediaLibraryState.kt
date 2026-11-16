@@ -13,6 +13,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import com.example.album.data.MediaItem
+import com.example.album.data.folderKey
 import com.example.album.data.isSystemTrashedFile
 import com.example.album.data.MediaRepository
 import com.example.album.data.LocalFolderRepository
@@ -324,25 +325,10 @@ class MediaLibraryState(context: Context) {
                 // The R-18 filter is about pictures; videos keep their own
                 // handling (they rarely carry the archive's tag set).
                 fun visibleImage(item: MediaItem): Boolean = visibleName(item) && !adultFilter.contains(item)
-                // Folders are keyed by leaf name in MediaItem.folder, so two
-                // different locations with the same leaf (DCIM/Camera and
-                // Pictures/Camera) used to merge on the Videos page. Give the
-                // ambiguous ones their full path before anything groups them.
-                val (
-                    disambiguatedImages,
-                    disambiguatedVideos,
-                    disambiguatedLocalImages,
-                    disambiguatedLocalVideos
-                ) = com.example.album.data.disambiguateFolderNames(
-                    refreshResult.images.filter(::visibleImage).distinctBy { it.uri }.sortedByDescending { it.dateTaken },
-                    refreshResult.videos.filter(::visibleName).distinctBy { it.uri }.sortedByDescending { it.dateTaken },
-                    refreshResult.local.filterNot { it.isVideo }.filter(::visibleImage).distinctBy { it.uri }.sortedByDescending { it.dateTaken },
-                    refreshResult.local.filter { it.isVideo }.filter(::visibleName).distinctBy { it.uri }.sortedByDescending { it.dateTaken }
-                )
-                val normalizedImages = disambiguatedImages
-                val normalizedVideos = disambiguatedVideos
-                val normalizedLocalImages = disambiguatedLocalImages
-                val normalizedLocalVideos = disambiguatedLocalVideos
+                val normalizedImages = refreshResult.images.filter(::visibleImage).distinctBy { it.uri }.sortedByDescending { it.dateTaken }
+                val normalizedVideos = refreshResult.videos.filter(::visibleName).distinctBy { it.uri }.sortedByDescending { it.dateTaken }
+                val normalizedLocalImages = refreshResult.local.filterNot { it.isVideo }.filter(::visibleImage).distinctBy { it.uri }.sortedByDescending { it.dateTaken }
+                val normalizedLocalVideos = refreshResult.local.filter { it.isVideo }.filter(::visibleName).distinctBy { it.uri }.sortedByDescending { it.dateTaken }
                 val excluded = excludedFolders
                 PreparedMedia(
                     images = normalizedImages,
@@ -760,7 +746,7 @@ class MediaLibraryState(context: Context) {
     }
 
     fun renameFolder(folder: String, newName: String): Int {
-        val matching = (allImages + allVideos).filter { it.folder == folder }
+        val matching = (allImages + allVideos).filter { it.folderKey() == folder }
         val renamed = repository.renameFolder(matching, newName)
         if (renamed > 0) applyExclusions()
         return renamed
