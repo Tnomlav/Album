@@ -573,6 +573,10 @@ fun AlbumApp(
     }
     var selectedMedia by remember { mutableStateOf<MediaItem?>(null) }
     var viewerMedia by remember { mutableStateOf<MediaItem?>(null) }
+    // Playlist for a video opened by another app: the folder's videos, name
+    // ascending. Also marks that closing the viewer must leave Album entirely.
+    var externalVideoPlaylist by remember { mutableStateOf<List<MediaItem>?>(null) }
+    var externalOpen by remember { mutableStateOf(false) }
     var viewerScope by remember { mutableStateOf<List<MediaItem>>(emptyList()) }
     var viewerPlaybackResume by remember { mutableStateOf<PlaybackResumeRequest?>(null) }
     // Keep the shared key alive until the outgoing bounds animation finishes.
@@ -1378,7 +1382,10 @@ fun AlbumApp(
             scope.isNotEmpty() && scope.all { it.folder == openedFolder } &&
                 scope.any { it.uri == item.uri }
         } == true
-        val candidateScope = when {
+        val externalScope = externalVideoPlaylist?.takeIf { list ->
+            list.any { it.uri == item.uri }
+        }
+        val candidateScope = externalScope ?: when {
             // The timeline shows the library list order grouped by date; the
             // player must use that same order for "next video".
             // Whatever page is showing reports its exact list; paging must
@@ -1439,20 +1446,34 @@ fun AlbumApp(
             Toast.makeText(context, if (english) "Unable to read this media" else "无法读取此媒体文件", Toast.LENGTH_LONG).show()
             return@LaunchedEffect
         }
-        val name = filename.ifBlank { "外部媒体" }
-        val externalItem = MediaItem(
-            id = uri.toString().hashCode().toLong() and 0xffffffffL,
-            uri = uri,
-            name = name,
-            folder = "外部打开",
-            dateTaken = 0L,
-            mimeType = mime,
-            isVideo = mime.startsWith("video/"),
-            isDocument = true
-        )
-        albumShowsVideos = externalItem.isVideo
-        selectedTab = MainTab.Albums
-        openMedia(externalItem)
+        if (mime.startsWith("video/")) {
+            // "Open with Album" on one video: the player should be able to
+            // continue with the next video of that folder, so the playlist is
+            // built from the folder (name ascending) instead of this one URI.
+            val playlist = com.example.album.data.openExternalVideoPlaylist(context, uri)
+            val item = playlist.firstOrNull { it.uri == uri }
+                ?: com.example.album.data.externalMediaItem(context, uri)
+            externalVideoPlaylist = playlist.ifEmpty { listOf(item) }
+            externalOpen = true
+            albumShowsVideos = true
+            selectedTab = MainTab.Albums
+            openMedia(item)
+        } else {
+            val name = filename.ifBlank { "外部媒体" }
+            val externalItem = MediaItem(
+                id = uri.toString().hashCode().toLong() and 0xffffffffL,
+                uri = uri,
+                name = name,
+                folder = "外部打开",
+                dateTaken = 0L,
+                mimeType = mime,
+                isVideo = false,
+                isDocument = true
+            )
+            albumShowsVideos = false
+            selectedTab = MainTab.Albums
+            openMedia(externalItem)
+        }
     }
 
     LaunchedEffect(externalWallpaperUri) {
@@ -3934,6 +3955,16 @@ fun AlbumApp(
                                 selectedMedia = null
                                 selectionSlideshow = emptyList()
                                 slideshowStartImmersive = false
+                                if (externalOpen) {
+                                    // The video was opened by another app: closing
+                                    // it goes back there, not to Album's home.
+                                    externalOpen = false
+                                    externalVideoPlaylist = null
+                                    viewerMedia = null
+                                    viewerScope = emptyList()
+                                    activeSharedMediaKey = null
+                                    (context as? Activity)?.finish()
+                                } else
                                 // Keep the viewer and source key composed for
                                 // the full shared-element return animation.
                                 scope.launch {
