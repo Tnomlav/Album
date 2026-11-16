@@ -283,7 +283,7 @@ object ThumbnailRepository {
     private fun loadPlatformThumbnail(context: Context, item: MediaItem, size: Int): Bitmap? {
         loadPlatformThumbnailOnly(context, item, size)?.let { return it }
         if (!item.isVideo) return null
-        return VlcThumbnailExtractor.thumbnail(context, item.uri, size)
+        return VideoFrameFallback.thumbnail(context, item.uri, size)
     }
 
     private fun loadPlatformThumbnailOnly(context: Context, item: MediaItem, size: Int): Bitmap? = try {

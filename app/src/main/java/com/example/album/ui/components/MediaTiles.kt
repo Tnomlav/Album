@@ -255,10 +255,19 @@ fun MediaThumbnail(
         value = ThumbnailRepository.load(context, item, quantizedSize, preferences)
     }
 
-    val backgroundModifier = if (backgroundColor != null) modifier.background(backgroundColor)
-    else modifier.background(placeholderBrush(item.id))
+    // A video without a thumbnail uses the same placeholder language as a
+    // folder cover (tone background + centered icon in the tone's ink color)
+    // instead of the colored gradient the image placeholders use.
+    val darkTheme = MaterialTheme.colorScheme.surfaceVariant.luminance() < .45f
+    val tone = remember(item.folder, darkTheme) { emptyFolderTone(item.folder, darkTheme) }
+    val loaded = animatedDrawable != null || bitmap != null
+    val videoPlaceholder = item.isVideo && !loaded
+    val backgroundModifier = when {
+        backgroundColor != null -> modifier.background(backgroundColor)
+        videoPlaceholder -> modifier.background(tone.background)
+        else -> modifier.background(placeholderBrush(item.id))
+    }
     Box(modifier = backgroundModifier) {
-        val loaded = animatedDrawable != null || bitmap != null
         LaunchedEffect(loaded) {
             if (loaded) onLoaded?.invoke()
         }
@@ -291,6 +300,8 @@ fun MediaThumbnail(
                 )
             }
         }
+        // The play badge is identical whether or not a thumbnail exists; only
+        // the background differs (folder tone vs the frame itself).
         if (showVideoMark) {
             Surface(
                 modifier = Modifier.align(Alignment.Center),
