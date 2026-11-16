@@ -1353,8 +1353,9 @@ internal fun Media3VideoPlayer(
                         var zone = 0
                         detectVerticalDragGestures(
                             onDragStart = { start ->
-                                zone = verticalGestureZone(
+                                zone = brightnessVolumeZone(
                                     start.x / gestureWidth.coerceAtLeast(1),
+                                    start.y / gestureHeight.coerceAtLeast(1),
                                     brightnessVolumeRatio
                                 )
                             },
@@ -1420,8 +1421,16 @@ internal fun Media3VideoPlayer(
                                     if (controlsVisible) controlsVisible = false else refreshControls()
                                     return@detectTapGestures
                                 }
-                                val fraction = offset.x / size.width.coerceAtLeast(1)
-                                when (doubleTapZone(fraction, seekPauseRatio)) {
+                                // The split may be horizontal (left/right) or
+                                // vertical (top/bottom); both fractions are
+                                // passed and the helper picks the axis.
+                                when (
+                                    seekZone(
+                                        offset.x / size.width.coerceAtLeast(1),
+                                        offset.y / size.height.coerceAtLeast(1),
+                                        seekPauseRatio
+                                    )
+                                ) {
                                     -1 -> {
                                         seekToVideoFrame(player, player.currentPosition - normalSkip)
                                         gestureHud = appSeekText("快退", normalSkip, english)

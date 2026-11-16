@@ -1024,8 +1024,10 @@ private fun VideoSettingsDialog(onDismiss: () -> Unit) {
         "long" -> LONG_SKIP_OPTIONS
         "longPressSpeed" -> LONG_PRESS_SPEED_OPTIONS
         "gesture" -> listOf("30秒", "60秒", "90秒", "120秒", "150秒")
-        "brightnessVolume" -> listOf("1:1", "1:1:1", "1:2:1")
-        "seekPause" -> listOf("1:1:1", "1:2:1", "1:0:1")
+        // Horizontal splits are the original left/right layout; the v-prefixed
+        // ones put the first region on top and the last at the bottom.
+        "brightnessVolume" -> listOf("1:1", "1:1:1", "1:2:1", "v1:1:1", "v1:0:1")
+        "seekPause" -> listOf("1:1:1", "1:2:1", "1:0:1", "v1:1:1", "v1:0:1")
         else -> emptyList()
     }
 
@@ -1082,8 +1084,14 @@ private fun VideoSettingsDialog(onDismiss: () -> Unit) {
             VideoSettingSwitch(appText("自动小窗", english), autoMini) {
                 autoMini = it; putBoolean("video_auto_mini", it)
             }
-            VideoSettingChoice(appText("亮度：空白：音量 触控占比", english), brightnessVolumeRatio) { openChoice = "brightnessVolume" }
-            VideoSettingChoice(appText("快退：暂停：快进 触控占比", english), seekPauseRatio) { openChoice = "seekPause" }
+            VideoSettingChoice(
+                appText("亮度：空白：音量 触控占比", english),
+                gestureSplitLabel(brightnessVolumeRatio, english)
+            ) { openChoice = "brightnessVolume" }
+            VideoSettingChoice(
+                appText("快退：暂停：快进 触控占比", english),
+                gestureSplitLabel(seekPauseRatio, english)
+            ) { openChoice = "seekPause" }
         }
     }
 
@@ -1120,7 +1128,15 @@ private fun VideoSettingsDialog(onDismiss: () -> Unit) {
                             openChoice = null
                         },
                         modifier = Modifier.fillMaxWidth()
-                    ) { Text(option) }
+                    ) {
+                        Text(
+                            if (openChoice == "brightnessVolume" || openChoice == "seekPause") {
+                                gestureSplitLabel(option, english)
+                            } else {
+                                option
+                            }
+                        )
+                    }
                 }
             }
         }
