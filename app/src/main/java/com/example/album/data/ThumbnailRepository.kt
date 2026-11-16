@@ -276,7 +276,17 @@ object ThumbnailRepository {
         }
     }
 
-    private fun loadPlatformThumbnail(context: Context, item: MediaItem, size: Int): Bitmap? = try {
+    /**
+     * Videos the platform cannot decode (10-bit H.264) get a frame from
+     * LibVLC instead of no preview at all; see [VlcThumbnailExtractor].
+     */
+    private fun loadPlatformThumbnail(context: Context, item: MediaItem, size: Int): Bitmap? {
+        loadPlatformThumbnailOnly(context, item, size)?.let { return it }
+        if (!item.isVideo) return null
+        return VlcThumbnailExtractor.thumbnail(context, item.uri, size)
+    }
+
+    private fun loadPlatformThumbnailOnly(context: Context, item: MediaItem, size: Int): Bitmap? = try {
         if (item.uri.scheme == "file") {
             val path = item.uri.path ?: return null
             if (item.isVideo) {
