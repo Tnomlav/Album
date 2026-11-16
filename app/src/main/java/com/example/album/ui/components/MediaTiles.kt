@@ -118,12 +118,15 @@ fun AlbumTile(
                 modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(VaultDimens.AlbumRadius)).let {
                     if (sharedElementEnabled) it.mediaSharedElement(album.cover) else it
                 },
-                showVideoMark = album.cover.isVideo && coverLoaded,
+                showVideoMark = album.cover.isVideo,
                 showVideoDuration = false,
                 backgroundColor = tone.background,
                 onLoaded = { coverLoaded = true }
             )
-            if (!coverLoaded && !showPixivMark) {
+            // A folder whose cover is a video uses the same placeholder as a
+            // video tile (tone background + the play badge drawn by
+            // MediaThumbnail); only image folders keep the folder glyph.
+            if (!coverLoaded && !showPixivMark && !album.cover.isVideo) {
                 Icon(
                     Icons.Outlined.Folder,
                     contentDescription = null,
