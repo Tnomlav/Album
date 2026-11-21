@@ -113,6 +113,10 @@ fun AlbumsScreen(
      */
     loadState: com.example.album.ui.LoadState = com.example.album.ui.LoadState.Ready,
     permissionGranted: Boolean,
+    refreshError: String? = null,
+    onAddFolder: () -> Unit = {},
+    onRescan: () -> Unit = {},
+    onRetry: () -> Unit = {},
     tagLoading: Boolean = false,
     sort: MediaSort,
     sortDirection: SortDirection,
@@ -285,11 +289,23 @@ fun AlbumsScreen(
                 scrollRequest = scrollRequest,
                 pullRequestToken = pullRequestToken
             )
-        media.isEmpty() && pinnedAlbumName == null -> EmptyMessage(
-            emptyMessage ?: if (query.isBlank()) appText(if (isVideo) "还没有视频" else "还没有图片", english) else appText("没有匹配的内容", english),
-            actionLabel = query.takeIf { it.isNotBlank() }?.let { appText("清除搜索", english) },
-            onAction = onClearQuery
-        )
+        media.isEmpty() && pinnedAlbumName == null -> if (emptyMessage == null) {
+            LibraryEmptyState(
+                isVideo = isVideo,
+                query = query,
+                error = refreshError,
+                onClearQuery = onClearQuery,
+                onAddFolder = onAddFolder,
+                onRescan = onRescan,
+                onRetry = onRetry
+            )
+        } else {
+            EmptyMessage(
+                emptyMessage,
+                actionLabel = query.takeIf { it.isNotBlank() }?.let { appText("清除搜索", english) },
+                onAction = onClearQuery
+            )
+        }
         albums.isEmpty() && currentAlbum == null -> EmptyMessage(appText("没有匹配的内容", english), appText("清除搜索", english), onClearQuery)
         else -> AnimatedContent(
             targetState = currentAlbum,
