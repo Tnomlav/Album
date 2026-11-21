@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.Color
 
 private fun darkScheme(accent: Color, background: Color, surface: Color, onSurface: Color, onSurfaceVariant: Color) = darkColorScheme(
     primary = accent,
+    onPrimary = Color(0xFF101512),
     background = background,
     surface = surface,
     onBackground = onSurface,
@@ -26,6 +27,7 @@ private fun darkScheme(accent: Color, background: Color, surface: Color, onSurfa
 
 private fun lightScheme(accent: Color, background: Color, surface: Color, onSurface: Color, onSurfaceVariant: Color) = lightColorScheme(
     primary = accent,
+    onPrimary = Color.White,
     background = background,
     surface = surface,
     onBackground = onSurface,
@@ -47,6 +49,7 @@ fun AlbumTheme(
 ) {
     val duration = 200
     val animatedAccent = animateColorAsState(accent, tween(duration), label = "theme-accent").value
+    val animatedLightAccent = animateColorAsState(lightAccentForText(accent), tween(duration), label = "theme-light-accent").value
     val background = animateColorAsState(if (darkTheme) VaultDarkBackground else VaultBackground, tween(duration), label = "theme-background").value
     val surface = animateColorAsState(if (darkTheme) VaultDarkSurface else VaultSurface, tween(duration), label = "theme-surface").value
     val onSurface = animateColorAsState(if (darkTheme) Color(0xFFF2F6F3) else VaultInk, tween(duration), label = "theme-on-surface").value
@@ -55,7 +58,7 @@ fun AlbumTheme(
         colorScheme = if (darkTheme) {
             darkScheme(animatedAccent, background, surface, onSurface, onSurfaceVariant)
         } else {
-            lightScheme(animatedAccent, background, surface, onSurface, onSurfaceVariant)
+            lightScheme(animatedLightAccent, background, surface, onSurface, onSurfaceVariant)
         },
         typography = Typography
     ) {

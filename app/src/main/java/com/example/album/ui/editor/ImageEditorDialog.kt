@@ -528,13 +528,13 @@ fun ImageEditorDialog(
                                 .height(34.dp),
                             shape = RoundedCornerShape(12.dp),
                             color = EditorAccent,
-                            contentColor = Color.White
+                            contentColor = MaterialTheme.colorScheme.onPrimary
                         ) {
                             Box(
                                 Modifier.fillMaxSize().padding(horizontal = 14.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(appText("确认", english), color = Color.White, fontSize = 16.sp, maxLines = 1)
+                                Text(appText("确认", english), color = MaterialTheme.colorScheme.onPrimary, fontSize = 16.sp, maxLines = 1)
                             }
                         }
                     }
@@ -795,7 +795,7 @@ private fun EditorTopBar(
             Box(contentAlignment = Alignment.Center) {
                 Text(
                     appText(if (saving) "保存中" else "完成", english),
-                    color = if (saveEnabled && !saving) Color.White else Color(0xFF9A9D9B),
+                    color = if (saveEnabled && !saving) MaterialTheme.colorScheme.onPrimary else Color(0xFF9A9D9B),
                     fontWeight = FontWeight.SemiBold
                 )
             }
@@ -2299,7 +2299,7 @@ private fun <T> EditorToolOrderDialog(
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.height(40.dp)
             ) {
-                Text(appText("确认", LocalAppEnglish.current), color = Color.White)
+                Text(appText("确认", LocalAppEnglish.current), color = MaterialTheme.colorScheme.onPrimary)
             }
         }
     )
