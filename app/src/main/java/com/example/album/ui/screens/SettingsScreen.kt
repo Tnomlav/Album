@@ -107,7 +107,6 @@ fun SettingsScreen(
     language: String,
     settingsSection: String?,
     onSettingsSectionChange: (String?) -> Unit,
-    onOpenCleanup: () -> Unit,
     onShowGestureHints: () -> Unit,
     onThemeModeChange: (String) -> Unit,
     onThemeColorChange: (String) -> Unit,
@@ -471,11 +470,19 @@ fun SettingsScreen(
         // Backups close the page, so they sit at its end.
         item {
             SettingsCard("备份") {
-                ClickableRow("导出应用数据", "收藏、队列与偏好设置，不含媒体和账号") {
+                ClickableRow(
+                    "导出应用数据",
+                    if (isEnglish) "Favorites, static/slideshow queues and preferences; no media, live-wallpaper queue, Trash, Pixiv login, or account"
+                    else "收藏、静态/幻灯片队列与偏好；不含媒体、动态壁纸队列、回收站、Pixiv 登录态与账号"
+                ) {
                     exportLauncher.launch(UserDataBackup.defaultFileName())
                 }
                 SettingsRowDivider()
-                ClickableRow("导入应用数据", "会覆盖当前数据") {
+                ClickableRow(
+                    "导入应用数据",
+                    if (isEnglish) "Merges into current data; does not import media or accounts"
+                    else "合并补齐当前数据；不会导入媒体或账号"
+                ) {
                     importLauncher.launch(arrayOf("application/json", "text/plain", "application/octet-stream"))
                 }
             }
@@ -642,22 +649,24 @@ fun SettingsScreen(
             dialog = InfoDialog(
                 "隐私政策",
                 if (isEnglish) {
-                    "Album is designed to keep your personal media on your device. Photos and videos are scanned, sorted, edited, played, favorited, and cached locally. The app does not upload your local media, use it for advertising, or send it to an analytics service.\n\n" +
+                    "Album is designed to keep your personal media on your device. Photos and videos are scanned, sorted, edited, played, favorited, and cached locally. The app does not use your local media for advertising or analytics, and does not upload it except for the image-search features described below.\n\n" +
                         "The app may request Android media and file-management permissions. These permissions are used only for the related features you enable. You can revoke them in Android settings; some features may then be unavailable.\n\n" +
                         "Pixiv features open Pixiv services in an in-app WebView and may request Pixiv pages, artwork metadata, and media URLs. Pixiv login cookies are stored by Android WebView on this device until you sign out or clear the app data. Pixiv handles information submitted to its services under its own privacy policy.\n\n" +
                         "When you check for updates, Album downloads the release manifest published with this project's GitHub Releases and compares it with the installed version. When you choose an update, Android opens the APK download link from that release. The app does not silently install updates and does not verify the APK for you.\n\n" +
                         "Album has no cloud backup: Android auto backup and device-to-device transfer are switched off for this app, so favorites, wallpaper and slideshow queues, preferences, and excluded folders stay on this device only and do not survive a reinstall.\n\n" +
                         "Files you delete are copied into the app's private Trash folder before the original is removed, which means they occupy app storage until the retention period ends. Clearing the app's data or uninstalling Album deletes everything still in Trash.\n\n" +
                         "Media is sent to another app only when you choose a system action such as sharing or opening a file. Settings, thumbnails, playback progress, and cached data remain on the device and can be cleared from the app or Android settings.\n\n" +
+                        "When you use image search, the selected image is uploaded from the share sheet to SauceNAO or ascii2d. Those services process it under their own privacy policies; Album does not send it anywhere else.\n\n" +
                         "Version: v$appVersion\nLast revised: November 21, 2026"
                 } else {
-                    "Album 以本地处理为设计原则。图片和视频的扫描、排序、编辑、播放、收藏及缩略图缓存均在本机完成。应用不会上传你的本地媒体，不会将其用于广告，也不会接入分析统计服务。\n\n" +
+                    "Album 以本地处理为设计原则。图片和视频的扫描、排序、编辑、播放、收藏及缩略图缓存均在本机完成。应用不会将本地媒体用于广告或统计，也不会上传，唯一的例外是下文说明的以图搜图。\n\n" +
                         "应用可能申请媒体访问和文件管理等 Android 权限，仅用于你启用的对应功能。你可以在 Android 系统设置中撤销权限；撤销后，相关功能可能无法使用。\n\n" +
                         "Pixiv 功能会通过应用内 WebView 访问 Pixiv 页面，并可能请求作品信息、媒体库信息和媒体地址。Pixiv 登录 Cookie 由 Android WebView 保存在本机，直到你退出登录或清除应用数据。提交给 Pixiv 服务的信息受 Pixiv 自身隐私政策约束。\n\n" +
                         "检查更新时，Album 会下载与本项目 GitHub Release 一起发布的版本清单，并与已安装版本比较。你选择更新后，应用会让 Android 打开该 Release 中的 APK 下载地址；应用不会静默安装更新，也不会替你校验 APK。\n\n" +
                         "Album 不使用云备份：本应用的 Android 自动备份和设备间迁移均已关闭，因此收藏、壁纸与幻灯片队列、偏好设置和排除文件夹只保存在本机，重装后不会恢复。\n\n" +
                         "删除的文件会先复制到应用私有目录的回收站，再移除原文件，因此它们在保留期内会占用应用存储空间。清除应用数据或卸载 Album 会同时删除回收站中仍在的文件。\n\n" +
                         "只有在你主动使用系统分享或打开文件等操作时，媒体才会交给其他应用。设置、缩略图、播放进度和缓存均保存在本机，可在应用内或 Android 系统设置中清除。\n\n" +
+                        "使用以图搜图时，所选图片会从分享面板上传到 SauceNAO 或 ascii2d；这些服务按其自身隐私政策处理图片，Album 不会把图片发送到其他位置。\n\n" +
                         "版本：v$appVersion\n最后修订：2026年11月21日"
                 }
             )
@@ -820,9 +829,9 @@ fun SettingsScreen(
         VaultConfirmationSheet(
             title = "导入应用数据",
             body = if (isEnglish) {
-                "Importing replaces the current favorites, wallpaper and slideshow queues, excluded folders, and app preferences. Nothing is imported until you confirm, and no media files are touched."
+                "Importing merges the backup into the current favorites, wallpaper and slideshow queues, excluded folders, and app preferences. Values present in the backup win; keys not in the backup are kept. Nothing is imported until you confirm, and no media files are touched."
             } else {
-                "导入会覆盖当前的收藏、壁纸与幻灯片队列、排除文件夹和应用偏好设置。确认前不会写入任何内容，也不会改动任何媒体文件。"
+                "导入会合并补齐当前的收藏、壁纸与幻灯片队列、排除文件夹和应用偏好设置：备份里有的值以备份为准，备份里没有的键会保留。确认前不会写入任何内容，也不会改动任何媒体文件。"
             },
             confirmLabel = if (isEnglish) "Import" else "导入",
             onDismiss = { pendingImport = null },

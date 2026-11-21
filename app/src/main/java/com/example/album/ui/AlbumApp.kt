@@ -2122,8 +2122,11 @@ fun AlbumApp(
     }
     val requestDeleteWithConfirmation: (List<MediaItem>) -> Unit = { deleting ->
         if (deleting.isNotEmpty()) {
-            if (albumSettings.getBoolean("delete_confirmation", true)) pendingAppDelete = deleting
-            else requestDelete(deleting)
+            // Permanent deletion always keeps a final confirmation, even when
+            // the user turned off both the Trash and the normal delete prompt.
+            val mustConfirm = albumSettings.getBoolean("delete_confirmation", true) ||
+                !albumSettings.getBoolean("recycle_bin", true)
+            if (mustConfirm) pendingAppDelete = deleting else requestDelete(deleting)
         }
     }
 
@@ -3215,7 +3218,7 @@ fun AlbumApp(
                 selectedItemsForAction = selectedItemsForAction,
                 selectionMedia = selectionMedia,
                 chromeAlpha = pageChromeAlpha,
-                barVisible = openedFolder == null && !wallpaperManagerOpen,
+                barVisible = openedFolder == null && !wallpaperManagerOpen && !slideshowQueueOpen,
                 icon = { tabIcon(it) },
                 label = { tabLabel(it) },
                 onSelectTab = { selectMainTab(it) },
@@ -3703,7 +3706,6 @@ fun AlbumApp(
                     language = appLanguage,
                     settingsSection = settingsSection,
                     onSettingsSectionChange = { settingsSection = it },
-                    onOpenCleanup = { cleanupOpen = true },
                     onShowGestureHints = { showGestureHints = true },
                     onThemeModeChange = onThemeModeChange,
                     onThemeColorChange = onThemeColorChange,

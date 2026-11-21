@@ -728,7 +728,11 @@ private fun CleanupToolbar(
         verticalAlignment = Alignment.CenterVertically
     ) {
         IconButton(onClick = onBack, modifier = Modifier.size(48.dp)) {
-            Icon(Icons.AutoMirrored.Outlined.ArrowBack, appText("返回设置", english), modifier = Modifier.size(23.dp))
+            Icon(
+                Icons.AutoMirrored.Outlined.ArrowBack,
+                if (english) "Back" else "返回",
+                modifier = Modifier.size(23.dp)
+            )
         }
         Row(
             Modifier
