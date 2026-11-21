@@ -57,8 +57,9 @@ ALBUM_KEY_PASSWORD=…
 adb -H 127.0.0.1 install -r app/build/outputs/apk/release/app-arm64-v8a-release.apk
 ```
 
-签名构建成功后 `packageRelease` 会把 `version.properties` 的 patch 加一；只是本地装机、
-不打算发布时，构建完记得把它改回目标版本。
+签名构建不会修改 `version.properties`；一次构建用的就是文件里的版本。发布完成后
+执行 `./gradlew :app:bumpVersion` 准备下一个 patch，再提交版本文件。发布前用
+`python3 scripts/check_apk_version.py --all` 校验三个 ABI 的 APK。
 
 ## 真机
 

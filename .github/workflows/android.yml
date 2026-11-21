@@ -48,8 +48,8 @@ jobs:
       # version.properties is the single source of the build's version. The
       # packaging task no longer advances it, so this catches a mismatch before
       # an APK with the wrong version reaches a release.
-      - name: Check APK version matches version.properties
-        run: python3 scripts/check_apk_version.py app/build/outputs/apk/release/app-arm64-v8a-release.apk
+      - name: Check APK versions match version.properties
+        run: python3 scripts/check_apk_version.py --all
 
       - name: Upload lint and test reports
         if: always()
