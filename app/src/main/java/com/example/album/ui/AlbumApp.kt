@@ -811,10 +811,7 @@ fun AlbumApp(
     var slideshowStartImmersive by remember { mutableStateOf(false) }
     var showSlideshowSettings by remember { mutableStateOf(false) }
     var showGestureHints by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        // Most of the app's gestures are invisible; spell them out once.
-        if (!albumSettings.getBoolean("gesture_hints_shown", false)) showGestureHints = true
-    }
+    var showFirstRunIntro by remember { mutableStateOf(false) }
     var suspendedSearchQuery by rememberSaveable { mutableStateOf<String?>(null) }
     var searchOpen by rememberSaveable { mutableStateOf(true) }
     LaunchedEffect(selectionMode) {
@@ -1940,22 +1937,7 @@ fun AlbumApp(
         pendingRename = null
     }
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
-        val granted = hasMediaPermission(context)
-        refresher.request(granted = granted)
-        if (
-            granted &&
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
-            !MediaStore.canManageMedia(context) &&
-            !albumSettings.getBoolean("media_management_prompted", false)
-        ) {
-            albumSettings.edit().putBoolean("media_management_prompted", true).apply()
-            val packageUri = Uri.parse("package:${context.packageName}")
-            runCatching {
-                context.startActivity(Intent(Settings.ACTION_REQUEST_MANAGE_MEDIA, packageUri))
-            }.recoverCatching {
-                context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, packageUri))
-            }
-        }
+        refresher.request(granted = hasMediaPermission(context))
     }
     val requestPermission: () -> Unit = {
         val missing = missingPermissions(context, requiredMediaPermissions())
@@ -2174,34 +2156,11 @@ fun AlbumApp(
         val initialPermissionsPrompted = albumSettings.getBoolean("runtime_permissions_prompted", false)
         val missingInitialPermissions = missingPermissions(context, requiredMediaPermissions())
         if (!initialPermissionsPrompted && missingInitialPermissions.isNotEmpty()) {
+            // Explain the local-only value proposition before the one and
+            // only runtime permission dialog. Optional storage/media-management
+            // permissions live in Settings and are never opened from startup.
             albumSettings.edit().putBoolean("runtime_permissions_prompted", true).apply()
-            permissionLauncher.launch(missingInitialPermissions)
-        } else if (
-            granted &&
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
-            !Environment.isExternalStorageManager() &&
-            !albumSettings.getBoolean("all_files_access_prompted", false)
-        ) {
-            albumSettings.edit().putBoolean("all_files_access_prompted", true).apply()
-            val packageUri = Uri.parse("package:${context.packageName}")
-            runCatching {
-                context.startActivity(Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, packageUri))
-            }.recoverCatching {
-                context.startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
-            }
-        } else if (
-            granted &&
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
-            !MediaStore.canManageMedia(context) &&
-            !albumSettings.getBoolean("media_management_prompted", false)
-        ) {
-            albumSettings.edit().putBoolean("media_management_prompted", true).apply()
-            val packageUri = Uri.parse("package:${context.packageName}")
-            runCatching {
-                context.startActivity(Intent(Settings.ACTION_REQUEST_MANAGE_MEDIA, packageUri))
-            }.recoverCatching {
-                context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, packageUri))
-            }
+            showFirstRunIntro = true
         }
     }
     LaunchedEffect(library.refreshError) {
@@ -3736,6 +3695,7 @@ fun AlbumApp(
                     settingsSection = settingsSection,
                     onSettingsSectionChange = { settingsSection = it },
                     onOpenCleanup = { cleanupOpen = true },
+                    onShowGestureHints = { showGestureHints = true },
                     onThemeModeChange = onThemeModeChange,
                     onThemeColorChange = onThemeColorChange,
                     onNavReorderChange = { navReorderEnabled = it },
@@ -4080,6 +4040,27 @@ fun AlbumApp(
             showGestureHints = false
             albumSettings.edit().putBoolean("gesture_hints_shown", true).apply()
         })
+    }
+    if (showFirstRunIntro) {
+        VaultConfirmationSheet(
+            title = if (english) "Welcome to Album" else "欢迎使用 Album",
+            body = if (english) {
+                "Album reads photos and videos on this device for browsing, organizing, editing, and playback. Local media is not uploaded. The next step asks only for photo/video access; optional all-files and media-management permissions can be enabled later in Settings."
+            } else {
+                "Album 只在本机读取照片和视频，用于浏览、整理、编辑和播放，不会上传。下一步只申请照片/视频权限；所有文件访问、媒体管理等可选权限可以在设置里按需开启。"
+            },
+            confirmLabel = if (english) "Continue" else "继续",
+            onDismiss = { showFirstRunIntro = false },
+            onConfirm = {
+                showFirstRunIntro = false
+                val missing = missingPermissions(context, requiredMediaPermissions())
+                if (missing.isNotEmpty()) {
+                    permissionLauncher.launch(missing)
+                } else {
+                    refresher.request(granted = true)
+                }
+            }
+        )
     }
     if (showSlideshowColumnDialog) {
         val options = (1..6).map { if (english) "$it columns" else "$it 列" }

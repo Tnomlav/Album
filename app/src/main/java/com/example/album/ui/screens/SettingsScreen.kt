@@ -107,6 +107,7 @@ fun SettingsScreen(
     settingsSection: String?,
     onSettingsSectionChange: (String?) -> Unit,
     onOpenCleanup: () -> Unit,
+    onShowGestureHints: () -> Unit,
     onThemeModeChange: (String) -> Unit,
     onThemeColorChange: (String) -> Unit,
     onNavReorderChange: (Boolean) -> Unit,
@@ -354,6 +355,14 @@ fun SettingsScreen(
                 ValueRow("语言", language) {
                     choose("语言", "language", listOf("简体中文", "English"), language, onLanguageChange)
                 }
+            }
+        }
+        item {
+            SettingsCard(if (isEnglish) "Guidance" else "引导") {
+                ClickableRow(
+                    if (isEnglish) "Getting around" else "使用提示",
+                    if (isEnglish) "See hidden gestures and controls" else "查看隐藏手势与操作说明"
+                ) { onShowGestureHints() }
             }
         }
         item {
