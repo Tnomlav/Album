@@ -53,6 +53,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.zIndex
 import com.example.album.data.MediaItem
 import com.example.album.data.folderKey
@@ -98,6 +100,7 @@ fun AppBottomBar(
     var suppressNavClickUntil by remember { mutableLongStateOf(0L) }
     val tabOrderState by rememberUpdatedState(tabOrder)
     val hapticFeedback = LocalHapticFeedback.current
+    val english = LocalAppEnglish.current
 
     Column(Modifier.fillMaxWidth()) {
         if (selectionMode) SelectionSubBar(
@@ -202,6 +205,13 @@ fun AppBottomBar(
                             onDragEnd = { draggedNavTab = null },
                             onDragCancel = { draggedNavTab = null }
                         )
+                    }
+                    .semantics {
+                        stateDescription = if (selected) {
+                            if (english) "Selected" else "已选中"
+                        } else {
+                            if (english) "Not selected" else "未选中"
+                        }
                     }
                     .clickable(
                         interactionSource = remember(tab) { MutableInteractionSource() },

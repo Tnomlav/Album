@@ -252,7 +252,8 @@ fun MediaViewer(
      * button uses this so playback starts immediately; opening a picture from
      * the queue keeps the normal preview first.
      */
-    startImmersive: Boolean = false
+    startImmersive: Boolean = false,
+    recycleEnabled: Boolean = true
 ) {
     val context = LocalContext.current
     val showRenameExtension = remember { context.getSharedPreferences("album_settings", android.content.Context.MODE_PRIVATE).getBoolean("rename_show_extension", false) }
@@ -777,6 +778,7 @@ fun MediaViewer(
                     ) {
                         ViewerBottomBar(
                             modifier = Modifier.align(Alignment.BottomCenter),
+                            recycleEnabled = recycleEnabled,
                             // Switch to the editor atomically. Waiting for the
                             // viewer exit animation exposes the thumbnail page
                             // for a frame before the editor dialog is created.
@@ -959,6 +961,7 @@ private fun ViewerTopBar(
 @Composable
 private fun ViewerBottomBar(
     modifier: Modifier = Modifier,
+    recycleEnabled: Boolean = true,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onMove: () -> Unit,
@@ -975,7 +978,11 @@ private fun ViewerBottomBar(
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
         ViewerEditAction(appText("编辑", english), onEdit)
-        ViewerAction(Icons.Outlined.Delete, appText("移到回收站", english), onDelete)
+        ViewerAction(
+            Icons.Outlined.Delete,
+            if (recycleEnabled) appText("移到回收站", english) else (if (english) "Delete permanently" else "永久删除"),
+            onDelete
+        )
         ViewerAction(Icons.AutoMirrored.Outlined.DriveFileMove, appText("移动", english), onMove)
         ViewerAction(Icons.Outlined.Edit, appText("重命名", english), onRename)
     }

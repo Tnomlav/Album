@@ -812,6 +812,9 @@ fun AlbumApp(
     var showSlideshowSettings by remember { mutableStateOf(false) }
     var showGestureHints by remember { mutableStateOf(false) }
     var showFirstRunIntro by remember { mutableStateOf(false) }
+    // A refresh updates library.permissionGranted, which would restart the
+    // startup effect with the same value and scan the library twice.
+    var startupPermissionKey by remember { mutableStateOf<Boolean?>(null) }
     var suspendedSearchQuery by rememberSaveable { mutableStateOf<String?>(null) }
     var searchOpen by rememberSaveable { mutableStateOf(true) }
     LaunchedEffect(selectionMode) {
@@ -1679,6 +1682,20 @@ fun AlbumApp(
         if (selectedTab != primaryTab) selectedTab = primaryTab
     }
 
+    fun handleRootBack() {
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (now - lastRootBackAt <= 2_000L) {
+            (context as? Activity)?.finish()
+        } else {
+            lastRootBackAt = now
+            Toast.makeText(
+                context,
+                if (english) "Press back again to exit" else "再按一次返回退出应用",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
     fun suspendSearch() {
         if (query.isBlank()) {
             suspendedSearchQuery = null
@@ -1787,8 +1804,10 @@ fun AlbumApp(
             selectedTab == MainTab.Settings -> {
                 if (settingsSection != null) {
                     settingsSection = null
-                } else {
+                } else if (selectedTab != primaryTab) {
                     returnToPrimaryTab()
+                } else {
+                    handleRootBack()
                 }
             }
             openedFolder != null -> navigateFolderBack()
@@ -1796,19 +1815,7 @@ fun AlbumApp(
             favoriteFilter -> favoriteFilter = false
             timelineJumpDate != null -> timelineJumpDate = null
             selectedTab != primaryTab -> returnToPrimaryTab()
-            else -> {
-                val now = android.os.SystemClock.elapsedRealtime()
-                if (now - lastRootBackAt <= 2_000L) {
-                    (context as? Activity)?.finish()
-                } else {
-                    lastRootBackAt = now
-                    Toast.makeText(
-                        context,
-                        if (english) "Press back again to exit" else "再按一次返回退出应用",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-            }
+            else -> handleRootBack()
         }
     }
 
@@ -2151,6 +2158,8 @@ fun AlbumApp(
     }
 
     LaunchedEffect(library.permissionGranted) {
+        if (startupPermissionKey == library.permissionGranted) return@LaunchedEffect
+        startupPermissionKey = library.permissionGranted
         val granted = hasMediaPermission(context)
         refresher.request(com.example.album.ui.RefreshSource.Startup, granted = granted)
         val initialPermissionsPrompted = albumSettings.getBoolean("runtime_permissions_prompted", false)
@@ -3887,6 +3896,7 @@ fun AlbumApp(
                         MediaViewer(
                             item = viewerItem,
                             items = viewerItems,
+                            recycleEnabled = albumSettings.getBoolean("recycle_bin", true),
                             slideshowActive = selectionSlideshow.isNotEmpty(),
                             slideshowIntervalMs = (albumSettings.getString("slideshow_interval", "3秒")?.filter(Char::isDigit)?.toLongOrNull() ?: 3L) * 1000L,
                             // The play button starts in full screen, so the

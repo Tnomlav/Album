@@ -77,6 +77,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.content.edit
 import androidx.core.net.toUri
 import com.example.album.ui.theme.VaultDimens
 import com.example.album.ui.appText
@@ -129,6 +130,7 @@ fun SettingsScreen(
     var showThemeColors by remember { mutableStateOf(false) }
     var showLicenses by remember { mutableStateOf(false) }
     var showOpenWithReset by remember { mutableStateOf(false) }
+    var pendingRetention by remember { mutableStateOf<RetentionChange?>(null) }
     val scope = rememberCoroutineScope()
     val packageInfo = remember {
         @Suppress("DEPRECATION")
@@ -425,8 +427,17 @@ fun SettingsScreen(
                 ToggleRow("回收站", "开启后，删除的文件将进入回收站", recycleBin) { setBoolean("recycle_bin", it) { recycleBin = it } }
                 SettingsRowDivider()
                 ValueRow("回收站文件保留期限", value("retention", "60天"), "保存在应用私有目录，卸载时会一并删除") {
-                    choose("回收站文件保留期限", "retention", listOf("10天", "30天", "60天", "90天"), value("retention", "60天")) { selected ->
-                        onRetentionChange(selected.filter(Char::isDigit).toIntOrNull() ?: 60)
+                    val previous = value("retention", "60天")
+                    val previousDays = previous.filter(Char::isDigit).toIntOrNull() ?: 60
+                    choose("回收站文件保留期限", "retention", listOf("10天", "30天", "60天", "90天"), previous) { selected ->
+                        val days = selected.filter(Char::isDigit).toIntOrNull() ?: 60
+                        if (days < previousDays) {
+                            // choose() has already persisted the new value; keep
+                            // the old one so cancel can put it back.
+                            pendingRetention = RetentionChange(days, previous)
+                        } else {
+                            onRetentionChange(days)
+                        }
                     }
                 }
                 SettingsRowDivider()
@@ -778,6 +789,27 @@ fun SettingsScreen(
             }
         )
     }
+    pendingRetention?.let { change ->
+        VaultConfirmationSheet(
+            title = if (isEnglish) "Shorten Trash retention?" else "缩短回收站保留期限？",
+            body = if (isEnglish) {
+                "Trash items older than ${change.days} days will be permanently deleted now. This cannot be undone."
+            } else {
+                "超过 ${change.days} 天的回收站文件将被立即永久删除，无法恢复。"
+            },
+            confirmLabel = if (isEnglish) "Delete now" else "立即删除",
+            danger = true,
+            onDismiss = {
+                preferences.edit { putString("retention", change.previous) }
+                choiceValues["retention"] = change.previous
+                pendingRetention = null
+            },
+            onConfirm = {
+                pendingRetention = null
+                onRetentionChange(change.days)
+            }
+        )
+    }
     dialog?.let { info ->
         VaultInfoSheet(settingsText(info.title, isEnglish), info.body, if (isEnglish) "Done" else "知道了") { dialog = null }
     }
@@ -850,6 +882,8 @@ fun SettingsScreen(
 
 private data class ChoiceSetting(val title: String, val options: List<String>, val selected: String, val onSelect: (String) -> Unit)
 private data class InfoDialog(val title: String, val body: String)
+
+private data class RetentionChange(val days: Int, val previous: String)
 
 /** Finds the Activity behind a ContextWrapper so an import can reload the UI. */
 private fun Context.findActivity(): android.app.Activity? {
