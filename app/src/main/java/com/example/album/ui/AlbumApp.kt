@@ -171,6 +171,7 @@ import com.example.album.ui.components.VaultWheelChoiceSheet
 import com.example.album.ui.components.VaultDateSheet
 import com.example.album.ui.components.VaultTextInputDialog
 import com.example.album.ui.components.VaultConfirmationSheet
+import com.example.album.ui.components.VaultChoiceConfirmationSheet
 import com.example.album.ui.components.UnbackedDeleteSheet
 import com.example.album.ui.components.VaultInfoSheet
 import com.example.album.ui.editor.ImageEditorDialog
@@ -694,6 +695,7 @@ fun AlbumApp(
     var showWallpaperLayoutDialog by remember { mutableStateOf(false) }
     var showWallpaperSettings by remember { mutableStateOf(false) }
     var wallpaperCropItem by remember { mutableStateOf<MediaItem?>(null) }
+    var wallpaperChoiceItem by remember { mutableStateOf<MediaItem?>(null) }
     var wallpaperAppliedSignature by remember { mutableStateOf<String?>(null) }
     var wallpaperComponentActive by remember { mutableStateOf(false) }
     var wallpaperAppliedRefresh by remember { mutableIntStateOf(0) }
@@ -1025,7 +1027,10 @@ fun AlbumApp(
         // them back on the home page.
         wallpaperReturnTab = selectedTab
         wallpaperReturnFolder = openedFolder
-        launchWallpaperAppChooser(context, item, english)
+        // Do not hand this straight to the system resolver: a user who once
+        // picked "System settings" for ACTION_ATTACH_DATA would be sent there
+        // every time, with no way back to Album's own wallpaper flow.
+        wallpaperChoiceItem = item
     }
     var backgroundOptimizationEnabled by remember {
         mutableStateOf(albumSettings.getBoolean("background_optimization", true))
@@ -4370,6 +4375,23 @@ fun AlbumApp(
                     pixivFilesChanged = true
                     pixivArchivePendingDeleteUris = selected.mapTo(hashSetOf()) { it.uri.toString() }
                     scope.launch { performDelete(selected, permanent = true) }
+                }
+            }
+        )
+    }
+    wallpaperChoiceItem?.let { item ->
+        val albumChoice = if (english) "Album wallpaper" else "Album 壁纸"
+        val systemChoice = if (english) "System settings" else "系统设置"
+        VaultChoiceConfirmationSheet(
+            title = if (english) "Set wallpaper" else "设置壁纸",
+            choices = listOf(albumChoice, systemChoice),
+            onDismiss = { wallpaperChoiceItem = null },
+            onChoice = { choice ->
+                wallpaperChoiceItem = null
+                if (choice == albumChoice) {
+                    setWallpaper(context, item, english)
+                } else {
+                    launchWallpaperAppChooser(context, item, english)
                 }
             }
         )
