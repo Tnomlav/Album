@@ -397,11 +397,27 @@ object ThumbnailRepository {
         }
     }
 
+    private val keyCache = ConcurrentHashMap<String, String>()
+
     private fun cacheKey(item: MediaItem, size: Int, generation: Long): String {
         val identity = "${item.uri}|${item.size}|${item.dateModified}|$generation|$size"
+        keyCache[identity]?.let { return it }
         val digest = MessageDigest.getInstance("SHA-256").digest(identity.toByteArray())
-        return digest.take(16).joinToString("") { "%02x".format(it) } + "_$size"
+        val key = buildString(digest.size.coerceAtMost(16) * 2 + 8) {
+            digest.take(16).forEach { byte ->
+                val value = byte.toInt() and 0xff
+                append(HEX[value ushr 4])
+                append(HEX[value and 0x0f])
+            }
+            append('_')
+            append(size)
+        }
+        if (keyCache.size >= 4096) keyCache.clear()
+        keyCache[identity] = key
+        return key
     }
+
+    private const val HEX = "0123456789abcdef"
 
     private fun thumbnailDirectory(context: Context) = File(context.cacheDir, "media_thumbnails")
 

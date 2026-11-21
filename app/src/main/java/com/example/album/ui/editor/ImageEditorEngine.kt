@@ -55,6 +55,7 @@ internal object EditorTypefaceRegistry {
     @Volatile private var typefaces: Map<EditorFont, android.graphics.Typeface> = emptyMap()
 
     fun initialize(context: Context) {
+        if (typefaces.isNotEmpty()) return
         val appContext = context.applicationContext
         typefaces = EditorFont.entries.mapNotNull { font ->
             resourceId(font)?.let { id ->
@@ -262,6 +263,9 @@ suspend fun loadWallpaperBitmap(context: Context, item: MediaItem): Bitmap? = wi
 }
 
 fun geometryBitmap(source: Bitmap, state: ImageEditState): Bitmap {
+    if (state.rotation == 0 && state.straighten == 0f && !state.flipHorizontal && !state.flipVertical) {
+        return source
+    }
     val matrix = Matrix().apply {
         postScale(if (state.flipHorizontal) -1f else 1f, if (state.flipVertical) -1f else 1f)
         postRotate(state.rotation + state.straighten)

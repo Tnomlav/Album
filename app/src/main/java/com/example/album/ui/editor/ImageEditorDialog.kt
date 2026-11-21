@@ -108,6 +108,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -154,7 +156,7 @@ fun ImageEditorDialog(
     onSaved: () -> Unit
 ) {
     val context = LocalContext.current
-    LaunchedEffect(context) { EditorTypefaceRegistry.initialize(context) }
+    LaunchedEffect(context) { withContext(Dispatchers.IO) { EditorTypefaceRegistry.initialize(context) } }
     val english = LocalAppEnglish.current
     val editorFocusManager = LocalFocusManager.current
     val scope = rememberCoroutineScope()

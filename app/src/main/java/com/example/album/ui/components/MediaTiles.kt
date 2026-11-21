@@ -278,12 +278,13 @@ fun MediaThumbnail(
     // instead of the colored gradient the image placeholders use.
     val darkTheme = MaterialTheme.colorScheme.surfaceVariant.luminance() < .45f
     val tone = remember(item.folder, darkTheme) { emptyFolderTone(item.folder, darkTheme) }
+    val placeholder = remember(item.id) { placeholderBrush(item.id) }
     val loaded = animatedDrawable != null || bitmap != null
     val videoPlaceholder = item.isVideo && !loaded
     val backgroundModifier = when {
         backgroundColor != null -> modifier.background(backgroundColor)
         videoPlaceholder -> modifier.background(tone.background)
-        else -> modifier.background(placeholderBrush(item.id))
+        else -> modifier.background(placeholder)
     }
     Box(modifier = backgroundModifier) {
         LaunchedEffect(loaded) {

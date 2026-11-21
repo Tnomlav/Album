@@ -2168,9 +2168,12 @@ fun AlbumivApp(
     }
 
     LaunchedEffect(library.permissionGranted) {
-        if (startupPermissionKey == library.permissionGranted) return@LaunchedEffect
-        startupPermissionKey = library.permissionGranted
         val granted = hasMediaPermission(context)
+        // Guard against the refresh flipping permissionGranted and restarting
+        // this effect: set the key to the value refresh is about to publish,
+        // not to the old state.
+        if (startupPermissionKey == granted) return@LaunchedEffect
+        startupPermissionKey = granted
         refresher.request(com.example.album.ui.RefreshSource.Startup, granted = granted)
         val initialPermissionsPrompted = albumSettings.getBoolean("runtime_permissions_prompted", false)
         val missingInitialPermissions = missingPermissions(context, requiredMediaPermissions())
