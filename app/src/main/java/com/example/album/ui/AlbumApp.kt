@@ -1348,21 +1348,19 @@ fun AlbumApp(
         }
     }
 
-    fun tabIcon(tab: MainTab): ImageVector = if (tab == MainTab.Albums && albumShowsVideos) {
-        Icons.Outlined.VideoLibrary
-    } else tab.icon
+    fun tabIcon(tab: MainTab): ImageVector = tab.icon
 
     fun tabLabel(tab: MainTab): String = if (appLanguage == "English") when (tab) {
-        MainTab.Albums -> if (albumShowsVideos) "Videos" else "Albums"
+        MainTab.Albums -> "Albums"
         MainTab.Videos -> "Videos"
         MainTab.Timeline -> "Timeline"
         MainTab.Pixiv -> "Pixiv"
         MainTab.Tools -> "Tools"
         MainTab.Settings -> "Settings"
     } else when (tab) {
-        // The label follows the content in both languages, not just English:
-        // the icon already switches, and "视频 icon + 相册 label" reads wrong.
-        MainTab.Albums -> if (albumShowsVideos) "视频" else "相册"
+        // The photo/video switch lives in the title now; the bottom tab keeps
+        // its stable "Albums" identity instead of changing label under the user.
+        MainTab.Albums -> "相册"
         else -> tab.label
     }
 
@@ -3218,7 +3216,7 @@ fun AlbumApp(
                 selectedItemsForAction = selectedItemsForAction,
                 selectionMedia = selectionMedia,
                 chromeAlpha = pageChromeAlpha,
-                barVisible = openedFolder == null && !wallpaperManagerOpen && !slideshowQueueOpen,
+                barVisible = !wallpaperManagerOpen && !slideshowQueueOpen,
                 icon = { tabIcon(it) },
                 label = { tabLabel(it) },
                 onSelectTab = { selectMainTab(it) },

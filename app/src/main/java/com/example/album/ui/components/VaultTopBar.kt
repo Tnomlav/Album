@@ -65,38 +65,35 @@ private fun TitleSwitchMark(
     english: Boolean
 ) {
     val index = selected.coerceIn(labels.indices)
-    // The pill is small; the clickable area around it is not. A ~27dp target
-    // was easy to miss, which is why switching back from Tag often did nothing.
-    Box(
+    Row(
         modifier = Modifier
-            .height(48.dp)
-            .clickable { onChange((index + 1) % labels.size) },
-        contentAlignment = Alignment.Center
+            .clip(RoundedCornerShape(10.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(2.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier
-                .clip(RoundedCornerShape(10.dp))
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = .14f))
-                // 20% taller than the original 5dp padding: the pill is the
-                // page's main switch and used to look flatter than the rest of
-                // the top bar.
-                .padding(horizontal = 8.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                Icons.Outlined.SwapHoriz,
-                contentDescription = appText("切换", english),
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.height(17.dp)
-            )
-            Text(
-                labels[index],
-                style = VaultText.TopBarSwitch,
-                color = MaterialTheme.colorScheme.primary,
-                maxLines = 1,
-                softWrap = false
-            )
+        labels.forEachIndexed { itemIndex, label ->
+            val active = itemIndex == index
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(
+                        if (active) MaterialTheme.colorScheme.primary.copy(alpha = .14f)
+                        else androidx.compose.ui.graphics.Color.Transparent
+                    )
+                    .clickable { onChange(itemIndex) }
+                    .padding(horizontal = 9.dp, vertical = 7.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    label,
+                    style = VaultText.TopBarSwitch,
+                    color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    softWrap = false
+                )
+            }
         }
     }
 }
