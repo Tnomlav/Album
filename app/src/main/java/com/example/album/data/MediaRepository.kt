@@ -779,8 +779,6 @@ class MediaRepository(private val context: Context) {
         }
         val target = resolver.insert(collection, values)
             ?: return TransferResult(item, success = false, failure = insertFailure)
-        var oldMovedAside = false
-        var newRenamed = false
         return runCatching {
             resolver.openInputStream(item.uri).use { input ->
                 resolver.openOutputStream(target).use { output ->
@@ -798,42 +796,53 @@ class MediaRepository(private val context: Context) {
             }
             if (replacing) {
                 val backupName = temporaryTransferName(targetName)
-                if (resolver.update(existing!!, ContentValues().apply {
-                        put(MediaStore.MediaColumns.DISPLAY_NAME, backupName)
-                    }, null, null) <= 0
-                ) {
-                    throw IOException("Unable to move the existing file aside")
+                val transaction = object : OverwriteTransaction {
+                    override fun moveOldAside(): Boolean = resolver.update(
+                        existing!!,
+                        ContentValues().apply { put(MediaStore.MediaColumns.DISPLAY_NAME, backupName) },
+                        null,
+                        null
+                    ) > 0
+
+                    override fun commitNew(): Boolean = resolver.update(
+                        target,
+                        ContentValues().apply { put(MediaStore.MediaColumns.DISPLAY_NAME, targetName) },
+                        null,
+                        null
+                    ) > 0
+
+                    override fun deleteOld(): Boolean = resolver.delete(existing!!, null, null) > 0
+
+                    override fun discardNew() {
+                        runCatching {
+                            resolver.update(
+                                target,
+                                ContentValues().apply { put(MediaStore.MediaColumns.DISPLAY_NAME, insertName) },
+                                null,
+                                null
+                            )
+                        }
+                        runCatching { resolver.delete(target, null, null) }
+                    }
+
+                    override fun restoreOld() {
+                        runCatching {
+                            resolver.update(
+                                existing!!,
+                                ContentValues().apply { put(MediaStore.MediaColumns.DISPLAY_NAME, targetName) },
+                                null,
+                                null
+                            )
+                        }
+                    }
                 }
-                oldMovedAside = true
-                if (resolver.update(target, ContentValues().apply {
-                        put(MediaStore.MediaColumns.DISPLAY_NAME, targetName)
-                    }, null, null) <= 0
-                ) {
-                    throw IOException("Unable to rename the new file")
-                }
-                newRenamed = true
-                if (resolver.delete(existing!!, null, null) <= 0) {
+                if (!runOverwriteTransaction(transaction)) {
                     throw IOException("Unable to replace the existing file")
                 }
-                oldMovedAside = false
             }
             TransferResult(item, success = true, targetName = targetName)
         }.getOrElse {
-            if (newRenamed) {
-                runCatching {
-                    resolver.update(target, ContentValues().apply {
-                        put(MediaStore.MediaColumns.DISPLAY_NAME, insertName)
-                    }, null, null)
-                }
-            }
             runCatching { resolver.delete(target, null, null) }
-            if (oldMovedAside) {
-                runCatching {
-                    resolver.update(existing!!, ContentValues().apply {
-                        put(MediaStore.MediaColumns.DISPLAY_NAME, targetName)
-                    }, null, null)
-                }
-            }
             TransferResult(item, success = false, failure = TransferFailure.Unknown)
         }
     }
@@ -985,6 +994,7 @@ class MediaRepository(private val context: Context) {
             ?: return TransferResult(item, success = false, failure = TransferFailure.DestinationUnwritable)
         var finalUri = target.uri
         var backupUri: Uri? = null
+        var transaction: OverwriteTransaction? = null
         return runCatching {
             context.contentResolver.openInputStream(item.uri).use { input ->
                 context.contentResolver.openOutputStream(target.uri).use { output ->
@@ -995,20 +1005,46 @@ class MediaRepository(private val context: Context) {
             }
             if (!target.exists()) throw IOException("Target file was not created")
             if (replacing) {
-                backupUri = renameDocumentTo(existing!!.uri, temporaryTransferName(targetChoice.name))
-                    ?: throw IOException("Unable to move the existing file aside")
-                finalUri = renameDocumentTo(target.uri, targetChoice.name)
-                    ?: throw IOException("Unable to rename the new copy")
+                transaction = object : OverwriteTransaction {
+                    override fun moveOldAside(): Boolean {
+                        backupUri = renameDocumentTo(existing!!.uri, temporaryTransferName(targetChoice.name))
+                            ?: return false
+                        return true
+                    }
+
+                    override fun commitNew(): Boolean {
+                        finalUri = renameDocumentTo(target.uri, targetChoice.name) ?: return false
+                        return true
+                    }
+
+                    override fun deleteOld(): Boolean =
+                        backupUri?.let { deleteUriPermanently(it) } == true
+
+                    override fun discardNew() {
+                        runCatching { deleteUriPermanently(finalUri) }
+                    }
+
+                    override fun restoreOld() {
+                        backupUri?.let { runCatching { renameDocumentTo(it, item.name) } }
+                    }
+                }
+                // Keep the old target until the source has been removed: a
+                // failed source delete must leave the user with both files.
+                if (!runOverwriteTransaction(transaction, deleteOld = false)) {
+                    throw IOException("Unable to replace the existing file")
+                }
             }
             if (!deleteUriPermanently(item.uri)) throw IOException("Unable to permanently remove original")
-            backupUri?.let { deleteUriPermanently(it) }
+            runCatching { transaction?.deleteOld() }
             TransferResult(item, success = true, targetName = targetChoice.name, movedDirectly = true)
         }.getOrElse { error ->
             // If the source could not be removed, the new destination must not
             // replace the old one: remove the new copy and restore the backup.
-            runCatching { deleteUriPermanently(finalUri) }
-            if (backupUri != null) {
-                runCatching { renameDocumentTo(backupUri!!, item.name) }
+            runCatching {
+                transaction?.discardNew() ?: deleteUriPermanently(finalUri)
+            }
+            runCatching {
+                transaction?.restoreOld() ?: backupUri?.let { renameDocumentTo(it, item.name) }
             }
             TransferResult(
                 item,
@@ -1084,11 +1120,32 @@ class MediaRepository(private val context: Context) {
             }
             if (!target.exists()) throw IOException("Target file was not created")
             if (replacing) {
-                backupUri = renameDocumentTo(existing!!.uri, temporaryTransferName(targetName))
-                    ?: throw IOException("Unable to move the existing file aside")
-                finalUri = renameDocumentTo(target.uri, targetName)
-                    ?: throw IOException("Unable to rename the new copy")
-                deleteUriPermanently(backupUri!!)
+                val transaction = object : OverwriteTransaction {
+                    override fun moveOldAside(): Boolean {
+                        backupUri = renameDocumentTo(existing!!.uri, temporaryTransferName(targetName))
+                            ?: return false
+                        return true
+                    }
+
+                    override fun commitNew(): Boolean {
+                        finalUri = renameDocumentTo(target.uri, targetName) ?: return false
+                        return true
+                    }
+
+                    override fun deleteOld(): Boolean =
+                        backupUri?.let { deleteUriPermanently(it) } == true
+
+                    override fun discardNew() {
+                        runCatching { deleteUriPermanently(finalUri) }
+                    }
+
+                    override fun restoreOld() {
+                        backupUri?.let { runCatching { renameDocumentTo(it, item.name) } }
+                    }
+                }
+                if (!runOverwriteTransaction(transaction)) {
+                    throw IOException("Unable to replace the existing file")
+                }
             }
             TransferResult(item, success = true, targetName = targetName)
         } catch (_: Exception) {

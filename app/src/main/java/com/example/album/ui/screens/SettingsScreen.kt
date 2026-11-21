@@ -77,6 +77,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import com.example.album.ui.theme.VaultDimens
 import com.example.album.ui.appText
 import com.example.album.ui.theme.ThemeAccent
@@ -126,6 +127,7 @@ fun SettingsScreen(
     var dialog by remember { mutableStateOf<InfoDialog?>(null) }
     var showThemeColors by remember { mutableStateOf(false) }
     var showLicenses by remember { mutableStateOf(false) }
+    var showOpenWithReset by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val packageInfo = remember {
         @Suppress("DEPRECATION")
@@ -268,6 +270,19 @@ fun SettingsScreen(
         val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, packageUri)
         runCatching { allFilesLauncher.launch(intent) }.onFailure {
             allFilesLauncher.launch(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
+        }
+    }
+
+    fun openAppSettings() {
+        val packageUri = Uri.parse("package:${context.packageName}")
+        runCatching {
+            context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, packageUri))
+        }.onFailure {
+            Toast.makeText(
+                context,
+                if (isEnglish) "Unable to open app settings" else "无法打开应用设置",
+                Toast.LENGTH_SHORT
+            ).show()
         }
     }
 
@@ -422,6 +437,15 @@ fun SettingsScreen(
                 ValueRow("编辑后保存方式", value("edit_save", "每次询问"), "保留编辑副本或替换当前版本，保存前均需确认") { choose("编辑后保存方式", "edit_save", listOf("每次询问", "保留二者", "替换原图"), value("edit_save", "每次询问")) }
                 SettingsRowDivider()
                 ValueRow("复制/移动文件已存在", value("conflict", "保留两者")) { choose("同名文件处理", "conflict", listOf("保留两者", "覆盖", "跳过"), value("conflict", "保留两者")) }
+            }
+        }
+        item {
+            SettingsCard("打开方式") {
+                ClickableRow(
+                    if (isEnglish) "Reset open-with choices" else "重置打开方式选择",
+                    if (isEnglish) "Clear “Always” choices; Android requires this in app settings"
+                    else "清除「总是」选择；系统不允许应用代劳，将打开应用设置"
+                ) { showOpenWithReset = true }
             }
         }
         // Backups close the page, so they sit at its end.
@@ -599,22 +623,22 @@ fun SettingsScreen(
                 "隐私政策",
                 if (isEnglish) {
                     "Album is designed to keep your personal media on your device. Photos and videos are scanned, sorted, edited, played, favorited, and cached locally. The app does not upload your local media, use it for advertising, or send it to an analytics service.\n\n" +
-                        "The app may request Android media, file-management, notification, and media-playback permissions. These permissions are used only for the related features you enable. You can revoke them in Android settings; some features may then be unavailable.\n\n" +
+                        "The app may request Android media and file-management permissions. These permissions are used only for the related features you enable. You can revoke them in Android settings; some features may then be unavailable.\n\n" +
                         "Pixiv features open Pixiv services in an in-app WebView and may request Pixiv pages, artwork metadata, and media URLs. Pixiv login cookies are stored by Android WebView on this device until you sign out or clear the app data. Pixiv handles information submitted to its services under its own privacy policy.\n\n" +
                         "When you check for updates, Album downloads the release manifest published with this project's GitHub Releases and compares it with the installed version. When you choose an update, Android opens the APK download link from that release. The app does not silently install updates and does not verify the APK for you.\n\n" +
                         "Album has no cloud backup: Android auto backup and device-to-device transfer are switched off for this app, so favorites, wallpaper and slideshow queues, preferences, and excluded folders stay on this device only and do not survive a reinstall.\n\n" +
                         "Files you delete are copied into the app's private Trash folder before the original is removed, which means they occupy app storage until the retention period ends. Clearing the app's data or uninstalling Album deletes everything still in Trash.\n\n" +
                         "Media is sent to another app only when you choose a system action such as sharing or opening a file. Settings, thumbnails, playback progress, and cached data remain on the device and can be cleared from the app or Android settings.\n\n" +
-                        "Version: v$appVersion\nLast revised: September 17, 2026"
+                        "Version: v$appVersion\nLast revised: November 21, 2026"
                 } else {
                     "Album 以本地处理为设计原则。图片和视频的扫描、排序、编辑、播放、收藏及缩略图缓存均在本机完成。应用不会上传你的本地媒体，不会将其用于广告，也不会接入分析统计服务。\n\n" +
-                        "应用可能申请媒体访问、文件管理、通知和媒体播放等 Android 权限，仅用于你启用的对应功能。你可以在 Android 系统设置中撤销权限；撤销后，相关功能可能无法使用。\n\n" +
+                        "应用可能申请媒体访问和文件管理等 Android 权限，仅用于你启用的对应功能。你可以在 Android 系统设置中撤销权限；撤销后，相关功能可能无法使用。\n\n" +
                         "Pixiv 功能会通过应用内 WebView 访问 Pixiv 页面，并可能请求作品信息、媒体库信息和媒体地址。Pixiv 登录 Cookie 由 Android WebView 保存在本机，直到你退出登录或清除应用数据。提交给 Pixiv 服务的信息受 Pixiv 自身隐私政策约束。\n\n" +
                         "检查更新时，Album 会下载与本项目 GitHub Release 一起发布的版本清单，并与已安装版本比较。你选择更新后，应用会让 Android 打开该 Release 中的 APK 下载地址；应用不会静默安装更新，也不会替你校验 APK。\n\n" +
                         "Album 不使用云备份：本应用的 Android 自动备份和设备间迁移均已关闭，因此收藏、壁纸与幻灯片队列、偏好设置和排除文件夹只保存在本机，重装后不会恢复。\n\n" +
                         "删除的文件会先复制到应用私有目录的回收站，再移除原文件，因此它们在保留期内会占用应用存储空间。清除应用数据或卸载 Album 会同时删除回收站中仍在的文件。\n\n" +
                         "只有在你主动使用系统分享或打开文件等操作时，媒体才会交给其他应用。设置、缩略图、播放进度和缓存均保存在本机，可在应用内或 Android 系统设置中清除。\n\n" +
-                        "版本：v$appVersion\n最后修订：2026年9月17日"
+                        "版本：v$appVersion\n最后修订：2026年11月21日"
                 }
             )
         }
@@ -729,6 +753,22 @@ fun SettingsScreen(
             optionLabel = { settingsText(it.label, isEnglish) }
         )
     }
+    if (showOpenWithReset) {
+        VaultConfirmationSheet(
+            title = if (isEnglish) "Reset open-with choices" else "重置打开方式选择",
+            body = if (isEnglish) {
+                "Android stores every “Always” choice in system settings; an app cannot clear another app's default for you. Open Album's app settings, choose Open by default, then Clear defaults. If you chose another app, clear it from Android Settings → Apps → that app → Open by default."
+            } else {
+                "Android 把每一次「总是」保存在系统设置里，应用无法替其他应用清除默认选择。点「打开应用设置」后进入「默认打开」，再点「清除默认」；如果当时选的是其他应用，请到系统「设置」→「应用」→ 对应应用 →「默认打开」里清除。"
+            },
+            confirmLabel = if (isEnglish) "Open app settings" else "打开应用设置",
+            onDismiss = { showOpenWithReset = false },
+            onConfirm = {
+                showOpenWithReset = false
+                openAppSettings()
+            }
+        )
+    }
     dialog?.let { info ->
         VaultInfoSheet(settingsText(info.title, isEnglish), info.body, if (isEnglish) "Done" else "知道了") { dialog = null }
     }
@@ -782,7 +822,7 @@ fun SettingsScreen(
                         Toast.makeText(context, if (isEnglish) "Download link is not secure" else "下载地址不安全", Toast.LENGTH_SHORT).show()
                         availableUpdate = null
                     } else {
-                        runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(release.downloadUrl))) }
+                        runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, release.downloadUrl.toUri())) }
                             .onFailure {
                                 Toast.makeText(context, if (isEnglish) "Unable to open download link" else "无法打开下载地址", Toast.LENGTH_SHORT).show()
                             }

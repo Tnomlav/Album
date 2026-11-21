@@ -133,12 +133,7 @@ class PixivArchiveScanService : Service() {
     }
 
     private fun updateNotification(message: String) {
-        runCatching {
-            getSystemService(NotificationManager::class.java).notify(
-                NOTIFICATION_ID,
-                buildNotification(message)
-            )
-        }
+        runCatching { startAsForeground(buildNotification(message)) }
     }
 
     private fun buildNotification(message: String): Notification = NotificationCompat.Builder(this, CHANNEL_ID)

@@ -2167,7 +2167,7 @@ fun AlbumApp(
         val granted = hasMediaPermission(context)
         refresher.request(com.example.album.ui.RefreshSource.Startup, granted = granted)
         val initialPermissionsPrompted = albumSettings.getBoolean("runtime_permissions_prompted", false)
-        val missingInitialPermissions = missingPermissions(context, requiredAppPermissions())
+        val missingInitialPermissions = missingPermissions(context, requiredMediaPermissions())
         if (!initialPermissionsPrompted && missingInitialPermissions.isNotEmpty()) {
             albumSettings.edit().putBoolean("runtime_permissions_prompted", true).apply()
             permissionLauncher.launch(missingInitialPermissions)
@@ -4605,10 +4605,6 @@ private fun hasMediaPermission(context: android.content.Context): Boolean = requ
 private fun canModifyMediaDirectly(context: android.content.Context): Boolean =
     (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && MediaStore.canManageMedia(context)) ||
         (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && Environment.isExternalStorageManager())
-
-private fun requiredAppPermissions(): Array<String> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-    requiredMediaPermissions() + Manifest.permission.POST_NOTIFICATIONS
-} else requiredMediaPermissions()
 
 private fun missingPermissions(context: android.content.Context, permissions: Array<String>): Array<String> =
     permissions.filter {

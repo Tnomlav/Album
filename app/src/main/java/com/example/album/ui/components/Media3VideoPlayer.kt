@@ -2,12 +2,10 @@
 
 package com.example.album.ui.components
 
-import android.Manifest
 import android.app.Activity
 import android.content.Context
 import android.content.res.Configuration
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.content.pm.ActivityInfo
 import android.media.AudioManager
 import android.media.AudioFocusRequest
@@ -1111,34 +1109,7 @@ internal fun Media3VideoPlayer(
             }
     }
 
-    val notificationPermissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        if (granted) {
-            startBackgroundNow()
-        } else {
-            Toast.makeText(
-                context,
-                if (english) "Notification permission is required for background playback"
-                else "后台播放需要通知权限",
-                Toast.LENGTH_SHORT
-            ).show()
-        }
-    }
-
-    fun startBackground() {
-        if (
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.POST_NOTIFICATIONS
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-        } else {
-            startBackgroundNow()
-        }
-    }
+    fun startBackground() = startBackgroundNow()
 
     fun refreshControls() {
         controlsVisible = true
