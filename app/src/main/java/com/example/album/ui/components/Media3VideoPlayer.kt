@@ -298,7 +298,7 @@ internal fun orientationModeLabel(mode: Int): String = when (mode) {
     1 -> "始终横屏"
     2 -> "始终竖屏"
     3 -> "按视频比例"
-    else -> "适配重力"
+    else -> "自动旋转"
 }
 
 /** Icons that make each orientation mode obvious at a glance. */

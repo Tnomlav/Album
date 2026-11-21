@@ -218,7 +218,6 @@ import java.util.Locale
  */
 enum class MainTab(val label: String, val icon: ImageVector) {
     Albums("相册", Icons.Outlined.Collections),
-    Videos("视频", Icons.Outlined.VideoLibrary),
     Timeline("时间轴", Icons.Outlined.WatchLater),
     Pixiv("Pixiv", PixivPMark),
     Tools("工具箱", Icons.Outlined.Widgets),
@@ -256,7 +255,7 @@ internal fun PixivArchiveNavigation(onClick: () -> Unit) {
 
 private fun enabledMainTabs(pixivEnabled: Boolean): List<MainTab> =
     MainTab.entries.filter { tab ->
-        (tab != MainTab.Pixiv || pixivEnabled) && tab != MainTab.Videos
+        tab != MainTab.Pixiv || pixivEnabled
     }
 
 private fun normalizedTabOrder(stored: List<MainTab>, pixivEnabled: Boolean): List<MainTab> {
@@ -628,6 +627,7 @@ fun AlbumApp(
     // handler can see it: otherwise back closed the whole tab (and reset the
     // album page's folder/filter state) before the sub-page could react.
     var settingsSection by rememberSaveable { mutableStateOf<String?>(null) }
+    var settingsReturnTab by remember { mutableStateOf<MainTab?>(null) }
     var wallpaperShowVideos by rememberSaveable { mutableStateOf(false) }
     var wallpaperQuery by rememberSaveable { mutableStateOf("") }
     var wallpaperSelectionMode by rememberSaveable { mutableStateOf(false) }
@@ -866,7 +866,7 @@ fun AlbumApp(
     LaunchedEffect(appliedQuery, selectedTab, openedFolder) {
         val searching = appliedQuery.isNotBlank() &&
             openedFolder == null &&
-            (selectedTab == MainTab.Albums || selectedTab == MainTab.Videos || selectedTab == MainTab.Timeline)
+            (selectedTab == MainTab.Albums || selectedTab == MainTab.Timeline)
         if (searching && searchPageOpenForTab == null) {
             searchPageOpenForTab = selectedTab
             val onTimeline = selectedTab == MainTab.Timeline
@@ -1100,7 +1100,7 @@ fun AlbumApp(
     val needsFolderSearchIndex by remember {
         derivedStateOf {
             appliedQuery.isNotBlank() &&
-                selectedTab in setOf(MainTab.Albums, MainTab.Videos) &&
+                selectedTab == MainTab.Albums &&
                 openedFolder == null &&
                 (!selectionMode || selectingFolders)
         }
@@ -1226,9 +1226,6 @@ fun AlbumApp(
             folderScope?.takeIf { items -> items.all { it.folderKey() == openedFolder } }
         } else null
         when (selectedTab) {
-            MainTab.Videos -> openedMediaScope
-                ?: openedFolder?.let { folder -> visibleVideos.filter { it.folderKey() == folder } }
-                ?: visibleVideos
             MainTab.Albums -> openedMediaScope
                 ?: openedFolder?.let { folder -> albumImages.filter { it.folderKey() == folder } }
                 ?: albumImages
@@ -1253,7 +1250,6 @@ fun AlbumApp(
             // transient view state and can otherwise hide matches after the
             // user enters multi-select from a folder or returns from search.
             val searchSource = when (selectedTab) {
-                MainTab.Videos -> visibleVideos
                 MainTab.Albums -> albumImages
                 MainTab.Timeline -> if (timelineShowsVideos) visibleVideos else visibleImages
                 MainTab.Pixiv -> pixivSearchImages
@@ -1288,7 +1284,6 @@ fun AlbumApp(
     // media set so items hidden by the current query remain actionable.
     val completeSelectionMedia by remember { derivedStateOf {
         val source = when (selectedTab) {
-            MainTab.Videos -> library.videos + library.localVideos
             MainTab.Albums -> library.images + library.videos + library.localImages + library.localVideos
             MainTab.Timeline -> if (timelineShowsVideos) {
                 library.videos + library.localVideos
@@ -1352,7 +1347,6 @@ fun AlbumApp(
 
     fun tabLabel(tab: MainTab): String = if (appLanguage == "English") when (tab) {
         MainTab.Albums -> "Albums"
-        MainTab.Videos -> "Videos"
         MainTab.Timeline -> "Timeline"
         MainTab.Pixiv -> "Pixiv"
         MainTab.Tools -> "Tools"
@@ -1653,6 +1647,11 @@ fun AlbumApp(
 
     fun selectMainTab(tab: MainTab) {
         if (selectedTab == tab) return
+        if (tab == MainTab.Settings && selectedTab != MainTab.Settings) {
+            settingsReturnTab = selectedTab
+        } else if (tab != MainTab.Settings) {
+            settingsReturnTab = null
+        }
         selectedTab = tab
         // The user chose a different page: a pending "back to the archive" no
         // longer applies.
@@ -1802,6 +1801,10 @@ fun AlbumApp(
             selectedTab == MainTab.Settings -> {
                 if (settingsSection != null) {
                     settingsSection = null
+                } else if (settingsReturnTab != null && settingsReturnTab != MainTab.Settings) {
+                    val previous = settingsReturnTab!!
+                    settingsReturnTab = null
+                    selectedTab = previous
                 } else if (selectedTab != primaryTab) {
                     returnToPrimaryTab()
                 } else {
@@ -2350,7 +2353,10 @@ fun AlbumApp(
                             // page and flashing it on the way.
                             pixivFolder != null -> MainTab.Pixiv
                             request.fromPixivArchive -> selectedTab
-                            request.items.isNotEmpty() && request.items.all { it.isVideo } -> MainTab.Videos
+                            request.items.isNotEmpty() && request.items.all { it.isVideo } -> {
+                                albumShowsVideos = true
+                                MainTab.Albums
+                            }
                             request.items.isNotEmpty() && request.items.all { !it.isVideo } -> MainTab.Albums
                             else -> selectedTab
                         }
@@ -3028,13 +3034,6 @@ fun AlbumApp(
                     MainTab.Timeline -> if (appLanguage == "English") {
                         listOf("Select", "Jump to date", "Layout", "Columns", "Add local folder", "Rescan")
                     } else listOf("进入多选", "跳转日期", "排布方式", "列数", "添加本地文件夹", "重新扫描")
-                    MainTab.Videos -> if (appLanguage == "English") {
-                        if (openedFolder == null) listOf("Select", "Sort", "Columns", "Add local folder", "Rescan")
-                        else listOf("Select", "Sort", "Layout", "Columns", "New folder", "Rescan")
-                    } else {
-                        if (openedFolder == null) listOf("进入多选", "排序方式", "列数", "添加本地文件夹", "重新扫描")
-                        else listOf("进入多选", "排序方式", "排布方式", "列数", "新建文件夹", "重新扫描")
-                    }
                     MainTab.Pixiv -> if (appLanguage == "English") {
                         if (pixivSearchMode == PixivSearchMode.Tag) listOf("Select", "Sort", "Layout", "Columns", "Notes", "Rescan")
                         else if (openedFolder == null) listOf("Select", "Sort", "Columns", "Notes", "Rescan")
@@ -3071,7 +3070,7 @@ fun AlbumApp(
                             // content immediately.
                             freezeSelectionSort()
                             selectionMode = true
-                            selectingFolders = openedFolder == null && (tab == MainTab.Albums || tab == MainTab.Videos || (tab == MainTab.Pixiv && pixivSearchMode == PixivSearchMode.Artist))
+                            selectingFolders = openedFolder == null && (tab == MainTab.Albums || (tab == MainTab.Pixiv && pixivSearchMode == PixivSearchMode.Artist))
                             val first = currentSelectionMedia.firstOrNull()
                             if (selectingFolders) {
                                 selectedFolders = first?.folder?.let(::setOf).orEmpty()
@@ -3116,7 +3115,7 @@ fun AlbumApp(
                         if (appLanguage == "English") "Search Pixiv folders" else "搜索 Pixiv 文件夹"
                     } else if (appLanguage == "English") "Search this Pixiv folder" else "搜索当前 Pixiv 文件夹"
                 } else if (openedFolder != null) {
-                    if (appLanguage == "English") "Search this folder" else "搜索当前文件夹中的${if (tab == MainTab.Videos) "视频" else "图片"}"
+                    if (appLanguage == "English") "Search this folder" else "搜索当前文件夹中的图片"
                 } else if (tab == MainTab.Timeline) {
                     if (appLanguage == "English") "Search names and dates" else "搜索${if (timelineShowsVideos) "视频" else "图片"}名称、日期"
                 } else null,
@@ -3223,7 +3222,7 @@ fun AlbumApp(
                 onReselectTab = { tab ->
                     val atTop = when (tab) {
                         MainTab.Timeline -> timelinePageAtTop
-                        MainTab.Albums, MainTab.Videos, MainTab.Pixiv -> albumPageAtTop
+                        MainTab.Albums, MainTab.Pixiv -> albumPageAtTop
                         else -> true
                     }
                     if (!atTop) {
@@ -3241,7 +3240,7 @@ fun AlbumApp(
                                 visible = { true },
                                 defaultItems = defaultPixivImages
                             )
-                            MainTab.Albums, MainTab.Videos, MainTab.Timeline ->
+                            MainTab.Albums, MainTab.Timeline ->
                                 pullRefreshToken = System.nanoTime()
                             else -> Unit
                         }
@@ -3434,81 +3433,6 @@ fun AlbumApp(
                     ,onOpenPixivArchive = {
                         pixivArchiveOpen = true
                     }
-                )
-                MainTab.Videos -> AlbumsScreen(
-                    media = visibleVideos,
-                    isVideo = true,
-                    query = appliedQuery,
-                    searchingFolders = library.searchableFoldersLoading || !library.searchableFoldersReady,
-                    loadState = library.loadState,
-                    permissionGranted = library.videoPermissionGranted,
-                    sort = mediaSort,
-                    sortDirection = sortDirection,
-                    albumColumns = albumColumns,
-                    folderColumns = folderColumns,
-                    layout = folderLayout,
-                    initialAlbumFirstVisibleItem = albumFirstVisibleItem,
-                    initialAlbumFirstVisibleOffset = albumFirstVisibleOffset,
-                    onAlbumScrollPositionChanged = { index, offset ->
-                        albumFirstVisibleItem = index
-                        albumFirstVisibleOffset = offset
-                        selectionFolderFirstVisibleItem = index
-                        selectionFolderFirstVisibleOffset = offset
-                    },
-                    initialMediaFirstVisibleItem = selectionMediaFirstVisibleItem,
-                    initialMediaFirstVisibleOffset = selectionMediaFirstVisibleOffset,
-                    onFirstVisibleMediaChanged = { selectionAnchorUri = it },
-                    scrollToTopToken = scrollToTopToken,
-                    pullRequestToken = pullRefreshToken,
-                    scrollToUri = viewerScrollUri,
-                    scrollToToken = viewerScrollToken,
-                    scrollRequest = pageScrollRequest,
-                    onVisibleScopeChanged = { scope -> pageScope = scope; folderScope = scope },
-                    onFirstVisibleFolderChanged = { selectionAnchorFolder = it },
-                    onMediaScrollPositionChanged = { index, offset ->
-                        selectionMediaFirstVisibleItem = index
-                        selectionMediaFirstVisibleOffset = offset
-                    },
-                    onRequestPermission = requestPermission,
-                    onOpenMedia = { item -> if (selectionMode) { val key = item.uri.toString(); selectedUris = if (key in selectedUris) selectedUris - key else selectedUris + key } else openMedia(item) },
-                    onLongPressMedia = { pressed -> freezeSelectionSort(); selectionMode = true; selectingFolders = false; selectedUris = selectedUris + pressed.uri.toString() },
-                    onBatchSelectMedia = { items ->
-                        freezeSelectionSort()
-                        selectingFolders = false
-                        selectedUris = selectedUris + items.map { it.uri.toString() }
-                    },
-                    onSelectionGestureStartMedia = { pressed -> selectionGestureActive = true; freezeSelectionSort(); selectingFolders = false; selectedUris = selectedUris + pressed.uri.toString() },
-                    onSelectionGestureEnd = { selectionGestureActive = false; selectionMode = true },
-                    onLongPressAlbum = { album, index, offset ->
-                        freezeSelectionSort()
-                        albumFirstVisibleItem = index
-                        albumFirstVisibleOffset = offset
-                        selectionFolderFirstVisibleItem = index
-                        selectionFolderFirstVisibleOffset = offset
-                        selectionMode = true
-                        selectingFolders = true
-                        selectedFolders = selectedFolders + album.key
-                    },
-                    onSelectionGestureStartAlbum = { album -> selectionGestureActive = true; freezeSelectionSort(); selectingFolders = true; selectedFolders = selectedFolders + album.key },
-                    onBatchSelectAlbums = { albums ->
-                        freezeSelectionSort()
-                        selectingFolders = true
-                        selectedFolders = selectedFolders + albums.map { it.key }
-                    },
-                    onAlbumSelectionGestureEnd = { selectionGestureActive = false; selectionMode = true },
-                    onRefresh = { refreshLibrary() },
-                    openedFolder = openedFolder,
-                    onOpenedFolderChange = { folder -> if (folder != null && selectionMode && selectingFolders) { selectedFolders = if (folder in selectedFolders) selectedFolders - folder else selectedFolders + folder } else openFolder(folder) },
-                    sharedElementEnabled = tab == selectedTab,
-                    favoriteUris = favoriteUris,
-                    showFavoriteBadge = showFavoriteBadge,
-                    selectionPreview = selectionMode || selectionGestureActive,
-                    selectedUris = selectedUris,
-                    selectedFolders = selectedFolders,
-                    additionalAlbumNames = if (appliedQuery.isBlank()) emptySet() else library.searchableFolderNames + library.searchableFolderChildren.values.flatten(),
-                    additionalFileNames = if (appliedQuery.isBlank()) emptyMap() else library.searchableFolderFiles,
-                    additionalChildFolderNames = if (openedFolder == null) emptySet() else (library.searchableFolderChildren[openedFolder.orEmpty()] ?: library.searchableFolderChildren[com.example.album.data.albumDisplayName(openedFolder.orEmpty())]).orEmpty(),
-                    onClearQuery = { query = "" }
                 )
                 MainTab.Timeline -> TimelineScreen(
                     media = if (timelineShowsVideos) visibleVideos else visibleImages,
@@ -4203,8 +4127,7 @@ fun AlbumApp(
         val methods = when {
             selectedTab == MainTab.Pixiv && pixivSearchMode == PixivSearchMode.Tag -> listOf(MediaSort.Time, MediaSort.Name, MediaSort.Size)
             openedFolder == null -> listOf(MediaSort.Time, MediaSort.Name, MediaSort.Count)
-            selectedTab == MainTab.Videos -> listOf(MediaSort.Time, MediaSort.Name, MediaSort.Size, MediaSort.Duration)
-            else -> listOf(MediaSort.Time, MediaSort.Name, MediaSort.Size)
+                        else -> listOf(MediaSort.Time, MediaSort.Name, MediaSort.Size)
         }
         val methodOptions = methods.map { appText(it.label, english) }
         val directionOptions = SortDirection.entries.map { appText(it.label, english) }
@@ -4285,8 +4208,7 @@ fun AlbumApp(
     }
     if (showExcludeDialog) {
         val folders = when (selectedTab) {
-            MainTab.Videos -> library.videos.map { it.folder }
-            else -> library.images.map { it.folder }
+                        else -> library.images.map { it.folder }
         }.distinct().sorted()
         ChoiceDialog(appText("排除文件夹", english), folders, "", onDismiss = { showExcludeDialog = false }) { folder ->
             library.excludeFolder(folder)

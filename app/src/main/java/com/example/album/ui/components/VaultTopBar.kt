@@ -22,11 +22,25 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material.icons.outlined.SwapHoriz
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Sort
+import androidx.compose.material.icons.outlined.ViewAgenda
+import androidx.compose.material.icons.outlined.ViewColumn
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.CreateNewFolder
+import androidx.compose.material.icons.outlined.FolderOpen
+import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Wallpaper
+import androidx.compose.material.icons.outlined.Info
+import com.example.album.ui.MainMenuAction
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -55,6 +69,31 @@ import com.example.album.ui.theme.VaultDimens
 import com.example.album.ui.theme.VaultText
 import com.example.album.ui.LocalAppEnglish
 import com.example.album.ui.appText
+
+private fun menuGroup(item: String): Int = when (MainMenuAction.fromLabel(item)) {
+    MainMenuAction.Select -> 0
+    MainMenuAction.Sort, MainMenuAction.Layout, MainMenuAction.Columns, MainMenuAction.JumpToDate -> 1
+    MainMenuAction.AddLocalFolder, MainMenuAction.CreateFolder, MainMenuAction.ExcludeFolder -> 2
+    MainMenuAction.Scan -> 3
+    MainMenuAction.WallpaperManager -> 4
+    MainMenuAction.PixivArchiveInfo -> 5
+    null -> 6
+}
+
+private fun menuIcon(item: String): ImageVector? = when (MainMenuAction.fromLabel(item)) {
+    MainMenuAction.Select -> Icons.Outlined.CheckCircle
+    MainMenuAction.Sort -> Icons.Outlined.Sort
+    MainMenuAction.Layout -> Icons.Outlined.ViewAgenda
+    MainMenuAction.Columns -> Icons.Outlined.ViewColumn
+    MainMenuAction.JumpToDate -> Icons.Outlined.CalendarMonth
+    MainMenuAction.AddLocalFolder -> Icons.Outlined.CreateNewFolder
+    MainMenuAction.CreateFolder -> Icons.Outlined.FolderOpen
+    MainMenuAction.ExcludeFolder -> Icons.Outlined.VisibilityOff
+    MainMenuAction.Scan -> Icons.Outlined.Refresh
+    MainMenuAction.WallpaperManager -> Icons.Outlined.Wallpaper
+    MainMenuAction.PixivArchiveInfo -> Icons.Outlined.Info
+    null -> null
+}
 
 /** Prominent page-type switch: a switch mark plus the current state. */
 @Composable
@@ -387,9 +426,19 @@ fun VaultTopBar(
                     onDismissRequest = { menuExpanded = false },
                     modifier = Modifier.width(190.dp).clip(RoundedCornerShape(topStart = 14.dp, bottomStart = 14.dp))
                 ) {
-                    menuItems.forEach { item ->
+                    menuItems.forEachIndexed { index, item ->
+                        val action = MainMenuAction.fromLabel(item)
+                        if (index > 0 && menuGroup(menuItems[index - 1]) != menuGroup(item)) {
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 12.dp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .14f)
+                            )
+                        }
                         DropdownMenuItem(
                             text = { Text(item, style = VaultText.Body) },
+                            leadingIcon = menuIcon(item)?.let { icon ->
+                                { Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+                            },
                             modifier = Modifier.height(52.dp),
                             onClick = {
                                 menuExpanded = false

@@ -48,6 +48,7 @@ import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -93,6 +94,7 @@ import com.example.album.ui.components.ListScrollHandle
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.ui.zIndex
 import com.example.album.data.ThumbnailRepository
+import com.example.album.data.DiagnosticsReport
 import com.example.album.BuildConfig
 import com.example.album.data.AppRelease
 import com.example.album.data.AppUpdateChecker
@@ -129,6 +131,7 @@ fun SettingsScreen(
     var showThemeColors by remember { mutableStateOf(false) }
     var showLicenses by remember { mutableStateOf(false) }
     var showOpenWithReset by remember { mutableStateOf(false) }
+    var settingsSearch by remember { mutableStateOf("") }
     var pendingRetention by remember { mutableStateOf<RetentionChange?>(null) }
     val scope = rememberCoroutineScope()
     val packageInfo = remember {
@@ -224,6 +227,26 @@ fun SettingsScreen(
                         if (isEnglish) "Export failed: ${error.message ?: "unknown error"}"
                         else "导出失败：${error.message ?: "未知错误"}"
                     }
+                ),
+                if (result.isSuccess) Toast.LENGTH_SHORT else Toast.LENGTH_LONG
+            ).show()
+        }
+    }
+    val diagnosticsLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val result = runCatching {
+                withContext(Dispatchers.IO) {
+                    context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { writer ->
+                        writer.write(DiagnosticsReport.build(context))
+                    } ?: error("Unable to open destination")
+                }
+            }
+            Toast.makeText(
+                context,
+                result.fold(
+                    onSuccess = { if (isEnglish) "Diagnostics exported" else "诊断信息已导出" },
+                    onFailure = { if (isEnglish) "Export failed" else "导出失败" }
                 ),
                 if (result.isSuccess) Toast.LENGTH_SHORT else Toast.LENGTH_LONG
             ).show()
@@ -342,8 +365,45 @@ fun SettingsScreen(
             }
         } else {
             item { SettingsPageHeader(isEnglish) }
-            items(settingsCategories) { category ->
-                SettingsCategoryCard(category) { onSettingsSectionChange(category.title) }
+            item {
+                OutlinedTextField(
+                    value = settingsSearch,
+                    onValueChange = { settingsSearch = it },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                    singleLine = true,
+                    placeholder = { Text(if (isEnglish) "Search settings" else "搜索设置") },
+                    trailingIcon = {
+                        if (settingsSearch.isNotBlank()) {
+                            TextButton(onClick = { settingsSearch = "" }) { Text(if (isEnglish) "Clear" else "清除") }
+                        }
+                    }
+                )
+            }
+            val visibleCategories = if (settingsSearch.isBlank()) {
+                settingsCategories
+            } else {
+                val needle = settingsSearch.trim()
+                settingsCategories.filter { category ->
+                    category.title.contains(needle, true) ||
+                        category.subtitle.contains(needle, true) ||
+                        category.keywords.contains(needle, true)
+                }
+            }
+            if (visibleCategories.isEmpty()) {
+                item {
+                    Text(
+                        if (isEnglish) "No matching settings" else "没有匹配的设置",
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 12.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                items(visibleCategories) { category ->
+                    SettingsCategoryCard(category) {
+                        settingsSearch = ""
+                        onSettingsSectionChange(category.title)
+                    }
+                }
             }
         }
         if (settingsSection == "界面") {
@@ -425,7 +485,12 @@ fun SettingsScreen(
             SettingsCard("删除与回收站") {
                 ToggleRow("回收站", "开启后，删除的文件将进入回收站", recycleBin) { setBoolean("recycle_bin", it) { recycleBin = it } }
                 SettingsRowDivider()
-                ValueRow("回收站文件保留期限", value("retention", "60天"), "保存在应用私有目录，卸载时会一并删除") {
+                ValueRow(
+                    "回收站文件保留期限",
+                    value("retention", "60天"),
+                    if (isEnglish) "Kept in app storage. Shortening it permanently deletes older Trash items."
+                    else "保存在应用私有目录；调小期限会立即永久删除超出部分。"
+                ) {
                     val previous = value("retention", "60天")
                     val previousDays = previous.filter(Char::isDigit).toIntOrNull() ?: 60
                     choose("回收站文件保留期限", "retention", listOf("10天", "30天", "60天", "90天"), previous) { selected ->
@@ -673,6 +738,17 @@ fun SettingsScreen(
         }
         SettingsRowDivider()
         ValueRow("开源许可") { showLicenses = true }
+        SettingsRowDivider()
+        ClickableRow(
+            if (isEnglish) "Export diagnostics" else "导出诊断信息",
+            if (isEnglish) "Device, version, permissions and storage only; no media or account data"
+            else "仅设备、版本、权限与存储信息，不含媒体和账号"
+        ) {
+            diagnosticsLauncher.launch(
+                "album-diagnostics-" + java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.US)
+                    .format(java.util.Date()) + ".txt"
+            )
+        }
         SettingsRowDivider()
             ValueRow(
                 "应用版本",
@@ -933,17 +1009,18 @@ private fun formatCacheSize(bytes: Long): String = when {
 private data class SettingsCategory(
     val title: String,
     val subtitle: String,
-    val icon: ImageVector
+    val icon: ImageVector,
+    val keywords: String = ""
 )
 
 private val settingsCategories = listOf(
-    SettingsCategory("界面", "主题、配色、语言、主页与底栏", Icons.Outlined.Palette),
-    SettingsCategory("文件操作", "权限、回收站、重命名与备份", Icons.Outlined.FolderOpen),
-    SettingsCategory("显示", "缩略图、预览、内容过滤与滚动条", Icons.Outlined.Visibility),
-    SettingsCategory("视频", "播放、手势与自动小窗", Icons.Outlined.Movie),
-    SettingsCategory("幻灯片", "间隔、动画与随机播放", Icons.Outlined.Slideshow),
-    SettingsCategory("缓存", "后台优化、上限与清理", Icons.Outlined.Storage),
-    SettingsCategory("关于", "隐私、许可与版本更新", Icons.Outlined.Info)
+    SettingsCategory("界面", "主题、配色、语言、主页与底栏", Icons.Outlined.Palette, "主题 颜色 语言 主页 底栏 提示 手势 下拉刷新"),
+    SettingsCategory("文件操作", "权限、回收站、重命名与备份", Icons.Outlined.FolderOpen, "权限 回收站 保留期限 删除 确认 重命名 备份 导入 导出 打开方式 冲突 日期"),
+    SettingsCategory("显示", "缩略图、预览、内容过滤与滚动条", Icons.Outlined.Visibility, "缩略图 预览 收藏 星标 隐藏 点号 R-18 滚动条 过滤"),
+    SettingsCategory("视频", "播放、手势与自动小窗", Icons.Outlined.Movie, "播放 手势 亮度 音量 快进 小窗 后台 方向 倍速"),
+    SettingsCategory("幻灯片", "间隔、动画与随机播放", Icons.Outlined.Slideshow, "间隔 动画 随机 播放"),
+    SettingsCategory("缓存", "后台优化、上限与清理", Icons.Outlined.Storage, "缓存 清理 上限 后台优化"),
+    SettingsCategory("关于", "隐私、许可与版本更新", Icons.Outlined.Info, "隐私 许可 版本 更新 检查")
 )
 
 @Composable

@@ -436,6 +436,9 @@ private fun AlbumGrid(albums: List<MediaAlbum>, columns: Int, refreshing: Boolea
         requestToken = pullRequestToken
     )
     Box(Modifier.fillMaxSize()) {
+        val duplicateNames = remember(albums) {
+            albums.groupingBy { it.name }.eachCount().filterValues { it > 1 }.keys
+        }
         LazyVerticalGrid(
             columns = GridCells.Fixed(columns),
             state = gridState,
@@ -464,7 +467,8 @@ private fun AlbumGrid(albums: List<MediaAlbum>, columns: Int, refreshing: Boolea
                         onLongClick = {},
                         sharedElementEnabled = sharedElementEnabled,
                         selected = if (selectionPreview) album.key in selectedFolders else null,
-                        showPixivMark = pixivFolder
+                        showPixivMark = pixivFolder,
+                        showPath = album.name in duplicateNames
                     ) { onOpenAlbum(album.key) }
                 }
             }

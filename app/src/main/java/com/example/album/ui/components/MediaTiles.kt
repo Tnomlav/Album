@@ -89,6 +89,7 @@ fun AlbumTile(
     selected: Boolean? = null,
     /** Draws the Pixiv mark on the cover; used by the P page's pinned folder. */
     showPixivMark: Boolean = false,
+    showPath: Boolean = false,
     onClick: () -> Unit
 ) {
     val english = LocalAppEnglish.current
@@ -144,7 +145,21 @@ fun AlbumTile(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(album.name, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = VaultDimens.AlbumName)
+            Column(Modifier.weight(1f)) {
+                Text(album.name, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = VaultDimens.AlbumName)
+                if (showPath) {
+                    val parent = album.key.substringBeforeLast('/', "")
+                    if (parent.isNotBlank()) {
+                        Text(
+                            parent,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 10.sp
+                        )
+                    }
+                }
+            }
             Text(album.items.size.toString(), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = VaultDimens.AlbumCount)
         }
     }
