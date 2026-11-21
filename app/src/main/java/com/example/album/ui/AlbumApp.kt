@@ -575,7 +575,7 @@ fun AlbumApp(
     var selectedMedia by remember { mutableStateOf<MediaItem?>(null) }
     var viewerMedia by remember { mutableStateOf<MediaItem?>(null) }
     // Playlist for a video opened by another app: the folder's videos, name
-    // ascending. Also marks that closing the viewer must leave Album entirely.
+    // ascending. Also marks that closing the viewer must leave Albumiv entirely.
     var externalVideoPlaylist by remember { mutableStateOf<List<MediaItem>?>(null) }
     var externalOpen by remember { mutableStateOf(false) }
     var viewerScope by remember { mutableStateOf<List<MediaItem>>(emptyList()) }
@@ -944,7 +944,7 @@ fun AlbumApp(
     // Leaving such a page only re-walks the Pixiv library when this is set, so
     // simply opening and closing the archive page no longer rescans it.
     var pixivFilesChanged by remember { mutableStateOf(false) }
-    var pixivSearchMode by rememberSaveable { mutableStateOf(PixivSearchMode.Artist) }
+    var pixivSearchMode by rememberSaveable { mutableStateOf(PixivSearchMode.Tag) }
     LaunchedEffect(selectedTab, pixivArchiveOpen, pixivTabEnabled) {
         if (pixivTabEnabled && selectedTab == MainTab.Pixiv && !pixivArchiveOpen &&
             !albumSettings.getBoolean("pixiv_home_intro_seen", false)
@@ -1029,7 +1029,7 @@ fun AlbumApp(
         wallpaperReturnFolder = openedFolder
         // Do not hand this straight to the system resolver: a user who once
         // picked "System settings" for ACTION_ATTACH_DATA would be sent there
-        // every time, with no way back to Album's own wallpaper flow.
+        // every time, with no way back to Albumiv's own wallpaper flow.
         wallpaperChoiceItem = item
     }
     var backgroundOptimizationEnabled by remember {
@@ -1405,7 +1405,7 @@ fun AlbumApp(
             } else {
                 mediaInDisplayOrder((library.images + library.localImages).distinctBy { it.uri.toString() })
             }
-        // ACTION_VIEW can provide a URI that is not in Album's library yet.
+        // ACTION_VIEW can provide a URI that is not in Albumiv's library yet.
         // Keep that exact item in the playlist instead of handing the player
         // an empty list or a list for another video.
         viewerScope = candidateScope.takeIf { scope -> scope.any { it.uri == item.uri } } ?: listOf(item)
@@ -3109,13 +3109,9 @@ fun AlbumApp(
                     else -> null
                 },
                 searchPlaceholder = if (tab == MainTab.Pixiv) {
-                    if (pixivSearchMode == PixivSearchMode.Tag) {
-                        if (appLanguage == "English") "Search tags" else "搜索 Tag"
-                    } else if (openedFolder == null) {
-                        if (appLanguage == "English") "Search Pixiv folders" else "搜索 Pixiv 文件夹"
-                    } else if (appLanguage == "English") "Search this Pixiv folder" else "搜索当前 Pixiv 文件夹"
+                    if (appLanguage == "English") "Search tags" else "搜索 Tag"
                 } else if (openedFolder != null) {
-                    if (appLanguage == "English") "Search this folder" else "搜索当前文件夹中的图片"
+                    if (appLanguage == "English") "Search folder names" else "搜索文件夹名称"
                 } else if (tab == MainTab.Timeline) {
                     if (appLanguage == "English") "Search names and dates" else "搜索${if (timelineShowsVideos) "视频" else "图片"}名称、日期"
                 } else null,
@@ -3136,12 +3132,6 @@ fun AlbumApp(
                     tab == MainTab.Albums || tab == MainTab.Timeline -> listOf(
                         if (english) "Pictures" else "图片",
                         if (english) "Videos" else "视频"
-                    )
-                    // The P page's switch takes the place of its title, the
-                    // same way the photo/video switch does on the library.
-                    tab == MainTab.Pixiv -> listOf(
-                        if (english) "Artist" else "画师",
-                        "Tag"
                     )
                     else -> null
                 },
@@ -3354,6 +3344,7 @@ fun AlbumApp(
                     searchingFolders = library.searchableFoldersLoading || !library.searchableFoldersReady,
                     loadState = library.loadState,
                     permissionGranted = if (albumShowsVideos) library.videoPermissionGranted else library.imagePermissionGranted,
+                    albumQueryMatchesItems = false,
                     refreshError = library.refreshError,
                     onAddFolder = { folderLauncher.launch(null) },
                     onRescan = { requestMediaScan(true) },
@@ -3504,7 +3495,7 @@ fun AlbumApp(
                     initialScanComplete = pixivPage.images != null
                 )
                 AlbumsScreen(
-                    media = if (pixivSearchMode == PixivSearchMode.Tag && appliedQuery.isNotBlank()) pixivTagResults else pixivSearchImages,
+                    media = if (appliedQuery.isBlank()) emptyList() else pixivTagResults,
                     isVideo = false,
                     query = if (pixivSearchMode == PixivSearchMode.Tag) "" else appliedQuery,
                     searchingFolders = false,
@@ -3865,7 +3856,7 @@ fun AlbumApp(
                                 slideshowStartImmersive = false
                                 if (externalOpen) {
                                     // The video was opened by another app: closing
-                                    // it goes back there, not to Album's home.
+                                    // it goes back there, not to Albumiv's home.
                                     externalOpen = false
                                     externalVideoPlaylist = null
                                     viewerMedia = null
@@ -3985,11 +3976,11 @@ fun AlbumApp(
     }
     if (showFirstRunIntro) {
         VaultConfirmationSheet(
-            title = if (english) "Welcome to Album" else "欢迎使用 Album",
+            title = if (english) "Welcome to Albumiv" else "欢迎使用 Albumiv",
             body = if (english) {
-                "Album reads photos and videos on this device for browsing, organizing, editing, and playback. Local media is not uploaded. The next step asks only for photo/video access; optional all-files and media-management permissions can be enabled later in Settings."
+                "Albumiv reads photos and videos on this device for browsing, organizing, editing, and playback. Local media is not uploaded. The next step asks only for photo/video access; optional all-files and media-management permissions can be enabled later in Settings."
             } else {
-                "Album 只在本机读取照片和视频，用于浏览、整理、编辑和播放，不会上传。下一步只申请照片/视频权限；所有文件访问、媒体管理等可选权限可以在设置里按需开启。"
+                "Albumiv 只在本机读取照片和视频，用于浏览、整理、编辑和播放，不会上传。下一步只申请照片/视频权限；所有文件访问、媒体管理等可选权限可以在设置里按需开启。"
             },
             confirmLabel = if (english) "Continue" else "继续",
             onDismiss = { showFirstRunIntro = false },
@@ -4301,7 +4292,7 @@ fun AlbumApp(
         )
     }
     wallpaperChoiceItem?.let { item ->
-        val albumChoice = if (english) "Album wallpaper" else "Album 壁纸"
+        val albumChoice = if (english) "Albumiv wallpaper" else "Albumiv 壁纸"
         val systemChoice = if (english) "System settings" else "系统设置"
         VaultChoiceConfirmationSheet(
             title = if (english) "Set wallpaper" else "设置壁纸",
@@ -4313,7 +4304,7 @@ fun AlbumApp(
                     if (item.isVideo) {
                         setDynamicWallpaper(context, listOf(item), english)
                     } else {
-                        // Keep Album's crop step: choosing "Album wallpaper"
+                        // Keep Albumiv's crop step: choosing "Albumiv wallpaper"
                         // should open the crop page, not silently apply the
                         // full frame through the old direct path.
                         wallpaperCropItem = item
@@ -4563,7 +4554,7 @@ private fun missingPermissions(context: android.content.Context, permissions: Ar
 
 /**
  * Turns a URI that arrived through the system share sheet into a library item.
- * Returns null when the media is not something Album can read, so the caller
+ * Returns null when the media is not something Albumiv can read, so the caller
  * reports it instead of offering a transfer that is guaranteed to fail.
  */
 private fun Uri.toSharedMediaItem(context: android.content.Context): MediaItem? {

@@ -70,8 +70,8 @@ fun LibraryEmptyState(
                     style = MaterialTheme.typography.titleMedium
                 )
                 Text(
-                    if (english) "Add a folder that Album may read, or rescan shared storage."
-                    else "添加一个允许 Album 读取的文件夹，或重新扫描共享存储。",
+                    if (english) "Add a folder that Albumiv may read, or rescan shared storage."
+                    else "添加一个允许 Albumiv 读取的文件夹，或重新扫描共享存储。",
                     modifier = Modifier.padding(top = 8.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center

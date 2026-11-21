@@ -175,7 +175,7 @@ class PixivArchiveRepository(private val context: Context) {
                 requestMethod = "GET"
                 setRequestProperty("Accept", "application/json")
                 setRequestProperty("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
-                setRequestProperty("User-Agent", "Mozilla/5.0 (Android) Album/1.0")
+                setRequestProperty("User-Agent", "Mozilla/5.0 (Android) Albumiv/1.0")
                 setRequestProperty("Referer", "https://www.pixiv.net/")
                 setRequestProperty("Origin", "https://www.pixiv.net")
                 setRequestProperty("X-Requested-With", "XMLHttpRequest")
@@ -1271,7 +1271,7 @@ class PixivArchiveRepository(private val context: Context) {
             connectTimeout = 4_000
             readTimeout = 5_000
             requestMethod = "GET"
-            setRequestProperty("User-Agent", "Mozilla/5.0 (Android) Album/1.0")
+            setRequestProperty("User-Agent", "Mozilla/5.0 (Android) Albumiv/1.0")
             setRequestProperty("Referer", "https://www.pixiv.net/artworks/$pid")
             setRequestProperty("Origin", "https://www.pixiv.net")
             setRequestProperty("Accept", "application/json")

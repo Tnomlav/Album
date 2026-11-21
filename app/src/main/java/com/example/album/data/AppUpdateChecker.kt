@@ -48,7 +48,7 @@ object AppUpdateChecker {
             requestMethod = "GET"
             instanceFollowRedirects = true
             setRequestProperty("Accept", "application/json")
-            setRequestProperty("User-Agent", "Album-Android")
+            setRequestProperty("User-Agent", "Albumiv-Android")
         }
         return try {
             val status = connection.responseCode

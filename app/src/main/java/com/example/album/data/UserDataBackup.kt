@@ -1,6 +1,7 @@
 package com.example.album.data
 
 import android.content.Context
+import androidx.core.content.edit
 import com.example.album.BuildConfig
 import org.json.JSONArray
 import org.json.JSONObject
@@ -61,13 +62,14 @@ object UserDataBackup {
             .toString(2)
     }
 
-    fun import(context: Context, raw: String): ImportSummary {
+    fun import(context: Context, raw: String, replaceAll: Boolean = false): ImportSummary {
         require(raw.length <= MAX_IMPORT_BYTES) { "Backup file is too large" }
         val json = JSONObject(raw)
         val format = json.optInt("format", -1)
         require(format == FORMAT_VERSION) {
             "Unsupported backup format: $format"
         }
+        if (replaceAll) clearImportedSections(context)
         var applied = 0
         applied += applySection(
             context.getSharedPreferences(SETTINGS, Context.MODE_PRIVATE),
@@ -85,6 +87,17 @@ object UserDataBackup {
             allowOnly = cleanupAllowlist
         )
         return ImportSummary(applied)
+    }
+
+    private fun clearImportedSections(context: Context) {
+        val settings = context.getSharedPreferences(SETTINGS, Context.MODE_PRIVATE)
+        settings.edit {
+            settings.all.keys.filterNot { it in settingsDenylist }.forEach(::remove)
+        }
+        val preferences = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
+        preferences.edit { preferencesAllowlist.forEach(::remove) }
+        val cleanup = context.getSharedPreferences(CLEANUP, Context.MODE_PRIVATE)
+        cleanup.edit { cleanupAllowlist.forEach(::remove) }
     }
 
     private fun encodeSection(values: Map<String, *>): JSONObject {

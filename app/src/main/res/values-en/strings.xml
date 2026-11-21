@@ -1,6 +1,6 @@
 <resources>
     <!-- Only the labels the system shows outside the app (share sheet entries)
-         need to follow the device language; everything inside Album is
+         need to follow the device language; everything inside Albumiv is
          translated at runtime by ui/AppLanguage.kt. -->
     <string name="image_search_share_saucenao">Search with SauceNAO</string>
     <string name="image_search_share_ascii2d">Search with ascii2d</string>

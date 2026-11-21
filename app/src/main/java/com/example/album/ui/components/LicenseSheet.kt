@@ -40,9 +40,9 @@ fun VaultLicensesSheet(english: Boolean, onDismiss: () -> Unit) {
             item {
                 Text(
                     if (english) {
-                        "Album bundles the components below. Their license texts are stored in the app and can be opened offline."
+                        "Albumiv bundles the components below. Their license texts are stored in the app and can be opened offline."
                     } else {
-                        "Album 随包分发以下第三方组件。它们的许可证全文存放在应用内，可离线查看。"
+                        "Albumiv 随包分发以下第三方组件。它们的许可证全文存放在应用内，可离线查看。"
                     },
                     modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,

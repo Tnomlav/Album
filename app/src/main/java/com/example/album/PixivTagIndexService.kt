@@ -39,7 +39,7 @@ class PixivTagIndexService : Service() {
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle(if (english) "Building Tag index" else "正在建立 Tag 索引")
             .setContentText(
-                if (english) "Indexing continues while Album is in the background"
+                if (english) "Indexing continues while Albumiv is in the background"
                 else "App 进入后台后索引仍会继续运行"
             )
             .setContentIntent(openIntent)

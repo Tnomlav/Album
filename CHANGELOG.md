@@ -1,5 +1,12 @@
 # Album Changelog
 
+## v1.3.80 - 2026-11-22（应用更名 Albumiv）
+
+- 应用显示名、启动器名称、壁纸入口与主要界面文案改为 Albumiv；含义为 Pixiv + image + video。
+- 保留包名 `com.example.album`、类名与 `album-update.json` 协议名，避免破坏升级、更新与存档。
+- GitHub 仓库改名需要仓库管理权限，代码中的旧 URL 在仓库改名后由 GitHub 重定向继续可用。
+- 版本 1.3.80 / VERSION_CODE 333。
+
 ## v1.3.79 - 2026-11-22（设置搜索、返回栈、诊断导出与 P3 打磨）
 
 - 设置首页新增分类搜索；设置返回栈会回到进入设置前的页面。

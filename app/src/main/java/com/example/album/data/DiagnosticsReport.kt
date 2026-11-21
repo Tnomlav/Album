@@ -20,7 +20,7 @@ import java.util.Locale
 object DiagnosticsReport {
     @SuppressLint("UsableSpace")
     fun build(context: Context): String = buildString {
-        appendLine("Album diagnostics")
+        appendLine("Albumiv diagnostics")
         appendLine("generated: ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())}")
         appendLine("version: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
         appendLine("package: ${context.packageName}")
