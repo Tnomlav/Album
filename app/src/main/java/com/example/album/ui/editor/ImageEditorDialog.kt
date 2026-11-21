@@ -190,6 +190,8 @@ fun ImageEditorDialog(
     var activeStroke by remember { mutableStateOf<List<NormalizedPoint>>(emptyList()) }
     var saveChoiceOpen by remember { mutableStateOf(false) }
     var saveConfirmationMode by remember { mutableStateOf<Boolean?>(null) }
+    var exitConfirmationOpen by remember { mutableStateOf(false) }
+    val hasUnsavedChanges = state != ImageEditState() || outputScale != 1f || quality != 100
     var compositionGestureStart by remember { mutableStateOf<ImageEditState?>(null) }
     var resolutionGestureStart by remember { mutableStateOf<EditorHistorySnapshot?>(null) }
 
@@ -211,6 +213,15 @@ fun ImageEditorDialog(
         scope.launch {
             editorAlpha.animateTo(0f, tween(120))
             after()
+        }
+    }
+
+    fun requestExit() {
+        if (saving || editorClosing) return
+        if (hasUnsavedChanges) {
+            exitConfirmationOpen = true
+        } else {
+            leaveEditor(onDismiss)
         }
     }
 
@@ -293,6 +304,14 @@ fun ImageEditorDialog(
         }
     }
 
+    fun beginSave() {
+        when (preferences.getString("edit_save", "每次询问")) {
+            "保留二者" -> saveConfirmationMode = false
+            "替换原图" -> saveConfirmationMode = true
+            else -> saveChoiceOpen = true
+        }
+    }
+
     LaunchedEffect(item.uri) {
         source = loadEditorBitmap(context, item)
         if (source != null) preview = null
@@ -301,7 +320,7 @@ fun ImageEditorDialog(
     // Keep the editor in the existing Compose window. Creating a platform
     // Dialog here adds a second Window and makes the editor enter noticeably
     // later than the regular page transitions.
-    BackHandler(enabled = !saving) { leaveEditor(onDismiss) }
+    BackHandler(enabled = !saving) { requestExit() }
     val activity = context as? Activity
     DisposableEffect(activity) {
             val window = activity?.window
@@ -374,7 +393,7 @@ fun ImageEditorDialog(
                     resetLabel = if (english) "Reset ${appText(panel.label, true)}" else "重置${panel.label}",
                     resolutionOpen = resolutionOpen,
                     saving = saving,
-                    onClose = { leaveEditor(onDismiss) },
+                    onClose = ::requestExit,
                     onUndo = ::undo,
                     onRedo = ::redo,
                     onReset = {
@@ -387,13 +406,7 @@ fun ImageEditorDialog(
                         commit(reset)
                     },
                     onResolution = { resolutionOpen = !resolutionOpen },
-                    onSave = {
-                        when (preferences.getString("edit_save", "每次询问")) {
-                            "保留二者" -> saveConfirmationMode = false
-                            "替换原图" -> saveConfirmationMode = true
-                            else -> saveChoiceOpen = true
-                        }
-                    }
+                    onSave = ::beginSave
                     )
                 }
 
@@ -694,6 +707,19 @@ fun ImageEditorDialog(
                 onConfirm = {
                     saveConfirmationMode = null
                     saveWithMode(replaceOriginal)
+                }
+            )
+        }
+        if (exitConfirmationOpen) {
+            val saveAndExit = if (english) "Save and exit" else "保存并退出"
+            val discard = if (english) "Discard changes" else "丢弃修改"
+            VaultChoiceConfirmationSheet(
+                title = if (english) "Leave editor?" else "退出编辑？",
+                choices = listOf(saveAndExit, discard),
+                onDismiss = { exitConfirmationOpen = false },
+                onChoice = { choice ->
+                    exitConfirmationOpen = false
+                    if (choice == saveAndExit) beginSave() else leaveEditor(onDismiss)
                 }
             )
         }
