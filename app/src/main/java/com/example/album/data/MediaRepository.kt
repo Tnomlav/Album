@@ -517,6 +517,22 @@ class MediaRepository(private val context: Context) {
         DirectMoveResult(Uri.fromFile(target), target.name)
     }
 
+    /**
+     * Renames a document without deleting its content. Used to move an old
+     * destination aside before committing a replacement; if the commit fails
+     * the caller can rename it back.
+     */
+    private fun renameDocumentTo(uri: Uri, name: String): Uri? {
+        if (uri.scheme.equals("file", ignoreCase = true)) {
+            val source = uri.path?.let(::File) ?: return null
+            val target = File(source.parentFile ?: return null, name)
+            return if (source.renameTo(target)) Uri.fromFile(target) else null
+        }
+        return runCatching {
+            DocumentsContract.renameDocument(context.contentResolver, uri, name)
+        }.getOrNull()
+    }
+
     /** Deletes a source without using DocumentFile.delete(), which may trash it. */
     fun deleteUriPermanently(uri: Uri): Boolean {
         if (uri.scheme.equals("file", ignoreCase = true)) {
@@ -605,10 +621,6 @@ class MediaRepository(private val context: Context) {
                     if (existing != null && conflictPolicy == ConflictPolicy.Skip) {
                         return@withContext TransferResult(item, success = true, skipped = true, targetName = item.name)
                     }
-                    if (existing != null && conflictPolicy == ConflictPolicy.Overwrite) {
-                        runCatching { context.contentResolver.delete(existing, null, null) }
-                            .getOrElse { return@withContext TransferResult(item, success = false) }
-                    }
                     moveMediaStoreItem(item, collection, relativePath, existing, targetName, conflictPolicy)?.let {
                         return@withContext it
                     }
@@ -674,6 +686,18 @@ class MediaRepository(private val context: Context) {
         val legacyDirectory = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) null else {
             File(Environment.getExternalStorageDirectory(), relativePath.removeSuffix("/"))
         }
+        if (legacyDirectory != null) {
+            // API 24-28 writes through a DATA path. writeFileReplacing already
+            // keeps a backup of the old target, so use it instead of asking
+            // MediaStore to insert over an existing file.
+            return@withContext transferToPhysicalDirectory(
+                item = item,
+                directory = legacyDirectory,
+                conflictPolicy = conflictPolicy,
+                preserveModifiedDate = preserveModifiedDate,
+                onProgress = onProgress
+            )
+        }
         return@withContext insertIntoMediaStore(
             item = item,
             collection = collection,
@@ -683,8 +707,7 @@ class MediaRepository(private val context: Context) {
             replacing = existing != null && conflictPolicy == ConflictPolicy.Overwrite,
             preserveModifiedDate = preserveModifiedDate,
             onProgress = onProgress,
-            insertFailure = null,
-            legacyDirectory = legacyDirectory
+            insertFailure = null
         )
         } catch (_: Exception) {
             TransferResult(item, success = false, failure = TransferFailure.Unknown)
@@ -739,8 +762,7 @@ class MediaRepository(private val context: Context) {
         replacing: Boolean,
         preserveModifiedDate: Boolean,
         onProgress: ((Long) -> Unit)?,
-        insertFailure: TransferFailure?,
-        legacyDirectory: File? = null
+        insertFailure: TransferFailure?
     ): TransferResult {
         val resolver = context.contentResolver
         val insertName = if (replacing) temporaryTransferName(targetName) else targetName
@@ -752,16 +774,13 @@ class MediaRepository(private val context: Context) {
                 if (item.isVideo) put(MediaStore.Video.Media.DATE_TAKEN, item.dateTaken)
                 else put(MediaStore.Images.Media.DATE_TAKEN, item.dateTaken)
             }
-            if (legacyDirectory != null) {
-                if (!legacyDirectory.exists()) legacyDirectory.mkdirs()
-                put(MediaStore.MediaColumns.DATA, File(legacyDirectory, targetName).absolutePath)
-            } else {
-                put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
-                put(MediaStore.MediaColumns.IS_PENDING, 1)
-            }
+            put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
+            put(MediaStore.MediaColumns.IS_PENDING, 1)
         }
         val target = resolver.insert(collection, values)
             ?: return TransferResult(item, success = false, failure = insertFailure)
+        var oldMovedAside = false
+        var newRenamed = false
         return runCatching {
             resolver.openInputStream(item.uri).use { input ->
                 resolver.openOutputStream(target).use { output ->
@@ -770,23 +789,51 @@ class MediaRepository(private val context: Context) {
                     copyWithProgress(input, output, onProgress)
                 }
             }
-            if (legacyDirectory == null) {
-                resolver.update(target, ContentValues().apply {
+            if (resolver.update(target, ContentValues().apply {
                     put(MediaStore.MediaColumns.IS_PENDING, 0)
                     if (preserveModifiedDate) put(MediaStore.MediaColumns.DATE_MODIFIED, item.dateTaken / 1000L)
-                }, null, null)
+                }, null, null) <= 0
+            ) {
+                throw IOException("Unable to publish the new file")
             }
             if (replacing) {
+                val backupName = temporaryTransferName(targetName)
+                if (resolver.update(existing!!, ContentValues().apply {
+                        put(MediaStore.MediaColumns.DISPLAY_NAME, backupName)
+                    }, null, null) <= 0
+                ) {
+                    throw IOException("Unable to move the existing file aside")
+                }
+                oldMovedAside = true
+                if (resolver.update(target, ContentValues().apply {
+                        put(MediaStore.MediaColumns.DISPLAY_NAME, targetName)
+                    }, null, null) <= 0
+                ) {
+                    throw IOException("Unable to rename the new file")
+                }
+                newRenamed = true
                 if (resolver.delete(existing!!, null, null) <= 0) {
                     throw IOException("Unable to replace the existing file")
                 }
-                resolver.update(target, ContentValues().apply {
-                    put(MediaStore.MediaColumns.DISPLAY_NAME, targetName)
-                }, null, null)
+                oldMovedAside = false
             }
             TransferResult(item, success = true, targetName = targetName)
         }.getOrElse {
-            resolver.delete(target, null, null)
+            if (newRenamed) {
+                runCatching {
+                    resolver.update(target, ContentValues().apply {
+                        put(MediaStore.MediaColumns.DISPLAY_NAME, insertName)
+                    }, null, null)
+                }
+            }
+            runCatching { resolver.delete(target, null, null) }
+            if (oldMovedAside) {
+                runCatching {
+                    resolver.update(existing!!, ContentValues().apply {
+                        put(MediaStore.MediaColumns.DISPLAY_NAME, targetName)
+                    }, null, null)
+                }
+            }
             TransferResult(item, success = false, failure = TransferFailure.Unknown)
         }
     }
@@ -819,9 +866,6 @@ class MediaRepository(private val context: Context) {
         val targetName = if (existing != null && conflictPolicy == ConflictPolicy.KeepBoth) {
             availableName(collection, relativePath, item.name)
         } else item.name
-        if (existing != null && conflictPolicy == ConflictPolicy.Overwrite &&
-            runCatching { context.contentResolver.delete(existing, null, null) }.getOrDefault(0) == 0
-        ) return null
         return moveMediaStoreItem(item, collection, relativePath, existing, targetName, conflictPolicy)
     }
 
@@ -898,7 +942,23 @@ class MediaRepository(private val context: Context) {
         if (existing?.uri == item.uri) {
             return TransferResult(item, success = true, skipped = true, targetName = item.name, movedDirectly = true)
         }
-        if (existing != null && conflictPolicy == ConflictPolicy.Overwrite && !deleteUriPermanently(existing.uri)) return null
+        if (existing != null && conflictPolicy == ConflictPolicy.Overwrite) {
+            // Move the old destination aside first. If the provider move fails,
+            // put it back; deleting it first loses the only copy on failure.
+            val backup = renameDocumentTo(existing.uri, temporaryTransferName(item.name)) ?: return null
+            val moved = try {
+                moveUriToDirectory(item.uri, directory, targetChoice.name)
+            } catch (error: Exception) {
+                runCatching { renameDocumentTo(backup, item.name) }
+                throw error
+            }
+            if (moved == null) {
+                renameDocumentTo(backup, item.name)
+                return null
+            }
+            deleteUriPermanently(backup)
+            return TransferResult(item, success = true, targetName = moved.name, movedDirectly = true)
+        }
         val moved = moveUriToDirectory(item.uri, directory, targetChoice.name) ?: return null
         return TransferResult(item, success = true, targetName = moved.name, movedDirectly = true)
     }
@@ -924,6 +984,7 @@ class MediaRepository(private val context: Context) {
         val target = runCatching { directory.createFile(transferMimeType(item), workingName) }.getOrNull()
             ?: return TransferResult(item, success = false, failure = TransferFailure.DestinationUnwritable)
         var finalUri = target.uri
+        var backupUri: Uri? = null
         return runCatching {
             context.contentResolver.openInputStream(item.uri).use { input ->
                 context.contentResolver.openOutputStream(target.uri).use { output ->
@@ -934,17 +995,21 @@ class MediaRepository(private val context: Context) {
             }
             if (!target.exists()) throw IOException("Target file was not created")
             if (replacing) {
-                if (!deleteUriPermanently(existing!!.uri)) throw IOException("Unable to replace the existing file")
-                finalUri = DocumentsContract.renameDocument(
-                    context.contentResolver,
-                    target.uri,
-                    targetChoice.name
-                ) ?: throw IOException("Unable to rename the new copy")
+                backupUri = renameDocumentTo(existing!!.uri, temporaryTransferName(targetChoice.name))
+                    ?: throw IOException("Unable to move the existing file aside")
+                finalUri = renameDocumentTo(target.uri, targetChoice.name)
+                    ?: throw IOException("Unable to rename the new copy")
             }
             if (!deleteUriPermanently(item.uri)) throw IOException("Unable to permanently remove original")
+            backupUri?.let { deleteUriPermanently(it) }
             TransferResult(item, success = true, targetName = targetChoice.name, movedDirectly = true)
         }.getOrElse { error ->
-            deleteUriPermanently(finalUri)
+            // If the source could not be removed, the new destination must not
+            // replace the old one: remove the new copy and restore the backup.
+            runCatching { deleteUriPermanently(finalUri) }
+            if (backupUri != null) {
+                runCatching { renameDocumentTo(backupUri!!, item.name) }
+            }
             TransferResult(
                 item,
                 success = false,
@@ -1007,6 +1072,8 @@ class MediaRepository(private val context: Context) {
         val target = runCatching {
             directory.createFile(transferMimeType(item), workingName)
         }.getOrNull() ?: return TransferResult(item, success = false, failure = TransferFailure.DestinationUnwritable)
+        var finalUri = target.uri
+        var backupUri: Uri? = null
         return try {
             context.contentResolver.openInputStream(item.uri).use { input ->
                 context.contentResolver.openOutputStream(target.uri).use { output ->
@@ -1017,13 +1084,18 @@ class MediaRepository(private val context: Context) {
             }
             if (!target.exists()) throw IOException("Target file was not created")
             if (replacing) {
-                if (!existing!!.delete()) throw IOException("Unable to replace the existing file")
-                DocumentsContract.renameDocument(context.contentResolver, target.uri, targetName)
+                backupUri = renameDocumentTo(existing!!.uri, temporaryTransferName(targetName))
+                    ?: throw IOException("Unable to move the existing file aside")
+                finalUri = renameDocumentTo(target.uri, targetName)
                     ?: throw IOException("Unable to rename the new copy")
+                deleteUriPermanently(backupUri!!)
             }
             TransferResult(item, success = true, targetName = targetName)
         } catch (_: Exception) {
-            runCatching { target.delete() }
+            runCatching { deleteUriPermanently(finalUri) }
+            if (backupUri != null) {
+                runCatching { renameDocumentTo(backupUri!!, item.name) }
+            }
             TransferResult(item, success = false, failure = TransferFailure.Unknown)
         }
     }

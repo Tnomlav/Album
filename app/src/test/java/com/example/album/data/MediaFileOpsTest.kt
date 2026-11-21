@@ -51,6 +51,18 @@ class MediaFileOpsTest {
     }
 
     @Test
+    fun keepsTheOldFileWhenItCannotBeMovedAside() {
+        val target = object : File(folder.root, "photo.jpg") {
+            override fun renameTo(dest: File): Boolean = false
+        }
+        target.writeText("old")
+        assertFalse(writeFileReplacing(target, ByteArrayInputStream(ByteArray(16))))
+        assertEquals("old", target.readText())
+        // The temporary copy is removed; the old target was never touched.
+        assertEquals(1, folder.root.listFiles()!!.size)
+    }
+
+    @Test
     fun replacesTheOldFileOnlyAfterTheNewOneIsComplete() {
         val target = File(folder.root, "photo.jpg")
         target.writeText("old")

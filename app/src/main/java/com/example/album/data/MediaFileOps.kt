@@ -56,14 +56,24 @@ internal fun writeFileReplacing(
             temporary.delete()
             return false
         }
-        if (target.exists() && !target.delete()) {
+        // Move the old target aside rather than deleting it first. If the
+        // final rename fails, put it back; the destination must never be lost
+        // just because the replacement could not be committed.
+        var backupName = temporaryTransferName(target.name)
+        while (backupName == temporary.name || File(directory, backupName).exists()) {
+            backupName = temporaryTransferName(target.name)
+        }
+        val backup = if (target.exists()) File(directory, backupName) else null
+        if (backup != null && !target.renameTo(backup)) {
             temporary.delete()
             return false
         }
         if (!temporary.renameTo(target)) {
             temporary.delete()
+            if (backup != null) backup.renameTo(target)
             return false
         }
+        backup?.delete()
         if (timestampMs > 0L) target.setLastModified(timestampMs)
         true
     } catch (_: Exception) {
