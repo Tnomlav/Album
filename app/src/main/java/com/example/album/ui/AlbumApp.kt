@@ -183,6 +183,7 @@ import com.example.album.ui.screens.TimelineScreen
 import com.example.album.ui.screens.CleanupScreen
 import com.example.album.ui.screens.CleanupDuplicateUiState
 import com.example.album.ui.screens.WallpaperManagerScreen
+import com.example.album.ui.screens.virtualAlbumTitle
 import com.example.album.ui.screens.SlideshowQueueScreen
 import com.example.album.ui.screens.SlideshowQueueScreen
 import com.example.album.ui.screens.WallpaperSort
@@ -2990,7 +2991,8 @@ fun AlbumApp(
                 // Tools page drops it entirely.
                 if (tab != MainTab.Settings && tab != MainTab.Tools) VaultTopBar(
                 title = if (openedFolder != null) {
-                    com.example.album.data.albumDisplayName(openedFolder.orEmpty())
+                    virtualAlbumTitle(openedFolder, english)
+                        ?: com.example.album.data.albumDisplayName(openedFolder.orEmpty())
                 } else if (tab == MainTab.Timeline) {
                     if (appLanguage == "English") "Timeline" else "时间轴"
                 } else tabLabel(tab),

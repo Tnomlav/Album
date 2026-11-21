@@ -101,6 +101,16 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.sample
 
+/** Virtual root albums: "All photos" and "Recent" open a flat media grid. */
+const val ALL_MEDIA_ALBUM_KEY = "__album_all_media__"
+const val RECENT_MEDIA_ALBUM_KEY = "__album_recent_media__"
+
+fun virtualAlbumTitle(key: String?, english: Boolean): String? = when (key) {
+    ALL_MEDIA_ALBUM_KEY -> if (english) "All photos" else "全部照片"
+    RECENT_MEDIA_ALBUM_KEY -> if (english) "Recent" else "最近"
+    else -> null
+}
+
 @Composable
 fun AlbumsScreen(
     media: List<MediaItem>,
@@ -198,21 +208,48 @@ fun AlbumsScreen(
     val albums = remember(allAlbums, query, additionalFileNames, pinnedAlbumName) {
         filterAlbums(allAlbums, query, additionalFileNames, pinnedAlbumName, albumQueryMatchesItems)
     }
-    val currentAlbum = remember(media, openedFolder, query, sort, sortDirection, flatMode) {
-        if (flatMode) {
-            val sorted = itemsInDisplayOrder(media)
-            MediaAlbum("__flat__", sorted, sorted.firstOrNull())
-        } else openedFolder?.let { folder ->
-            // Key matching keeps same-named folders apart; the leaf fallback
-            // covers virtual folders from the search index, which are only
-            // known by name.
-            val folderItems = media.filter { it.folderKey() == folder }
-                .ifEmpty { media.filter { it.folder == folder } }
-            val items = folderItems.filter { query.isBlank() || it.name.contains(query, true) }
-            val sorted = itemsInDisplayOrder(items)
-            val cover = itemsInDisplayOrder(folderItems).firstOrNull()
-            MediaAlbum(com.example.album.data.albumDisplayName(folder), sorted, cover, folder)
+    val recentCutoff = remember(media) { System.currentTimeMillis() - 30L * 24L * 60L * 60L * 1000L }
+    val recentItems = remember(media, recentCutoff) { media.filter { it.dateTaken >= recentCutoff } }
+    val currentAlbum = remember(media, openedFolder, query, sort, sortDirection, flatMode, recentItems) {
+        when {
+            flatMode -> {
+                val sorted = itemsInDisplayOrder(media)
+                MediaAlbum("__flat__", sorted, sorted.firstOrNull())
+            }
+            openedFolder == ALL_MEDIA_ALBUM_KEY -> {
+                val sorted = itemsInDisplayOrder(media)
+                MediaAlbum(virtualAlbumTitle(openedFolder, english).orEmpty(), sorted, sorted.firstOrNull(), openedFolder)
+            }
+            openedFolder == RECENT_MEDIA_ALBUM_KEY -> {
+                val sorted = itemsInDisplayOrder(recentItems)
+                MediaAlbum(virtualAlbumTitle(openedFolder, english).orEmpty(), sorted, sorted.firstOrNull(), openedFolder)
+            }
+            openedFolder != null -> {
+                // Key matching keeps same-named folders apart; the leaf fallback
+                // covers virtual folders from the search index, which are only
+                // known by name.
+                val folderItems = media.filter { it.folderKey() == openedFolder }
+                    .ifEmpty { media.filter { it.folder == openedFolder } }
+                val items = folderItems.filter { query.isBlank() || it.name.contains(query, true) }
+                val sorted = itemsInDisplayOrder(items)
+                val cover = itemsInDisplayOrder(folderItems).firstOrNull()
+                MediaAlbum(com.example.album.data.albumDisplayName(openedFolder), sorted, cover, openedFolder)
+            }
+            else -> null
         }
+    }
+    val displayAlbums = remember(albums, media, recentItems, openedFolder, query, flatMode, english) {
+        if (openedFolder == null && query.isBlank() && !flatMode && media.isNotEmpty()) {
+            buildList {
+                val all = itemsInDisplayOrder(media)
+                add(MediaAlbum(virtualAlbumTitle(ALL_MEDIA_ALBUM_KEY, english).orEmpty(), all, all.firstOrNull(), ALL_MEDIA_ALBUM_KEY))
+                if (recentItems.isNotEmpty()) {
+                    val recent = itemsInDisplayOrder(recentItems)
+                    add(MediaAlbum(virtualAlbumTitle(RECENT_MEDIA_ALBUM_KEY, english).orEmpty(), recent, recent.firstOrNull(), RECENT_MEDIA_ALBUM_KEY))
+                }
+                addAll(albums)
+            }
+        } else albums
     }
     val childAlbums = remember(media, additionalChildFolderNames, sort, sortDirection) {
         additionalChildFolderNames.map { name ->
@@ -306,7 +343,7 @@ fun AlbumsScreen(
                 onAction = onClearQuery
             )
         }
-        albums.isEmpty() && currentAlbum == null -> EmptyMessage(appText("没有匹配的内容", english), appText("清除搜索", english), onClearQuery)
+        displayAlbums.isEmpty() && currentAlbum == null -> EmptyMessage(appText("没有匹配的内容", english), appText("清除搜索", english), onClearQuery)
         else -> AnimatedContent(
             targetState = currentAlbum,
             contentKey = { it?.name },
@@ -345,7 +382,9 @@ fun AlbumsScreen(
                     onFirstVisibleMediaChanged = onFirstVisibleMediaChanged,
                     pullRequestToken = pullRequestToken)
                 } else {
-                    AlbumGrid(albums, albumColumns, refreshing = refreshing, onOpenAlbum = onOpenedFolderChange, onLongPressAlbum = onLongPressAlbum, onSelectionGestureStartAlbum = onSelectionGestureStartAlbum, onBatchSelectAlbums = onBatchSelectAlbums, onSelectionGestureEnd = onAlbumSelectionGestureEnd, onRefresh = onRefresh, sharedElementEnabled = sharedElementEnabled, favoriteUris = favoriteUris, selectionPreview = selectionPreview, selectedFolders = selectedFolders, initialFirstVisibleItem = initialAlbumFirstVisibleItem, initialFirstVisibleOffset = initialAlbumFirstVisibleOffset, onScrollPositionChanged = onAlbumScrollPositionChanged, onFirstVisibleFolderChanged = onFirstVisibleFolderChanged, scrollToTopToken = scrollToTopToken, scrollRequest = scrollRequest, pullRequestToken = pullRequestToken)
+                    AlbumGrid(displayAlbums, albumColumns, refreshing = refreshing, onOpenAlbum = onOpenedFolderChange, onLongPressAlbum = { album, index, offset ->
+                        if (virtualAlbumTitle(album.key, english) == null) onLongPressAlbum(album, index, offset)
+                    }, onSelectionGestureStartAlbum = onSelectionGestureStartAlbum, onBatchSelectAlbums = onBatchSelectAlbums, onSelectionGestureEnd = onAlbumSelectionGestureEnd, onRefresh = onRefresh, sharedElementEnabled = sharedElementEnabled, favoriteUris = favoriteUris, selectionPreview = selectionPreview, selectedFolders = selectedFolders, initialFirstVisibleItem = initialAlbumFirstVisibleItem, initialFirstVisibleOffset = initialAlbumFirstVisibleOffset, onScrollPositionChanged = onAlbumScrollPositionChanged, onFirstVisibleFolderChanged = onFirstVisibleFolderChanged, scrollToTopToken = scrollToTopToken, scrollRequest = scrollRequest, pullRequestToken = pullRequestToken)
                 }
             }
         }
