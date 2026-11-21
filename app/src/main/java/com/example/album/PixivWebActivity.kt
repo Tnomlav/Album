@@ -47,7 +47,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import com.example.album.ui.theme.AlbumTheme
+import com.example.album.ui.theme.AlbumivTheme
 import com.example.album.ui.theme.ThemeAccent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -200,7 +200,7 @@ class PixivWebActivity : ComponentActivity() {
 
         setContent {
             val systemDark = isSystemInDarkTheme()
-            AlbumTheme(
+            AlbumivTheme(
                 darkTheme = when (themeMode) {
                     "深色" -> true
                     "浅色" -> false

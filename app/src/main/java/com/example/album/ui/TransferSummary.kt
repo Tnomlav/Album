@@ -6,7 +6,7 @@ import com.example.album.data.TransferMode
 /**
  * What one transfer run ended up doing, in the words the UI shows.
  *
- * The summary used to be assembled inline inside `AlbumApp`'s confirm callback,
+ * The summary used to be assembled inline inside `AlbumivApp`'s confirm callback,
  * which made the wording impossible to test and easy to get subtly wrong (Copy
  * vs Move, pending source deletion, skipped rows). The composition lives here.
  */

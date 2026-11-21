@@ -17,7 +17,7 @@ import kotlinx.coroutines.withContext
  * The wallpaper manager queue as one piece of state.
  *
  * The queue used to be three `remember` values plus a save job inside
- * `AlbumApp`, mutated from five places (add, remove, remove-all-of-type, the
+ * `AlbumivApp`, mutated from five places (add, remove, remove-all-of-type, the
  * launcher screen and the restore effect). Every mutation had to remember to
  * call the save function; skipping it meant the queue silently diverged from
  * disk. Here [update] is the only mutation path and it always persists.

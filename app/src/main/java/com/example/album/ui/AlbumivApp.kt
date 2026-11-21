@@ -116,6 +116,8 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
+import androidx.core.content.edit
+import androidx.core.net.toUri
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.PathParser
@@ -510,7 +512,7 @@ private fun ToolEntry(
 }
 
 @Composable
-fun AlbumApp(
+fun AlbumivApp(
     onThemeModeChange: (String) -> Unit,
     onThemeColorChange: (String) -> Unit,
     appLanguage: String,
@@ -614,6 +616,7 @@ fun AlbumApp(
     var pendingRecycleIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var externalDeleteRequestInFlight by remember { mutableStateOf(false) }
     var pendingTrashRestore by remember { mutableStateOf<List<com.example.album.data.RecycleEntry>>(emptyList()) }
+    var undoRecycleEntries by remember { mutableStateOf<List<com.example.album.data.RecycleEntry>>(emptyList()) }
     var pendingTrashDelete by remember { mutableStateOf<List<com.example.album.data.RecycleEntry>>(emptyList()) }
     var cleanupOpen by rememberSaveable { mutableStateOf(false) }
     var cleanupTabIndex by rememberSaveable { mutableIntStateOf(0) }
@@ -730,7 +733,7 @@ fun AlbumApp(
             }
         }
         wallpaperRestoreAttempted = true
-        preferences.edit().putInt("wallpaper_restore_version", com.example.album.BuildConfig.VERSION_CODE).apply()
+        preferences.edit { putInt("wallpaper_restore_version", com.example.album.BuildConfig.VERSION_CODE) }
         // Installing an update replaces the package, and the system unbinds our
         // live wallpaper with it. Re-bind it here, but only while the still
         // wallpaper is still the one we left behind: if the user has picked a
@@ -759,11 +762,11 @@ fun AlbumApp(
         val repaired = repairFavoriteUris(favoriteUris, favoriteKeys, items)
         if (repaired.favorites != favoriteUris) {
             favoriteUris = repaired.favorites
-            preferences.edit().putStringSet("favorites", repaired.favorites).apply()
+            preferences.edit { putStringSet("favorites", repaired.favorites) }
         }
         if (repaired.keys != favoriteKeys) {
             favoriteKeys = repaired.keys
-            preferences.edit().putString("favorite_keys", encodeFavoriteKeys(repaired.keys)).apply()
+            preferences.edit { putString("favorite_keys", encodeFavoriteKeys(repaired.keys)) }
         }
     }
     fun persistSlideshowQueue(uris: Set<String>, order: List<String>) {
@@ -950,7 +953,7 @@ fun AlbumApp(
             !albumSettings.getBoolean("pixiv_home_intro_seen", false)
         ) {
             showPixivHomeIntro = true
-            albumSettings.edit().putBoolean("pixiv_home_intro_seen", true).apply()
+            albumSettings.edit { putBoolean("pixiv_home_intro_seen", true) }
         }
     }
 
@@ -1445,7 +1448,7 @@ fun AlbumApp(
             return@LaunchedEffect
         }
         if (mime.startsWith("video/")) {
-            // "Open with Album" on one video: the player should be able to
+            // "Open with Albumiv" on one video: the player should be able to
             // continue with the next video of that folder, so the playlist is
             // built from the folder (name ascending) instead of this one URI.
             val playlist = com.example.album.data.openExternalVideoPlaylist(context, uri)
@@ -1505,7 +1508,7 @@ fun AlbumApp(
         else wallpaperCropItem = externalItem
     }
 
-    // "Share to Album" from another app: offer to copy the shared photos and
+    // "Share to Albumiv" from another app: offer to copy the shared photos and
     // videos into a library folder through the normal destination screen.
     LaunchedEffect(externalSharedUris) {
         if (externalSharedUris.isEmpty()) return@LaunchedEffect
@@ -1935,7 +1938,7 @@ fun AlbumApp(
                     val oldKey = rename.first.uri.toString()
                     if (oldKey in favoriteUris) {
                         favoriteUris = favoriteUris - oldKey + renamed.uri.toString()
-                        preferences.edit().putStringSet("favorites", favoriteUris).apply()
+                        preferences.edit { putStringSet("favorites", favoriteUris) }
                     }
                 } else {
                     Toast.makeText(context, appText("重命名失败", english), Toast.LENGTH_SHORT).show()
@@ -2087,6 +2090,9 @@ fun AlbumApp(
                 if (failedMedia.isNotEmpty()) library.restore(failedMedia)
                 val deletedUris = deletable.mapTo(hashSetOf()) { it.uri.toString() } - failedUris
                 if (deletedUris.isNotEmpty()) {
+                    if (recycleEnabled) {
+                        undoRecycleEntries = staged.filter { it.sourceUri !in failedUris }
+                    }
                     Toast.makeText(
                         context,
                         if (recycleEnabled) {
@@ -2172,7 +2178,7 @@ fun AlbumApp(
             // Explain the local-only value proposition before the one and
             // only runtime permission dialog. Optional storage/media-management
             // permissions live in Settings and are never opened from startup.
-            albumSettings.edit().putBoolean("runtime_permissions_prompted", true).apply()
+            albumSettings.edit { putBoolean("runtime_permissions_prompted", true) }
             showFirstRunIntro = true
         }
     }
@@ -2320,7 +2326,7 @@ fun AlbumApp(
                         )
                     }
                     val updatedRecent = (listOf(destination) + recentFolders).distinct().take(8)
-                    transferPreferences.edit().putString("recent_folders", updatedRecent.joinToString("\u001f")).apply()
+                    transferPreferences.edit { putString("recent_folders", updatedRecent.joinToString("\u001f")) }
                     if (request.fromPixivArchive) {
                         // The Pixiv page walks the archive's own SAF tree; without
                         // a fresh walk the artist folder still lists what it held
@@ -2546,7 +2552,7 @@ fun AlbumApp(
             onFavorite = { items ->
                 val keys = items.mapTo(mutableSetOf()) { it.uri.toString() }
                 favoriteUris = if (keys.all { it in favoriteUris }) favoriteUris - keys else favoriteUris + keys
-                preferences.edit().putStringSet("favorites", favoriteUris).apply()
+                preferences.edit { putStringSet("favorites", favoriteUris) }
             },
             onCopy = { items ->
                 if (items.isNotEmpty()) {
@@ -2665,7 +2671,7 @@ fun AlbumApp(
                 if (systemEntries.isNotEmpty() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                     val requestableEntries = systemEntries.filter { entry ->
                         runCatching {
-                            MediaStore.createTrashRequest(context.contentResolver, listOf(Uri.parse(entry.sourceUri)), false)
+                            MediaStore.createTrashRequest(context.contentResolver, listOf(entry.sourceUri.toUri()), false)
                         }.isSuccess
                     }
                     val unavailableEntries = systemEntries.filterNot { entry -> requestableEntries.any { it.id == entry.id } }
@@ -2680,7 +2686,7 @@ fun AlbumApp(
                     if (requestableEntries.isEmpty()) return@CleanupScreen
                     pendingTrashRestore = requestableEntries
                     runCatching {
-                        val request = MediaStore.createTrashRequest(context.contentResolver, requestableEntries.map { Uri.parse(it.sourceUri) }, false)
+                        val request = MediaStore.createTrashRequest(context.contentResolver, requestableEntries.map { it.sourceUri.toUri() }, false)
                         trashRestoreLauncher.launch(IntentSenderRequest.Builder(request.intentSender).build())
                     }.onFailure {
                         pendingTrashRestore = emptyList()
@@ -2697,7 +2703,7 @@ fun AlbumApp(
                 }
                 val directlyDeleted = systemEntries.filter { entry ->
                     runCatching {
-                        context.contentResolver.delete(Uri.parse(entry.sourceUri), null, null) > 0
+                        context.contentResolver.delete(entry.sourceUri.toUri(), null, null) > 0
                     }.getOrDefault(false)
                 }
                 if (directlyDeleted.isNotEmpty()) library.removeRecycleRecords(directlyDeleted)
@@ -2705,7 +2711,7 @@ fun AlbumApp(
                 if (remainingEntries.isNotEmpty() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                     val requestableEntries = remainingEntries.filter { entry ->
                         runCatching {
-                            MediaStore.createDeleteRequest(context.contentResolver, listOf(Uri.parse(entry.sourceUri)))
+                            MediaStore.createDeleteRequest(context.contentResolver, listOf(entry.sourceUri.toUri()))
                         }.isSuccess
                     }
                     val unavailableEntries = remainingEntries.filterNot { entry -> requestableEntries.any { it.id == entry.id } }
@@ -2720,7 +2726,7 @@ fun AlbumApp(
                     if (requestableEntries.isEmpty()) return@CleanupScreen
                     pendingTrashDelete = requestableEntries
                     runCatching {
-                        val request = MediaStore.createDeleteRequest(context.contentResolver, requestableEntries.map { Uri.parse(it.sourceUri) })
+                        val request = MediaStore.createDeleteRequest(context.contentResolver, requestableEntries.map { it.sourceUri.toUri() })
                         trashDeleteLauncher.launch(IntentSenderRequest.Builder(request.intentSender).build())
                     }.onFailure {
                         pendingTrashDelete = emptyList()
@@ -2914,7 +2920,7 @@ fun AlbumApp(
                 onFavorite = {
                     val selectedKeys = selectedItemsForAction.mapTo(mutableSetOf()) { it.uri.toString() }
                     favoriteUris = if (selectedKeys.all { it in favoriteUris }) favoriteUris - selectedKeys else favoriteUris + selectedKeys
-                    preferences.edit().putStringSet("favorites", favoriteUris).apply()
+                    preferences.edit { putStringSet("favorites", favoriteUris) }
                 },
                 onCopy = {
                     if (selectedItemsForAction.isNotEmpty()) transferRequest = TransferRequest(selectedItemsForAction, TransferMode.Copy)
@@ -3238,9 +3244,7 @@ fun AlbumApp(
                 },
                 onReorder = { order ->
                     tabOrder = order
-                    albumSettings.edit()
-                        .putString("nav_order", order.joinToString(",") { it.name })
-                        .apply()
+                    albumSettings.edit { putString("nav_order", order.joinToString(",") { it.name }) }
                 },
                 onSelectedFoldersChange = { selectedFolders = it },
                 onSelectedUrisChange = { selectedUris = it }
@@ -3615,7 +3619,7 @@ fun AlbumApp(
                     order = toolsOrder,
                     onOrderChange = { updated ->
                         toolsOrder = updated
-                        albumSettings.edit().putString("tools_order", updated.joinToString(",")).apply()
+                        albumSettings.edit { putString("tools_order", updated.joinToString(",")) }
                     },
                     onOpenPixiv = {
                         // Open the Pixiv page itself without adding a bottom-bar
@@ -3901,7 +3905,7 @@ fun AlbumApp(
                             onFavorite = { favoriteItem ->
                                 val key = favoriteItem.uri.toString()
                                 favoriteUris = if (key in favoriteUris) favoriteUris - key else favoriteUris + key
-                                preferences.edit().putStringSet("favorites", favoriteUris).apply()
+                                preferences.edit { putStringSet("favorites", favoriteUris) }
                             },
                             onEditTags = { editing -> openTagEditor(editing) },
                             onWallpaper = ::requestWallpaper,
@@ -3971,7 +3975,7 @@ fun AlbumApp(
     if (showGestureHints) {
         GestureHintsSheet(onDismiss = {
             showGestureHints = false
-            albumSettings.edit().putBoolean("gesture_hints_shown", true).apply()
+            albumSettings.edit { putBoolean("gesture_hints_shown", true) }
         })
     }
     if (showFirstRunIntro) {
@@ -4338,6 +4342,37 @@ fun AlbumApp(
             onConfirm = {
                 pendingAppDelete = null
                 requestDelete(deleting)
+            }
+        )
+    }
+    LaunchedEffect(undoRecycleEntries) {
+        if (undoRecycleEntries.isNotEmpty()) {
+            delay(6_000L)
+            undoRecycleEntries = emptyList()
+        }
+    }
+    if (undoRecycleEntries.isNotEmpty()) {
+        val count = undoRecycleEntries.size
+        VaultConfirmationSheet(
+            title = if (english) "Moved to Trash" else "已移到回收站",
+            body = if (english) "$count item(s) can still be restored." else "刚刚删除的 $count 项仍可恢复。",
+            confirmLabel = if (english) "Undo" else "撤销",
+            onDismiss = { undoRecycleEntries = emptyList() },
+            onConfirm = {
+                val entries = undoRecycleEntries
+                undoRecycleEntries = emptyList()
+                scope.launch {
+                    val restored = library.restoreRecycle(entries)
+                    Toast.makeText(
+                        context,
+                        if (restored.isNotEmpty()) {
+                            if (english) "Restored ${restored.size} item(s)" else "已撤销，恢复 ${restored.size} 项"
+                        } else {
+                            if (english) "Unable to restore" else "无法恢复"
+                        },
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             }
         )
     }

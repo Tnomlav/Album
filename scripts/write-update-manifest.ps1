@@ -29,7 +29,7 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$Repository = "Tnomlav/Album",
+    [string]$Repository = "Tnomlav/Albumiv",
     [string]$Notes = "",
     [string]$OutputPath,
     [string]$ApkDirectory,

@@ -58,7 +58,7 @@ import androidx.lifecycle.lifecycleScope
 import com.example.album.data.openMediaInputStream
 import com.example.album.ui.LocalAppEnglish
 import com.example.album.ui.appText
-import com.example.album.ui.theme.AlbumTheme
+import com.example.album.ui.theme.AlbumivTheme
 import com.example.album.ui.theme.ThemeAccent
 import java.io.BufferedInputStream
 import java.io.File
@@ -240,7 +240,7 @@ class ImageSearchActivity : ComponentActivity() {
         }
         setContent {
             val systemDark = isSystemInDarkTheme()
-            AlbumTheme(
+            AlbumivTheme(
                 darkTheme = when (themeMode) {
                     "深色" -> true
                     "浅色" -> false

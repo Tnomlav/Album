@@ -67,9 +67,18 @@ object WallpaperBackup {
         add(File(context.filesDir, FILE_NAME))
         context.getExternalFilesDir(null)?.let { add(File(it, FILE_NAME)) }
         publicDirectory()?.let { add(File(it, FILE_NAME)) }
+        legacyPublicDirectory()?.let { add(File(it, FILE_NAME)) }
     }
 
     private fun publicDirectory(): File? {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) return null
+        if (!Environment.isExternalStorageManager()) return null
+        val root = Environment.getExternalStorageDirectory() ?: return null
+        return File(root, "Albumiv")
+    }
+
+    /** Read the pre-rename folder once so existing backups still restore. */
+    private fun legacyPublicDirectory(): File? {
         if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) return null
         if (!Environment.isExternalStorageManager()) return null
         val root = Environment.getExternalStorageDirectory() ?: return null

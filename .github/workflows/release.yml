@@ -79,12 +79,12 @@ jobs:
         env:
           KEYSTORE_BASE64: ${{ secrets.ALBUM_STORE_BASE64 }}
         run: |
-          echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/album-release.jks"
-          test -s "$RUNNER_TEMP/album-release.jks"
+          echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/albumiv-release.jks"
+          test -s "$RUNNER_TEMP/albumiv-release.jks"
 
       - name: Build signed release APKs
         env:
-          ORG_GRADLE_PROJECT_ALBUM_STORE_FILE: ${{ runner.temp }}/album-release.jks
+          ORG_GRADLE_PROJECT_ALBUM_STORE_FILE: ${{ runner.temp }}/albumiv-release.jks
           ORG_GRADLE_PROJECT_ALBUM_STORE_PASSWORD: ${{ secrets.ALBUM_STORE_PASSWORD }}
           ORG_GRADLE_PROJECT_ALBUM_KEY_ALIAS: ${{ secrets.ALBUM_KEY_ALIAS }}
           ORG_GRADLE_PROJECT_ALBUM_KEY_PASSWORD: ${{ secrets.ALBUM_KEY_PASSWORD }}

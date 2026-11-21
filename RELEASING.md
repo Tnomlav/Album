@@ -14,7 +14,7 @@
 
 | Secret | 内容 |
 | --- | --- |
-| `ALBUM_STORE_BASE64` | `key/album-release.jks` 的 Base64（不要提交密钥库） |
+| `ALBUM_STORE_BASE64` | `key/albumiv-release.jks` 的 Base64（不要提交密钥库） |
 | `ALBUM_STORE_PASSWORD` | keystore 密码 |
 | `ALBUM_KEY_ALIAS` | key alias（当前为 `album`） |
 | `ALBUM_KEY_PASSWORD` | key 密码 |
@@ -22,7 +22,7 @@
 生成 Base64（PowerShell）：
 
 ```powershell
-[Convert]::ToBase64String([IO.File]::ReadAllBytes("key\album-release.jks")) | Set-Clipboard
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("key\albumiv-release.jks")) | Set-Clipboard
 ```
 
 `GITHUB_TOKEN` 由 Actions 自动提供，不需要手工创建；release job 已声明
@@ -68,7 +68,7 @@ python scripts\check_apk_version.py --all
 {
   "versionCode": 318,
   "versionName": "1.3.65",
-  "downloadUrl": "https://github.com/Tnomlav/Album/releases/tag/v1.3.65",
+  "downloadUrl": "https://github.com/Tnomlav/Albumiv/releases/tag/v1.3.65",
   "notes": "……",
   "generatedAt": "2026-11-21T00:00:00Z",
   "assets": [
@@ -110,8 +110,8 @@ git push origin v1.3.65
 ## 5. 发布后自检
 
 ```powershell
-curl -s https://api.github.com/repos/Tnomlav/Album/releases/latest
-curl.exe -s -o NUL -w "%{http_code}" https://github.com/Tnomlav/Album/releases/latest/download/album-update.json
+curl -s https://api.github.com/repos/Tnomlav/Albumiv/releases/latest
+curl.exe -s -o NUL -w "%{http_code}" https://github.com/Tnomlav/Albumiv/releases/latest/download/album-update.json
 ```
 
 通过标准：

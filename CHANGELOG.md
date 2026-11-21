@@ -1,4 +1,11 @@
-# Album Changelog
+# Albumiv Changelog
+
+## v1.3.81 - 2026-11-22（删除 Undo、Albumiv 品牌收尾）
+
+- 删除到回收站后弹出 6 秒「撤销」入口，可把刚才的项恢复到原位置；永久删除不显示。
+- `AlbumApp`/`AlbumTheme` 文件与类名改为 `AlbumivApp`/`AlbumivTheme`；动态壁纸备份目录改为 `Albumiv`，读取时兼容旧 `Album` 目录。
+- GitHub 仓库名已改为 `Tnomlav/Albumiv`，更新地址、脚本和 README 链接同步；包名/applicationId 保持 `com.example.album` 以保留升级与数据。
+- 版本 1.3.81 / VERSION_CODE 334。
 
 ## v1.3.80 - 2026-11-22（应用更名 Albumiv）
 

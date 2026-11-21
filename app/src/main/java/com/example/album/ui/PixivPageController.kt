@@ -17,12 +17,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * Loading and refresh state of the Pixiv page, lifted out of `AlbumApp`.
+ * Loading and refresh state of the Pixiv page, lifted out of `AlbumivApp`.
  *
  * The page owns a cached snapshot, an optional SAF walk and the pull-to-refresh
  * gesture's rules (only a finger pull shows the indicator, only a finger pull
  * forces a fresh walk, partial snapshots only feed the first paint). Keeping
- * that in one class makes the rules testable and keeps `AlbumApp` from holding
+ * that in one class makes the rules testable and keeps `AlbumivApp` from holding
  * another seven states.
  */
 class PixivPageController(

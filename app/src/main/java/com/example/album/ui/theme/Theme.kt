@@ -42,7 +42,7 @@ private fun lightScheme(accent: Color, background: Color, surface: Color, onSurf
 )
 
 @Composable
-fun AlbumTheme(
+fun AlbumivTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     accent: Color = VaultGreen,
     content: @Composable () -> Unit

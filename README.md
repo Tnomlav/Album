@@ -6,8 +6,8 @@
 
 整理、编辑、播放和展示你的媒体，不把图库交给云端。
 
-[![下载 APK](https://img.shields.io/badge/%E4%B8%8B%E8%BD%BD-APK-181717?style=flat-square&logo=github)](https://github.com/Tnomlav/Album/releases)
-[![构建状态](https://img.shields.io/github/actions/workflow/status/Tnomlav/Album/android.yml?branch=main&label=%E6%9E%84%E5%BB%BA&style=flat-square)](https://github.com/Tnomlav/Album/actions/workflows/android.yml)
+[![下载 APK](https://img.shields.io/badge/%E4%B8%8B%E8%BD%BD-APK-181717?style=flat-square&logo=github)](https://github.com/Tnomlav/Albumiv/releases)
+[![构建状态](https://img.shields.io/github/actions/workflow/status/Tnomlav/Albumiv/android.yml?branch=main&label=%E6%9E%84%E5%BB%BA&style=flat-square)](https://github.com/Tnomlav/Albumiv/actions/workflows/android.yml)
 ![Android 7.0+](https://img.shields.io/badge/Android-7.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white)
 ![Kotlin + Compose](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?style=flat-square&logo=kotlin&logoColor=white)
 ![MIT 许可证](https://img.shields.io/badge/%E8%AE%B8%E5%8F%AF%E8%AF%81-MIT-blue?style=flat-square)
@@ -29,7 +29,7 @@ Albumiv 相对普通 Android 相册最突出的差异，是把 **Pixiv 本地归
   </tr>
 </table>
 
-## 为什么是 Album
+## 为什么是 Albumiv
 
 - **媒体留在本机。** 不要求注册账号，不提供云端相册，也不接入分析或广告 SDK。
 - **从浏览到整理是一套完整流程。** 可以按文件夹、相册或时间轴查看，批量复制、移动、重命名和删除，并用回收站降低误删风险。
@@ -43,7 +43,7 @@ Albumiv 相对普通 Android 相册最突出的差异，是把 **Pixiv 本地归
 - 使用系统媒体库与安全文件夹访问复制、移动、重命名和删除媒体
 - 回收站保留期、重复图片检测、文件夹排除
 - 删除默认进 App 私有回收站（可还原）；空间不足时按文件逐个选择是否永久删除。不使用系统 Trash：各厂商对它的还原接口不一致，容易出现“能删不能还原”
-- 接收其他应用的“分享到 Album”，导入时选择目标文件夹
+- 接收其他应用的“分享到 Albumiv”，导入时选择目标文件夹
 
 **编辑与播放**
 
@@ -66,7 +66,7 @@ Albumiv 相对普通 Android 相册最突出的差异，是把 **Pixiv 本地归
 
 ## 下载
 
-前往 [GitHub Releases](https://github.com/Tnomlav/Album/releases) 获取已发布的 APK、更新清单与校验信息。安装包按 CPU 架构拆分：
+前往 [GitHub Releases](https://github.com/Tnomlav/Albumiv/releases) 获取已发布的 APK、更新清单与校验信息。安装包按 CPU 架构拆分：
 
 | 文件 | 适用设备 |
 | --- | --- |
@@ -81,8 +81,8 @@ APK、更新清单和校验文件都通过 Releases 分发，不提交到 Git �
 本地构建需要 JDK 17 和 Android SDK，也可以直接使用 Android Studio 打开仓库。
 
 ```bash
-git clone https://github.com/Tnomlav/Album.git
-cd Album
+git clone https://github.com/Tnomlav/Albumiv.git
+cd Albumiv
 ./gradlew testDebugUnitTest lintDebug assembleDebug
 ```
 
@@ -107,7 +107,7 @@ ALBUM_KEY_PASSWORD
 
 ## 隐私与权限
 
-Album 的本地媒体扫描、排序、编辑、播放、收藏和缩略图缓存默认都在设备上完成。App 不提供云端媒体同步，也不接入统计或广告服务。
+Albumiv 的本地媒体扫描、排序、编辑、播放、收藏和缩略图缓存默认都在设备上完成。App 不提供云端媒体同步，也不接入统计或广告服务。
 
 Pixiv 归档是可选功能：只有主动使用时会连接 Pixiv 读取公开作品信息。请遵守 Pixiv 的服务条款、版权要求和所在地法律。
 
@@ -132,4 +132,4 @@ Pixiv 归档是可选功能：只有主动使用时会连接 Pixiv 读取公开�
 
 ## 许可证
 
-Album 使用 [MIT 许可证](LICENSE) 开源发布。
+Albumiv 使用 [MIT 许可证](LICENSE) 开源发布。

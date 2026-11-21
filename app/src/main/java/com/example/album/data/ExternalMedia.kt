@@ -10,7 +10,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
- * The videos next to an externally opened one, so "open with Album" from another
+ * The videos next to an externally opened one, so "open with Albumiv" from another
  * app can move to the next video of the same folder.
  *
  * The opener used to build a playlist with this one item, which made the player

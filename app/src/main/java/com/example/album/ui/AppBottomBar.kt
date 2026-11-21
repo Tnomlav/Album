@@ -66,7 +66,7 @@ import kotlin.math.roundToInt
 /**
  * The bottom bar: selection strip plus the reorderable tab row.
  *
- * Lifted out of `AlbumApp` together with its drag state (dragged tab, drag
+ * Lifted out of `AlbumivApp` together with its drag state (dragged tab, drag
  * position, click suppression, measured width). The caller keeps only the
  * behaviour that depends on the page: selecting a tab, re-tapping the current
  * tab, and persisting a new order.

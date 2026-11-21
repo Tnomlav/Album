@@ -21,7 +21,7 @@
 7. [original-preview-and-settings.md](./original-preview-and-settings.md) - 修复原图预览并新增设置（805 条可见消息）
 8. [settings-completion.md](./settings-completion.md) - 完善设置功能（481 条可见消息）
 9. [video-development-assets.md](./video-development-assets.md) - 添加视频开发素材（463 条可见消息）
-10. [album-development.md](./album-development.md) - 完善 Album 开发（1407 条可见消息）
+10. [albumiv-development.md](./albumiv-development.md) - 完善 Albumiv 开发（1407 条可见消息）
 11. [research-presentation.md](./research-presentation.md) - 整理项目调研汇报PPT（19 条可见消息）
 
 导出后项目代码仍以 Git 提交为准；本目录只用于恢复项目相关的讨论上下文。

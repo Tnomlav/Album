@@ -18,10 +18,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.CompositionLocalProvider
-import com.example.album.ui.AlbumApp
+import com.example.album.ui.AlbumivApp
 import com.example.album.ui.LocalAppEnglish
 import com.example.album.ui.PrototypeViewport
-import com.example.album.ui.theme.AlbumTheme
+import com.example.album.ui.theme.AlbumivTheme
 import com.example.album.ui.theme.ThemeAccent
 import com.example.album.playback.MediaPlaybackService
 import com.example.album.playback.PlaybackResumeRequest
@@ -102,7 +102,7 @@ class MainActivity : ComponentActivity() {
             var appLanguage by remember { mutableStateOf(preferences.getString("language", "简体中文") ?: "简体中文") }
             val systemDark = isSystemInDarkTheme()
             CompositionLocalProvider(LocalAppEnglish provides (appLanguage == "English")) {
-                AlbumTheme(
+                AlbumivTheme(
                     darkTheme = when (themeMode) {
                         "深色" -> true
                         "浅色" -> false
@@ -119,7 +119,7 @@ class MainActivity : ComponentActivity() {
                     // video is shown in a landscape window this prevents the
                     // portrait prototype canvas from collapsing into a strip.
                     PrototypeViewport(useDeviceViewport = true) {
-                        AlbumApp(
+                        AlbumivApp(
                             onThemeModeChange = { selected ->
                                 themeMode = selected
                                 preferences.edit().putString("theme_mode", selected).apply()
@@ -169,7 +169,7 @@ class MainActivity : ComponentActivity() {
 
     /**
      * Photos and videos sent through the system share sheet. They are handed to
-     * AlbumApp, which offers to copy them into a library folder.
+     * AlbumivApp, which offers to copy them into a library folder.
      */
     @Suppress("DEPRECATION")
     private fun Intent.toSharedMediaUris(): List<Uri> {
@@ -202,7 +202,7 @@ class MainActivity : ComponentActivity() {
         if (action != Intent.ACTION_VIEW) return null
         val uri = data ?: return null
         val type = type.orEmpty()
-        // Some file managers omit the MIME type or send */*. AlbumApp can
+        // Some file managers omit the MIME type or send */*. AlbumivApp can
         // resolve those from the provider or filename.
         return uri.takeIf { type.isBlank() || type == "*/*" || type.startsWith("image/") || type.startsWith("video/") }
     }

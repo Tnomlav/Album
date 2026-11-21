@@ -44,7 +44,7 @@ cd /mnt/c/Album
 `~/.gradle/gradle.properties`（不要提交到 Git）：
 
 ```properties
-ALBUM_STORE_FILE=/mnt/c/Album/key/album-release.jks
+ALBUM_STORE_FILE=/mnt/c/Album/key/albumiv-release.jks
 ALBUM_STORE_PASSWORD=…
 ALBUM_KEY_ALIAS=album
 ALBUM_KEY_PASSWORD=…
