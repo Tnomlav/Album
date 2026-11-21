@@ -183,7 +183,6 @@ import com.example.album.ui.screens.TimelineScreen
 import com.example.album.ui.screens.CleanupScreen
 import com.example.album.ui.screens.CleanupDuplicateUiState
 import com.example.album.ui.screens.WallpaperManagerScreen
-import com.example.album.ui.screens.virtualAlbumTitle
 import com.example.album.ui.screens.SlideshowQueueScreen
 import com.example.album.ui.screens.SlideshowQueueScreen
 import com.example.album.ui.screens.WallpaperSort
@@ -2991,8 +2990,7 @@ fun AlbumApp(
                 // Tools page drops it entirely.
                 if (tab != MainTab.Settings && tab != MainTab.Tools) VaultTopBar(
                 title = if (openedFolder != null) {
-                    virtualAlbumTitle(openedFolder, english)
-                        ?: com.example.album.data.albumDisplayName(openedFolder.orEmpty())
+                    com.example.album.data.albumDisplayName(openedFolder.orEmpty())
                 } else if (tab == MainTab.Timeline) {
                     if (appLanguage == "English") "Timeline" else "时间轴"
                 } else tabLabel(tab),
@@ -4390,7 +4388,14 @@ fun AlbumApp(
             onChoice = { choice ->
                 wallpaperChoiceItem = null
                 if (choice == albumChoice) {
-                    setWallpaper(context, item, english)
+                    if (item.isVideo) {
+                        setDynamicWallpaper(context, listOf(item), english)
+                    } else {
+                        // Keep Album's crop step: choosing "Album wallpaper"
+                        // should open the crop page, not silently apply the
+                        // full frame through the old direct path.
+                        wallpaperCropItem = item
+                    }
                 } else {
                     launchWallpaperAppChooser(context, item, english)
                 }
