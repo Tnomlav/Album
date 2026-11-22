@@ -3603,7 +3603,7 @@ fun AlbumivApp(
                     initialScanComplete = pixivPage.images != null
                 )
                 AlbumsScreen(
-                    media = if (appliedQuery.isBlank()) emptyList() else pixivTagResults,
+                    media = if (appliedQuery.isBlank()) pixivSearchImages else pixivTagResults,
                     isVideo = false,
                     query = if (pixivSearchMode == PixivSearchMode.Tag) "" else appliedQuery,
                     searchingFolders = false,
