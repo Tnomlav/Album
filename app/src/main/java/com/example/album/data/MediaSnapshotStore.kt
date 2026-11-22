@@ -2,6 +2,9 @@ package com.example.album.data
 
 import android.content.Context
 import android.net.Uri
+import android.util.JsonWriter
+import java.io.FileOutputStream
+import java.io.OutputStreamWriter
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -44,14 +47,24 @@ object MediaSnapshotStore {
     fun save(context: Context, snapshot: Snapshot) {
         inMemory = snapshot
         runCatching {
-            val root = JSONObject()
-                .put("version", SCHEMA_VERSION)
-                .put("savedAt", snapshot.savedAt)
-                .put("images", encode(snapshot.images))
-                .put("videos", encode(snapshot.videos))
-                .put("localImages", encode(snapshot.localImages))
-                .put("localVideos", encode(snapshot.localVideos))
-            writeAtomically(File(context.filesDir, FILE_NAME), root.toString())
+            writeAtomically(File(context.filesDir, FILE_NAME)) { json ->
+                json.beginObject()
+                json.name("version").value(SCHEMA_VERSION)
+                json.name("savedAt").value(snapshot.savedAt)
+                json.name("images").beginArray()
+                writeItems(json, snapshot.images)
+                json.endArray()
+                json.name("videos").beginArray()
+                writeItems(json, snapshot.videos)
+                json.endArray()
+                json.name("localImages").beginArray()
+                writeItems(json, snapshot.localImages)
+                json.endArray()
+                json.name("localVideos").beginArray()
+                writeItems(json, snapshot.localVideos)
+                json.endArray()
+                json.endObject()
+            }
         }
     }
 
@@ -89,6 +102,53 @@ object MediaSnapshotStore {
                 temporary.copyTo(file, overwrite = true)
                 temporary.delete()
             }
+        }
+    }
+
+    /**
+     * Streams the snapshot instead of building an in-memory JSONObject tree.
+     * On a 49k-item library the old path held the object tree and the final
+     * string at the same time; this writes straight to the temp file.
+     */
+    private fun writeAtomically(file: File, write: (JsonWriter) -> Unit) {
+        val temporary = File(file.parentFile, file.name + ".tmp")
+        val output = FileOutputStream(temporary)
+        val json = JsonWriter(OutputStreamWriter(output, Charsets.UTF_8))
+        try {
+            write(json)
+            json.flush()
+            output.fd.sync()
+        } finally {
+            runCatching { json.close() }
+            runCatching { output.close() }
+        }
+        if (!temporary.renameTo(file)) {
+            file.delete()
+            if (!temporary.renameTo(file)) {
+                temporary.copyTo(file, overwrite = true)
+                temporary.delete()
+            }
+        }
+    }
+
+    private fun writeItems(json: JsonWriter, items: List<MediaItem>) {
+        items.forEach { item ->
+            json.beginObject()
+            json.name("id").value(item.id)
+            json.name("uri").value(item.uri.toString())
+            json.name("name").value(item.name)
+            json.name("folder").value(item.folder)
+            json.name("dateTaken").value(item.dateTaken)
+            json.name("mimeType").value(item.mimeType)
+            json.name("relativePath").value(item.relativePath.orEmpty())
+            json.name("size").value(item.size)
+            json.name("dateModified").value(item.dateModified)
+            json.name("duration").value(item.duration)
+            json.name("width").value(item.width)
+            json.name("height").value(item.height)
+            json.name("isVideo").value(item.isVideo)
+            json.name("isDocument").value(item.isDocument)
+            json.endObject()
         }
     }
 

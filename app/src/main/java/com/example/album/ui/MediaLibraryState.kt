@@ -969,6 +969,25 @@ private fun hasVideoReadAccess(context: Context): Boolean = when {
     else -> ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
 }
 
+/** True when Android 14+ has only the user-selected subset, not full library access. */
+internal fun hasPartialMediaAccess(context: android.content.Context): Boolean {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return false
+    val visualSelected = ContextCompat.checkSelfPermission(
+        context,
+        Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED
+    ) == PackageManager.PERMISSION_GRANTED
+    if (!visualSelected) return false
+    val images = ContextCompat.checkSelfPermission(
+        context,
+        Manifest.permission.READ_MEDIA_IMAGES
+    ) == PackageManager.PERMISSION_GRANTED
+    val videos = ContextCompat.checkSelfPermission(
+        context,
+        Manifest.permission.READ_MEDIA_VIDEO
+    ) == PackageManager.PERMISSION_GRANTED
+    return !images || !videos
+}
+
 /** Minimum time the pull indicator stays visible once a finger pull started it. */
 private const val MIN_PULL_INDICATOR_MS = 450L
 

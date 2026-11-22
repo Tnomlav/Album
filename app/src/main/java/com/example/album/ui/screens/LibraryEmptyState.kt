@@ -2,9 +2,15 @@ package com.example.album.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -12,6 +18,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.WarningAmber
 import com.example.album.ui.LocalAppEnglish
 import com.example.album.ui.appText
 
@@ -82,6 +91,68 @@ fun LibraryEmptyState(
                 TextButton(onClick = onRescan) {
                     Text(appText("重新扫描", english))
                 }
+            }
+        }
+    }
+}
+
+
+/** Persistent, dismissible scan error shown above a non-empty list. */
+@Composable
+fun LibraryErrorBanner(
+    error: String,
+    onRetry: () -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val english = LocalAppEnglish.current
+    Surface(
+        modifier = modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp),
+        color = MaterialTheme.colorScheme.errorContainer,
+        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+        tonalElevation = 2.dp,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp)
+    ) {
+        Row(Modifier.padding(start = 12.dp, top = 6.dp, bottom = 6.dp, end = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Outlined.WarningAmber, contentDescription = null, modifier = Modifier.width(20.dp))
+            Text(
+                error,
+                modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 2
+            )
+            TextButton(onClick = onRetry) { Text(if (english) "Retry" else "重试") }
+            IconButton(onClick = onDismiss, modifier = Modifier.width(36.dp)) {
+                Icon(Icons.Outlined.Close, contentDescription = if (english) "Dismiss" else "关闭")
+            }
+        }
+    }
+}
+
+
+/** Android 14+ partial photo/video access: explain why the library looks small. */
+@Composable
+fun PartialAccessBanner(
+    onSelectMore: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val english = LocalAppEnglish.current
+    Surface(
+        modifier = modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp),
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        tonalElevation = 2.dp,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp)
+    ) {
+        Row(Modifier.padding(start = 12.dp, top = 4.dp, bottom = 4.dp, end = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                if (english) "Only selected photos and videos are available" else "当前只能访问你选中的照片和视频",
+                modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 2
+            )
+            TextButton(onClick = onSelectMore) {
+                Text(if (english) "Select more" else "选择更多")
             }
         }
     }

@@ -186,6 +186,8 @@ import com.example.album.ui.screens.CleanupScreen
 import com.example.album.ui.screens.CleanupDuplicateUiState
 import com.example.album.ui.screens.WallpaperManagerScreen
 import com.example.album.ui.screens.SlideshowQueueScreen
+import com.example.album.ui.screens.LibraryErrorBanner
+import com.example.album.ui.screens.PartialAccessBanner
 import com.example.album.ui.screens.SlideshowQueueScreen
 import com.example.album.ui.screens.WallpaperSort
 import com.example.album.ui.screens.sortWallpaperMedia
@@ -818,6 +820,8 @@ fun AlbumivApp(
     // A refresh updates library.permissionGranted, which would restart the
     // startup effect with the same value and scan the library twice.
     var startupPermissionKey by remember { mutableStateOf<Boolean?>(null) }
+    var libraryErrorDismissed by remember { mutableStateOf(false) }
+    LaunchedEffect(library.refreshError) { libraryErrorDismissed = false }
     var suspendedSearchQuery by rememberSaveable { mutableStateOf<String?>(null) }
     var searchOpen by rememberSaveable { mutableStateOf(true) }
     LaunchedEffect(selectionMode) {
@@ -3290,6 +3294,23 @@ fun AlbumivApp(
                     )
                 }
         ) {
+            val visibleRefreshError = if (selectedTab == MainTab.Albums || selectedTab == MainTab.Timeline) {
+                library.refreshError
+            } else null
+            val partialMediaAccess = hasPartialMediaAccess(context)
+            if (partialMediaAccess && (selectedTab == MainTab.Albums || selectedTab == MainTab.Timeline)) {
+                PartialAccessBanner(
+                    onSelectMore = requestPermission,
+                    modifier = Modifier.align(Alignment.TopCenter).zIndex(13f)
+                )
+            } else if (visibleRefreshError != null && library.indexedMediaCount > 0 && !libraryErrorDismissed) {
+                LibraryErrorBanner(
+                    error = visibleRefreshError,
+                    onRetry = { refresher.request(granted = hasMediaPermission(context)) },
+                    onDismiss = { libraryErrorDismissed = true },
+                    modifier = Modifier.align(Alignment.TopCenter).zIndex(12f)
+                )
+            }
             // Give the source page a real visibility transition. Shared
             // elements need the source scope to move out at the same moment
             // the viewer scope moves in; keeping the grid permanently visible
