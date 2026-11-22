@@ -50,7 +50,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -119,7 +119,8 @@ fun AppBottomBar(
     Column(Modifier.fillMaxWidth()) {
     if (selectionMode) {
         Surface(
-            modifier = Modifier.drawBehind {
+            modifier = Modifier.drawWithContent {
+                drawContent()
                 val stroke = 3.dp.toPx()
                 drawRect(
                     color = Color.Black.copy(alpha = .22f),
@@ -130,7 +131,7 @@ fun AppBottomBar(
             color = MaterialTheme.colorScheme.surface
         ) {
             Row(
-                Modifier.fillMaxWidth().height(40.dp).padding(horizontal = 8.dp),
+                Modifier.fillMaxWidth().height(36.dp).padding(horizontal = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceEvenly
             ) {

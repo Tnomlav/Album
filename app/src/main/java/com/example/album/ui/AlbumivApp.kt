@@ -3009,6 +3009,7 @@ fun AlbumivApp(
                 // pages now that the search field is gone.
                 searchModeLabels = emptyList(),
                 selectedSearchMode = if (wallpaperShowVideos) 1 else 0,
+                wideSwitch = true,
                 // Inside a queue folder the bar shows the folder name instead.
                 titleSwitch = if (wallpaperOpenedFolder == null) {
                     listOf(

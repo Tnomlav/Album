@@ -365,7 +365,7 @@ fun SettingsScreen(
             top = 0.dp,
             bottom = 28.dp
         ),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         if (settingsSection != null) {
             item {
@@ -1142,7 +1142,7 @@ private fun SettingsPageHeader(
 private fun SettingsSectionHeader(title: String, onBack: () -> Unit) {
     val english = LocalSettingsEnglish.current
     Row(
-        Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 6.dp),
+        Modifier.fillMaxWidth().height(44.dp).padding(horizontal = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         IconButton(onClick = onBack, modifier = Modifier.size(44.dp)) {

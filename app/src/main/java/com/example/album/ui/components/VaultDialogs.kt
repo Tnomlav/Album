@@ -279,32 +279,37 @@ fun VaultColorSheet(
     optionLabel: (ThemeAccent) -> String = { it.label }
 ) {
     VaultBottomSheet(title, onDismiss) {
-        options.chunked(3).forEach { rowOptions ->
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 9.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                rowOptions.forEach { option ->
-                    val selectedScale by animateFloatAsState(
-                        if (option == selected) 1.12f else 1f,
-                        tween(140),
-                        label = "theme-color-${option.name}"
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.Top
+        ) {
+            options.forEach { option ->
+                val selectedScale by animateFloatAsState(
+                    if (option == selected) 1.12f else 1f,
+                    tween(140),
+                    label = "theme-color-" + option.name
+                )
+                Column(
+                    Modifier.weight(1f).clickable { onSelect(option) }.padding(vertical = 5.dp, horizontal = 1.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Surface(
+                        modifier = Modifier.size(34.dp).graphicsLayer { scaleX = selectedScale; scaleY = selectedScale },
+                        color = option.color,
+                        shape = CircleShape,
+                        border = if (option == selected) androidx.compose.foundation.BorderStroke(3.dp, MaterialTheme.colorScheme.onSurface) else null
+                    ) {}
+                    Text(
+                        optionLabel(option),
+                        style = VaultText.RowValue.copy(fontSize = 9.sp, lineHeight = 12.sp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
-                    Column(
-                        Modifier.widthIn(min = 82.dp).clickable { onSelect(option) }.padding(vertical = 7.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(7.dp)
-                    ) {
-                        Surface(
-                            modifier = Modifier.size(42.dp).graphicsLayer { scaleX = selectedScale; scaleY = selectedScale },
-                            color = option.color,
-                            shape = CircleShape,
-                            border = if (option == selected) androidx.compose.foundation.BorderStroke(3.dp, MaterialTheme.colorScheme.onSurface) else null
-                        ) {}
-                        Text(optionLabel(option), style = VaultText.RowValue, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
                 }
-                repeat(3 - rowOptions.size) { Spacer(Modifier.widthIn(min = 82.dp)) }
             }
         }
         Spacer(Modifier.height(10.dp))

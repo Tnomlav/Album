@@ -52,7 +52,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -127,7 +127,7 @@ fun SelectionTopBar(
             }
             if (searchExpanded) {
                 Row(
-                    modifier = Modifier.weight(1f).height(40.dp)
+                    modifier = Modifier.weight(1f).height(36.dp)
                         .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp))
                         .padding(horizontal = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -235,7 +235,8 @@ fun SelectionSubBar(
     chromeAlpha: Float = 1f
 ) {
     Surface(
-        modifier = Modifier.fillMaxWidth().alpha(chromeAlpha).drawBehind {
+        modifier = Modifier.fillMaxWidth().alpha(chromeAlpha).drawWithContent {
+            drawContent()
             val stroke = 3.dp.toPx()
             drawRect(
                 color = Color.Black.copy(alpha = .22f),
@@ -246,10 +247,10 @@ fun SelectionSubBar(
         color = MaterialTheme.colorScheme.surface
     ) {
         Box(
-            modifier = Modifier.fillMaxWidth().height(40.dp)
+            modifier = Modifier.fillMaxWidth().height(36.dp)
         ) {
             Layout(
-                modifier = Modifier.fillMaxWidth().height(40.dp).align(Alignment.Center),
+                modifier = Modifier.fillMaxWidth().height(36.dp).align(Alignment.Center),
                 content = {
                     Text(selected.toString(), style = MaterialTheme.typography.titleMedium.copy(fontSize = 17.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, lineHeight = 22.sp))
                     Text("/", style = MaterialTheme.typography.labelSmall.copy(lineHeight = 20.sp))

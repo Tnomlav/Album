@@ -9,6 +9,7 @@ val VaultTeal = Color(0xFF4B00FA)
 val VaultOrange = Color(0xFFFA7D00)
 val VaultCoral = Color(0xFFFAD000)
 val VaultViolet = Color(0xFF9200FA)
+val VaultForest = Color(0xFF1E8E3E)
 val VaultBackground = Color(0xFFFFFFFF)
 val VaultSurface = Color(0xFFFFFFFF)
 val VaultInk = Color(0xFF202624)
@@ -44,7 +45,8 @@ enum class ThemeAccent(val label: String, val storedValue: String, val color: Co
     Teal("靛蓝", "#4B00FA", VaultTeal),
     Orange("活力橙", "#FA7D00", VaultOrange),
     Coral("金色", "#FAD000", VaultCoral),
-    Violet("紫罗兰", "#9200FA", VaultViolet);
+    Violet("紫罗兰", "#9200FA", VaultViolet),
+    Forest("森林绿", "#1E8E3E", VaultForest);
 
     companion object {
         fun fromStored(value: String?): ThemeAccent = entries.firstOrNull {

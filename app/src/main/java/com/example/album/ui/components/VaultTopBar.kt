@@ -68,7 +68,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.sp
@@ -119,15 +119,15 @@ private fun TitleSwitchMark(
     labels: List<String>,
     selected: Int,
     onChange: (Int) -> Unit,
-    english: Boolean
+    english: Boolean,
+    wideSwitch: Boolean = false
 ) {
     val index = selected.coerceIn(labels.indices)
     Row(
         modifier = Modifier
             .clip(RoundedCornerShape(10.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant)
-            .padding(2.dp)
-            .heightIn(min = 42.dp),
+            .padding(2.dp),
         horizontalArrangement = Arrangement.spacedBy(2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -137,17 +137,17 @@ private fun TitleSwitchMark(
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
                     .background(
-                        if (active) MaterialTheme.colorScheme.primary
+                        if (active) MaterialTheme.colorScheme.primary.copy(alpha = .14f)
                         else androidx.compose.ui.graphics.Color.Transparent
                     )
                     .clickable { onChange(itemIndex) }
-                    .padding(horizontal = 12.dp, vertical = 9.dp),
+                    .padding(horizontal = if (wideSwitch) 12.dp else 9.dp, vertical = 7.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     label,
                     style = VaultText.TopBarSwitch,
-                    color = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     softWrap = false
                 )
@@ -183,6 +183,7 @@ fun VaultTopBar(
     onActionClick: (() -> Unit)? = null,
     actionEnabled: Boolean = true,
     actionCapsule: Boolean = false,
+    wideSwitch: Boolean = false,
     actionStartPadding: Dp = 0.dp,
     /** Paints the action in the destructive colour; defaults to the old name. */
     actionDestructive: Boolean? = null,
@@ -227,10 +228,11 @@ fun VaultTopBar(
     }
 
     Surface(
-        modifier = Modifier.alpha(chromeAlpha).drawBehind {
-            val stroke = 1.dp.toPx()
+        modifier = Modifier.alpha(chromeAlpha).drawWithContent {
+            drawContent()
+            val stroke = 3.dp.toPx()
             drawRect(
-                color = Color.Black.copy(alpha = .06f),
+                color = Color.Black.copy(alpha = .22f),
                 topLeft = Offset(0f, size.height - stroke),
                 size = Size(size.width, stroke)
             )
