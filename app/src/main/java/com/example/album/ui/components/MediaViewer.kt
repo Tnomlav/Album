@@ -978,7 +978,8 @@ private fun ViewerBottomBar(
         ViewerAction(
             Icons.Outlined.Delete,
             if (recycleEnabled) appText("移到回收站", english) else (if (english) "Delete permanently" else "永久删除"),
-            onDelete
+            onDelete,
+            tint = Color(0xFFD32F2F)
         )
         ViewerAction(Icons.AutoMirrored.Outlined.DriveFileMove, appText("移动", english), onMove)
         ViewerAction(Icons.Outlined.ContentCopy, appText("复制", english), onCopy)
@@ -987,9 +988,14 @@ private fun ViewerBottomBar(
 }
 
 @Composable
-private fun ViewerAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
+private fun ViewerAction(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    tint: Color = Color(0xFF777B79)
+) {
     IconButton(onClick = onClick, modifier = Modifier.height(56.dp).widthIn(min = 56.dp)) {
-        Icon(icon, label, tint = Color(0xFF777B79), modifier = Modifier.fillMaxSize(.48f))
+        Icon(icon, label, tint = tint, modifier = Modifier.fillMaxSize(.48f))
     }
 }
 

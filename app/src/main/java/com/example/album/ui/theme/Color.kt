@@ -3,11 +3,11 @@ package com.example.album.ui.theme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 
-val VaultGreen = Color(0xFF00FA68)
+val VaultGreen = Color(0xFFFA007D)
 val VaultBlue = Color(0xFF0096FA)
-val VaultTeal = Color(0xFF00FAE5)
+val VaultTeal = Color(0xFF00D0FA)
 val VaultOrange = Color(0xFFFA7D00)
-val VaultCoral = Color(0xFFFA0000)
+val VaultCoral = Color(0xFFFAD000)
 val VaultViolet = Color(0xFF9200FA)
 val VaultBackground = Color(0xFFFFFFFF)
 val VaultSurface = Color(0xFFFFFFFF)
@@ -40,10 +40,10 @@ internal fun lightAccentForText(color: Color): Color {
 
 enum class ThemeAccent(val label: String, val storedValue: String, val color: Color) {
     Blue("Pixiv 蓝", "#0096FA", VaultBlue),
-    Green("荧光绿", "#00FA68", VaultGreen),
-    Teal("青绿色", "#00FAE5", VaultTeal),
+    Green("玫红", "#FA007D", VaultGreen),
+    Teal("青蓝", "#00D0FA", VaultTeal),
     Orange("活力橙", "#FA7D00", VaultOrange),
-    Coral("珊瑚红", "#FA0000", VaultCoral),
+    Coral("金色", "#FAD000", VaultCoral),
     Violet("紫罗兰", "#9200FA", VaultViolet);
 
     companion object {

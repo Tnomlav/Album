@@ -1134,27 +1134,21 @@ private fun SettingsPageHeader(
 private fun SettingsSectionHeader(title: String, onBack: () -> Unit) {
     val english = LocalSettingsEnglish.current
     Row(
-        Modifier.fillMaxWidth().padding(top = 2.dp, bottom = 4.dp),
+        Modifier.fillMaxWidth().height(VaultDimens.HeaderContentHeight).padding(horizontal = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            Modifier.size(40.dp)
-                .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
-                .clickable(onClick = onBack),
-            contentAlignment = Alignment.Center
-        ) {
+        IconButton(onClick = onBack, modifier = Modifier.size(48.dp)) {
             Icon(
                 Icons.AutoMirrored.Outlined.ArrowBack,
                 contentDescription = settingsText("返回", english),
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp)
+                tint = MaterialTheme.colorScheme.onSurface
             )
         }
         Text(
             title,
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(start = 12.dp)
+            modifier = Modifier.padding(start = 6.dp)
         )
     }
 }

@@ -328,9 +328,9 @@ internal fun savePageViewPrefs(preferences: android.content.SharedPreferences, v
 
 private fun selectionMenuItems(isVideo: Boolean, single: Boolean, english: Boolean): List<String> = buildList {
     add(appText("分享", english))
+    if (single) add(appText("设为壁纸", english))
     add(appText("添加到壁纸队列", english))
     if (!isVideo) add(appText("添加到幻灯片队列", english))
-    if (single) add(appText("设为壁纸", english))
     if (!isVideo && single) {
         add(appText("查看 Tags", english))
         add(appText("在 SauceNAO 搜索原图", english))
@@ -420,14 +420,6 @@ private fun ToolsScreen(
         Row(
             Modifier.fillMaxWidth().statusBarsPadding()
                 .height(VaultDimens.HeaderContentHeight)
-                .drawBehind {
-                    val stroke = 1.dp.toPx()
-                    drawRect(
-                        color = Color.Black.copy(alpha = .06f),
-                        topLeft = Offset(0f, size.height - stroke),
-                        size = Size(size.width, stroke)
-                    )
-                }
                 .padding(horizontal = 18.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -724,6 +716,9 @@ fun AlbumivApp(
     var wallpaperSort by rememberSaveable { mutableStateOf(WallpaperSort.Time) }
     var wallpaperSortDirection by rememberSaveable { mutableStateOf(SortDirection.Descending) }
     var pixivArchiveOpen by rememberSaveable { mutableStateOf(false) }
+    var archiveReturnTab by remember { mutableStateOf<MainTab?>(null) }
+    var archiveReturnFolder by remember { mutableStateOf<String?>(null) }
+    var archiveReturnQuery by remember { mutableStateOf("") }
     /**
      * A move/copy was started from the archive page and has not finished being
      * "returned to" yet: leaving the destination folder reopens that page.
@@ -950,6 +945,23 @@ fun AlbumivApp(
     var wallpaperReturnTab by remember { mutableStateOf<MainTab?>(null) }
     var wallpaperReturnFolder by remember { mutableStateOf<String?>(null) }
     var openedFolder by rememberSaveable { mutableStateOf<String?>(null) }
+    fun openArchiveFromCurrentPage() {
+        if (!pixivArchiveOpen) {
+            archiveReturnTab = selectedTab
+            archiveReturnFolder = openedFolder
+            archiveReturnQuery = query
+        }
+        pixivArchiveOpen = true
+    }
+    fun closeArchiveToOrigin() {
+        pixivArchiveOpen = false
+        archiveReturnTab?.let { selectedTab = it }
+        openedFolder = archiveReturnFolder
+        query = archiveReturnQuery
+        archiveReturnTab = null
+        archiveReturnFolder = null
+        archiveReturnQuery = ""
+    }
     val activeViewKey = if (viewSettingsGlobal) {
         "global"
     } else when (selectedTab) {
@@ -1884,8 +1896,9 @@ fun AlbumivApp(
             // Selection is a nested mode of every page, including the Pixiv
             // archive page. Back must leave that mode before closing its page.
             selectionMode -> clearSelection()
+            query.isNotBlank() -> suspendSearch()
             pixivArchiveOpen -> {
-                pixivArchiveOpen = false
+                closeArchiveToOrigin()
                 if (pixivFilesChanged) {
                     pixivFilesChanged = false
                     pixivRefreshKey++
@@ -1924,7 +1937,6 @@ fun AlbumivApp(
                 }
             }
             openedFolder != null -> navigateFolderBack()
-            query.isNotBlank() -> suspendSearch()
             favoriteFilter -> favoriteFilter = false
             timelineJumpDate != null -> timelineJumpDate = null
             selectedTab != primaryTab -> returnToPrimaryTab()
@@ -2628,7 +2640,7 @@ fun AlbumivApp(
             onBack = {
                 pixivArchiveSession.selectionMode.value = false
                 pixivArchiveSession.selectedUris.value = emptySet()
-                pixivArchiveOpen = false
+                closeArchiveToOrigin()
                 if (pixivFilesChanged) {
                     pixivFilesChanged = false
                     pixivRefreshKey++
@@ -3540,7 +3552,7 @@ fun AlbumivApp(
                     additionalChildFolderNames = if (openedFolder == null) emptySet() else (library.searchableFolderChildren[openedFolder.orEmpty()] ?: library.searchableFolderChildren[com.example.album.data.albumDisplayName(openedFolder.orEmpty())]).orEmpty(),
                     onClearQuery = { query = "" }
                     ,onOpenPixivArchive = {
-                        pixivArchiveOpen = true
+                        openArchiveFromCurrentPage()
                     }
                 )
                 MainTab.Timeline -> TimelineScreen(
@@ -3603,7 +3615,7 @@ fun AlbumivApp(
                 MainTab.Pixiv -> Column(Modifier.fillMaxSize()) {
                     if (openedFolder == null) {
                         PixivArchiveNavigation {
-                            pixivArchiveOpen = true
+                            openArchiveFromCurrentPage()
                         }
                     }
                     Box(Modifier.fillMaxWidth().weight(1f)) {
@@ -3667,7 +3679,7 @@ fun AlbumivApp(
                     onOpenedFolderChange = { folder -> if (folder != null && selectionMode && selectingFolders) { selectedFolders = if (folder in selectedFolders) selectedFolders - folder else selectedFolders + folder } else openFolder(folder) },
                     sharedElementEnabled = tab == selectedTab,
                     onOpenPixivArchive = {
-                        pixivArchiveOpen = true
+                        openArchiveFromCurrentPage()
                     },
                     selectedFolders = selectedFolders,
                     // The P page's pinned folder is the local Pixiv folder

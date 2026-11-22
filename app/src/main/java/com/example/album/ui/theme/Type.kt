@@ -43,7 +43,7 @@ object VaultText {
     val SheetTitle = TextStyle(fontSize = 17.sp, fontWeight = FontWeight.SemiBold, lineHeight = 22.sp)
     val TopBarTitle = TextStyle(fontSize = 22.sp, fontWeight = FontWeight.SemiBold, lineHeight = 28.sp)
     val TopBarSwitch = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Bold, lineHeight = 18.sp)
-    val TopBarAction = TextStyle(fontSize = 12.sp, lineHeight = 16.sp)
+    val TopBarAction = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold, lineHeight = 17.sp)
     val Body = TextStyle(fontSize = 15.sp, lineHeight = 20.sp)
     val RowLabel = TextStyle(fontSize = 13.sp, lineHeight = 18.sp)
     val RowValue = TextStyle(fontSize = 12.sp, lineHeight = 16.sp)

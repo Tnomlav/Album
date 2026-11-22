@@ -839,7 +839,7 @@ private fun DuplicateContent(
                         } else {
                             CleanupCommand(
                                 duplicateScanCommandLabel(hasCompletedScan),
-                                color = Color(0xFF22A447),
+                                color = Color(0xFF0096FA),
                                 enabled = !deleting,
                                 onClick = onScan
                             )
@@ -2234,7 +2234,7 @@ private fun ArchiveContent(
                      ),
                      contentPadding = PaddingValues(vertical = 10.dp)
                  ) {
-                     Icon(Icons.Outlined.DeleteForever, contentDescription = null, modifier = Modifier.size(18.dp))
+                     Icon(Icons.Outlined.DeleteForever, contentDescription = null, tint = Color(0xFFCC3B33), modifier = Modifier.size(18.dp))
                      Spacer(Modifier.width(6.dp))
                      Text(if (english) "Clear scan results" else "清空扫描结果", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                  }

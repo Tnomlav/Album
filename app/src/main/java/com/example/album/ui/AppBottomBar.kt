@@ -120,9 +120,9 @@ fun AppBottomBar(
     if (selectionMode) {
         Surface(
             modifier = Modifier.drawBehind {
-                val stroke = 1.dp.toPx()
+                val stroke = 2.dp.toPx()
                 drawRect(
-                    color = Color.Black.copy(alpha = .06f),
+                    color = Color.Black.copy(alpha = .16f),
                     topLeft = Offset(0f, size.height - stroke),
                     size = Size(size.width, stroke)
                 )
@@ -135,7 +135,7 @@ fun AppBottomBar(
                 horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceEvenly
             ) {
                 IconButton(onClick = onDeleteSelected) {
-                    Icon(Icons.Outlined.Delete, contentDescription = if (english) "Delete" else "删除")
+                    Icon(Icons.Outlined.Delete, contentDescription = if (english) "Delete" else "删除", tint = Color(0xFFD32F2F))
                 }
                 IconButton(onClick = onMoveSelected) {
                     Icon(Icons.AutoMirrored.Outlined.DriveFileMove, contentDescription = if (english) "Move" else "移动")

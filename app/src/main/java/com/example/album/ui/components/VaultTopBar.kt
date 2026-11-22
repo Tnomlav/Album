@@ -135,7 +135,7 @@ private fun TitleSwitchMark(
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
                     .background(
-                        if (active) MaterialTheme.colorScheme.primary.copy(alpha = .14f)
+                        if (active) MaterialTheme.colorScheme.primary
                         else androidx.compose.ui.graphics.Color.Transparent
                     )
                     .clickable { onChange(itemIndex) }
@@ -145,7 +145,7 @@ private fun TitleSwitchMark(
                 Text(
                     label,
                     style = VaultText.TopBarSwitch,
-                    color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     softWrap = false
                 )
@@ -330,9 +330,9 @@ fun VaultTopBar(
                         Box(
                             modifier = Modifier
                                 .padding(start = actionStartPadding)
-                                .height(34.dp)
+                                .height(38.dp)
                                 .widthIn(min = 48.dp)
-                                .clip(RoundedCornerShape(50))
+                                .clip(RoundedCornerShape(9.dp))
                                 .background(
                                     if (actionEnabled) actionColor.copy(alpha = if (destructiveAction) .14f else .12f)
                                     else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .55f)
@@ -344,7 +344,7 @@ fun VaultTopBar(
                             Text(
                                 actionLabel,
                                 color = if (actionEnabled) actionColor else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .45f),
-                                style = VaultText.TopBarAction,
+                                style = VaultText.TopBarAction.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold),
                                 maxLines = 1,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
                             )

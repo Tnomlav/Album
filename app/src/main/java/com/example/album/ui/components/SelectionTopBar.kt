@@ -236,9 +236,9 @@ fun SelectionSubBar(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth().alpha(chromeAlpha).drawBehind {
-            val stroke = 1.dp.toPx()
+            val stroke = 2.dp.toPx()
             drawRect(
-                color = Color.Black.copy(alpha = .06f),
+                color = Color.Black.copy(alpha = .16f),
                 topLeft = Offset(0f, size.height - stroke),
                 size = Size(size.width, stroke)
             )
