@@ -275,7 +275,7 @@ fun VaultTopBar(
                         contentDescription = backLabel ?: appText("返回", english)
                     )
                 }
-                if (!searchEnabled) {
+                if (!searching) {
                     // Pages with a back arrow still want their type switch
                     // (static/live on the wallpaper manager); only the plain
                     // pages fall back to the title text.
