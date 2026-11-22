@@ -1,5 +1,6 @@
 package com.example.album.data
 
+import android.annotation.SuppressLint
 import android.content.ContentValues
 import android.content.Context
 import android.os.Build
@@ -1061,10 +1062,30 @@ class CleanupRepository(private val context: Context) {
         }
     }
 
+    /**
+     * Removes files that have no metadata row and drops rows whose file is
+     * gone. SharedPreferences.commit() is used by [saveRecycleEntries] so the
+     * metadata cannot be left behind by a process kill between apply() and
+     * the actual disk write.
+     */
+    suspend fun reconcileRecycleBin(): Int = withContext(Dispatchers.IO) {
+        val entries = loadRecycleEntries()
+        // loadRecycleEntries already filters missing files; write the filtered
+        // list back so stale metadata does not persist.
+        saveRecycleEntries(entries)
+        val known = entries.mapNotNull { runCatching { File(it.storedPath).canonicalPath }.getOrNull() }.toHashSet()
+        val orphans = recycleDirectory.listFiles()?.filter { file ->
+            file.isFile && runCatching { file.canonicalPath !in known }.getOrDefault(false)
+        }.orEmpty()
+        orphans.forEach { runCatching { it.delete() } }
+        orphans.size
+    }
+
     // The version suffix invalidates values computed by an older decoder or hash
     // implementation: the same picture would hash differently.
     private fun analysisSignature(item: MediaItem): String = "${item.size}:${item.dateModified}:px2"
 
+    @SuppressLint("ApplySharedPref")
     private fun saveRecycleEntries(entries: List<RecycleEntry>) {
         val array = JSONArray()
         entries.forEach { entry ->
@@ -1084,7 +1105,7 @@ class CleanupRepository(private val context: Context) {
                 put("systemTrashed", entry.systemTrashed)
             })
         }
-        preferences.edit().putString(KEY_RECYCLE, array.toString()).apply()
+        preferences.edit().putString(KEY_RECYCLE, array.toString()).commit()
     }
 
     companion object {

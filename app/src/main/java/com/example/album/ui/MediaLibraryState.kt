@@ -340,7 +340,8 @@ class MediaLibraryState(context: Context) {
                     excluded = (normalizedImages + normalizedVideos).filter { it.folder in excluded }
                 )
             }
-            recycleEntries = refreshResult.recycle
+            withContext(Dispatchers.IO) { cleanup.reconcileRecycleBin() }
+            recycleEntries = cleanup.loadRecycleEntries()
             val localFolderCountSnapshot = withContext(Dispatchers.IO) { localFolders.treeUris().size }
             hasLocalFolders = localFolderCountSnapshot > 0
             localFolderCount = localFolderCountSnapshot

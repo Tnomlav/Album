@@ -211,10 +211,15 @@ internal fun editorOutputDimensions(
 
 internal fun editorExportSampleSize(width: Int, height: Int): Int {
     if (width <= 0 || height <= 0) return 1
+    // ARGB_8888 is four bytes per pixel. Keep the decoded source under roughly
+    // a quarter of the heap: 12MP worked on 256MB devices but can OOM when the
+    // exporter also holds a rotated copy, an overlay and IntArray buffers.
+    val heapBudgetPixels = (Runtime.getRuntime().maxMemory() / 16L)
+        .coerceIn(3_000_000L, 12_000_000L)
     var sample = 1
     while (
         max(width, height) / sample > 6000 ||
-        width.toLong() * height / (sample.toLong() * sample) > 12_000_000L
+        width.toLong() * height / (sample.toLong() * sample) > heapBudgetPixels
     ) sample *= 2
     return sample
 }
