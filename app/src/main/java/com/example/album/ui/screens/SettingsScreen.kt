@@ -14,6 +14,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -38,6 +39,8 @@ import androidx.compose.foundation.background
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.CleaningServices
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.Info
@@ -47,8 +50,8 @@ import androidx.compose.material.icons.outlined.Slideshow
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -71,6 +74,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -369,17 +373,10 @@ fun SettingsScreen(
         } else {
             item { SettingsPageHeader(isEnglish) }
             item {
-                OutlinedTextField(
+                SettingsSearchField(
                     value = settingsSearch,
                     onValueChange = { settingsSearch = it },
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-                    singleLine = true,
-                    placeholder = { Text(if (isEnglish) "Search settings" else "搜索设置") },
-                    trailingIcon = {
-                        if (settingsSearch.isNotBlank()) {
-                            TextButton(onClick = { settingsSearch = "" }) { Text(if (isEnglish) "Clear" else "清除") }
-                        }
-                    }
+                    english = isEnglish
                 )
             }
             val visibleCategories = if (settingsSearch.isBlank()) {
@@ -1046,6 +1043,59 @@ private val settingsCategories = listOf(
     SettingsCategory("缓存", "后台优化、上限与清理", Icons.Outlined.Storage, "缓存 清理 上限 后台优化"),
     SettingsCategory("关于", "隐私、许可与版本更新", Icons.Outlined.Info, "隐私 许可 版本 更新 检查")
 )
+
+@Composable
+private fun SettingsSearchField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    english: Boolean
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .55f),
+        shape = RoundedCornerShape(22.dp)
+    ) {
+        Row(
+            Modifier.fillMaxWidth().height(44.dp).padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Outlined.Search,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp)
+            )
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+                singleLine = true,
+                textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
+                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                decorationBox = { inner ->
+                    if (value.isBlank()) {
+                        Text(
+                            if (english) "Search settings" else "搜索设置",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                    inner()
+                }
+            )
+            if (value.isNotBlank()) {
+                IconButton(onClick = { onValueChange("") }, modifier = Modifier.size(36.dp)) {
+                    Icon(
+                        Icons.Outlined.Close,
+                        contentDescription = if (english) "Clear" else "清除",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        }
+    }
+}
 
 @Composable
 private fun SettingsPageHeader(english: Boolean) {

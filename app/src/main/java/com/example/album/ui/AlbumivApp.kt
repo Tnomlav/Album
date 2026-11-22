@@ -275,11 +275,22 @@ private fun normalizedTabOrder(stored: List<MainTab>, pixivEnabled: Boolean): Li
     return result
 }
 
+/** Sort/layout preferences for one page or one opened folder. */
+internal data class PageViewPrefs(
+    val sort: MediaSort,
+    val direction: SortDirection,
+    val albumColumns: Int = 3,
+    val folderColumns: Int = 4,
+    val timelineColumns: Int = 4,
+    val folderLayout: MediaLayout = MediaLayout.Grid,
+    val timelineLayout: MediaLayout = MediaLayout.Grid
+)
+
 private val DEFAULT_TOOLBOX_ORDER = listOf(
-    "wallpaper",
     "cleanup",
-    "slideshow",
     "pixiv",
+    "wallpaper",
+    "slideshow",
     "saucenao",
     "ascii2d"
 )
@@ -291,20 +302,13 @@ private val TOOLBOX_IDS = DEFAULT_TOOLBOX_ORDER.toSet()
  * modules beside the nearest default neighbours so upgrades never hide them.
  */
 internal fun normalizeToolboxOrder(stored: List<String>): List<String> {
-    val result = stored.filter { it in TOOLBOX_IDS }
-        .distinct()
-        .toMutableList()
-    DEFAULT_TOOLBOX_ORDER.forEachIndexed { defaultIndex, id ->
-        if (id !in result) {
-            val nextExisting = DEFAULT_TOOLBOX_ORDER
-                .drop(defaultIndex + 1)
-                .firstOrNull { it in result }
-            val insertion = nextExisting?.let(result::indexOf)?.takeIf { it >= 0 }
-                ?: result.size
-            result.add(insertion, id)
-        }
-    }
-    return result
+    val valid = stored.filter { it in TOOLBOX_IDS }.distinct()
+    val first = listOf("cleanup", "pixiv")
+    val last = listOf("saucenao", "ascii2d")
+    val middleDefaults = DEFAULT_TOOLBOX_ORDER.filter { it !in first && it !in last }
+    val middle = (valid.filter { it !in first && it !in last } +
+        middleDefaults.filter { it !in valid }).distinct()
+    return first + middle + last
 }
 
 internal data class PixivTagSearchEntry(val item: MediaItem, val tags: List<String>)
@@ -652,13 +656,15 @@ fun AlbumivApp(
      */
     var pixivArchiveReturnPending by remember { mutableStateOf(false) }
     var favoriteFilter by rememberSaveable { mutableStateOf(false) }
-    var mediaSort by rememberSaveable { mutableStateOf(initialSort) }
-    var sortDirection by rememberSaveable { mutableStateOf(SortDirection.Descending) }
-    var albumColumns by rememberSaveable { mutableIntStateOf(3) }
-    var folderColumns by rememberSaveable { mutableIntStateOf(4) }
-    var timelineColumns by rememberSaveable { mutableIntStateOf(4) }
-    var folderLayout by rememberSaveable { mutableStateOf(MediaLayout.Grid) }
-    var timelineLayout by rememberSaveable { mutableStateOf(MediaLayout.Grid) }
+    // Each page and each opened folder keeps its own sort/layout/columns.
+    // The key is deliberately stable across recomposition and process death is
+    // not promised here (the old globals were rememberSaveable but not
+    // persisted either).
+    val pageViewPrefs = remember { androidx.compose.runtime.mutableStateMapOf<String, PageViewPrefs>() }
+    fun defaultViewPrefs(): PageViewPrefs = PageViewPrefs(
+        sort = initialSort,
+        direction = SortDirection.Descending
+    )
     var showSortDialog by remember { mutableStateOf(false) }
     var showColumnDialog by remember { mutableStateOf(false) }
     var showLayoutDialog by remember { mutableStateOf(false) }
@@ -866,6 +872,16 @@ fun AlbumivApp(
     var wallpaperReturnTab by remember { mutableStateOf<MainTab?>(null) }
     var wallpaperReturnFolder by remember { mutableStateOf<String?>(null) }
     var openedFolder by rememberSaveable { mutableStateOf<String?>(null) }
+    val activeViewKey = when (selectedTab) {
+        MainTab.Albums -> openedFolder?.let { "albums:${if (albumShowsVideos) "video" else "image"}:$it" } ?: "albums:root"
+        MainTab.Timeline -> "timeline"
+        MainTab.Pixiv -> openedFolder?.let { "pixiv:folder:$it" } ?: "pixiv:root"
+        else -> "other"
+    }
+    val activeViewPrefs = pageViewPrefs[activeViewKey] ?: defaultViewPrefs()
+    fun updateViewPrefs(transform: (PageViewPrefs) -> PageViewPrefs) {
+        pageViewPrefs[activeViewKey] = transform(pageViewPrefs[activeViewKey] ?: defaultViewPrefs())
+    }
 
     // Entering the search page puts the (much shorter) result list at the top,
     // and leaving it returns to the position the page had before searching
@@ -927,14 +943,22 @@ fun AlbumivApp(
     var searchReturnAlbumFirstVisibleOffset by remember { mutableIntStateOf(0) }
     var searchReturnMediaFirstVisibleItem by remember { mutableIntStateOf(0) }
     var toolsOrder by remember {
+        val storedVersion = albumSettings.getInt("tools_order_version", 0)
+        val stored = albumSettings.getString("tools_order", null)
+            ?.split(',')
+            ?.filter { it.isNotBlank() }
+            .orEmpty()
         mutableStateOf(
-            normalizeToolboxOrder(
-                albumSettings.getString("tools_order", null)
-                    ?.split(',')
-                    ?.filter { it.isNotBlank() }
-                    .orEmpty()
-            )
+            if (storedVersion < 2 || stored.isEmpty()) DEFAULT_TOOLBOX_ORDER else normalizeToolboxOrder(stored)
         )
+    }
+    LaunchedEffect(Unit) {
+        if (albumSettings.getInt("tools_order_version", 0) < 2) {
+            albumSettings.edit {
+                putString("tools_order", DEFAULT_TOOLBOX_ORDER.joinToString(","))
+                putInt("tools_order_version", 2)
+            }
+        }
     }
     var pixivTabEnabled by remember { mutableStateOf(pixivEnabledAtStart) }
     var pixivTagsLoading by remember { mutableStateOf(false) }
@@ -1272,8 +1296,8 @@ fun AlbumivApp(
             selectionMediaSort = MediaSort.Time
             selectionMediaSortDirection = SortDirection.Descending
         } else {
-            selectionMediaSort = mediaSort
-            selectionMediaSortDirection = sortDirection
+            selectionMediaSort = activeViewPrefs.sort
+            selectionMediaSortDirection = activeViewPrefs.direction
         }
         // selectionMedia is already the exact list shown by the current
         // folder, search, timeline, or Pixiv view. Re-sorting it here makes
@@ -1368,7 +1392,7 @@ fun AlbumivApp(
     fun mediaInDisplayOrder(items: List<MediaItem>): List<MediaItem> {
         return if (selectedTab == MainTab.Timeline) {
             sortMediaItems(items, MediaSort.Time, SortDirection.Descending)
-        } else sortMediaItems(items, mediaSort, sortDirection)
+        } else sortMediaItems(items, activeViewPrefs.sort, activeViewPrefs.direction)
     }
 
     fun openMedia(item: MediaItem) {
@@ -3377,11 +3401,11 @@ fun AlbumivApp(
                     onAddFolder = { folderLauncher.launch(null) },
                     onRescan = { requestMediaScan(true) },
                     onRetry = { refreshLibrary() },
-                    sort = mediaSort,
-                    sortDirection = sortDirection,
-                    albumColumns = albumColumns,
-                    folderColumns = folderColumns,
-                    layout = folderLayout,
+                    sort = activeViewPrefs.sort,
+                    sortDirection = activeViewPrefs.direction,
+                    albumColumns = activeViewPrefs.albumColumns,
+                    folderColumns = activeViewPrefs.folderColumns,
+                    layout = activeViewPrefs.folderLayout,
                     initialAlbumFirstVisibleItem = albumFirstVisibleItem,
                     initialAlbumFirstVisibleOffset = albumFirstVisibleOffset,
                     onAlbumScrollPositionChanged = { index, offset ->
@@ -3463,8 +3487,8 @@ fun AlbumivApp(
                     onRescan = { requestMediaScan(true) },
                     onRetry = { refreshLibrary() },
                     isVideo = timelineShowsVideos,
-                    columns = timelineColumns,
-                    layout = timelineLayout,
+                    columns = activeViewPrefs.timelineColumns,
+                    layout = activeViewPrefs.timelineLayout,
                     // Selection mode updates the shared position; use it so
                     // leaving selection returns to the same spot.
                     initialFirstVisibleItem = selectionMediaFirstVisibleItem,
@@ -3534,11 +3558,11 @@ fun AlbumivApp(
                     loadState = pixivLoadState,
                     permissionGranted = true,
                     tagLoading = pixivTagsLoading && pixivSearchMode == PixivSearchMode.Tag,
-                    sort = mediaSort,
-                    sortDirection = sortDirection,
-                    albumColumns = albumColumns,
-                    folderColumns = folderColumns,
-                    layout = folderLayout,
+                    sort = activeViewPrefs.sort,
+                    sortDirection = activeViewPrefs.direction,
+                    albumColumns = activeViewPrefs.albumColumns,
+                    folderColumns = activeViewPrefs.folderColumns,
+                    layout = activeViewPrefs.folderLayout,
                     onRequestPermission = requestPermission,
                     onOpenMedia = { item -> if (selectionMode) { val key = item.uri.toString(); selectedUris = if (key in selectedUris) selectedUris - key else selectedUris + key } else openMedia(item) },
                     onLongPressMedia = { pressed ->
@@ -3643,7 +3667,10 @@ fun AlbumivApp(
                     order = toolsOrder,
                     onOrderChange = { updated ->
                         toolsOrder = updated
-                        albumSettings.edit { putString("tools_order", updated.joinToString(",")) }
+                        albumSettings.edit {
+                            putString("tools_order", updated.joinToString(","))
+                            putInt("tools_order_version", 2)
+                        }
                     },
                     onOpenPixiv = {
                         // Open the Pixiv page itself without adding a bottom-bar
@@ -4152,12 +4179,16 @@ fun AlbumivApp(
         val directionOptions = SortDirection.entries.map { appText(it.label, english) }
         VaultSortWheelSheet(
             title = appText("排序方式", english), methods = methodOptions,
-            selectedMethod = appText(mediaSort.label, english),
-            selectedDirection = appText(sortDirection.label, english), directions = directionOptions,
+            selectedMethod = appText(activeViewPrefs.sort.label, english),
+            selectedDirection = appText(activeViewPrefs.direction.label, english), directions = directionOptions,
             onDismiss = { showSortDialog = false }
         ) { method, direction ->
-            mediaSort = methods[methodOptions.indexOf(method)]
-            sortDirection = SortDirection.entries[directionOptions.indexOf(direction)]
+            updateViewPrefs {
+                it.copy(
+                    sort = methods[methodOptions.indexOf(method)],
+                    direction = SortDirection.entries[directionOptions.indexOf(direction)]
+                )
+            }
             showSortDialog = false
         }
         /*
@@ -4172,10 +4203,10 @@ fun AlbumivApp(
     }
     if (showColumnDialog) {
         val currentColumns = when {
-            selectedTab == MainTab.Timeline -> timelineColumns
-            selectedTab == MainTab.Pixiv && (pixivSearchMode == PixivSearchMode.Tag || openedFolder != null) -> folderColumns
-            openedFolder != null -> folderColumns
-            else -> albumColumns
+            selectedTab == MainTab.Timeline -> activeViewPrefs.timelineColumns
+            selectedTab == MainTab.Pixiv && (pixivSearchMode == PixivSearchMode.Tag || openedFolder != null) -> activeViewPrefs.folderColumns
+            openedFolder != null -> activeViewPrefs.folderColumns
+            else -> activeViewPrefs.albumColumns
         }
         val options = (1..6).map { if (english) "$it columns" else "$it 列" }
         VaultWheelChoiceSheet(
@@ -4185,18 +4216,20 @@ fun AlbumivApp(
             onDismiss = { showColumnDialog = false },
             onApply = { label ->
                 val columns = label.substringBefore(' ').toIntOrNull() ?: return@VaultWheelChoiceSheet
-                when {
-                    selectedTab == MainTab.Timeline -> timelineColumns = columns
-                    selectedTab == MainTab.Pixiv && (pixivSearchMode == PixivSearchMode.Tag || openedFolder != null) -> folderColumns = columns
-                    openedFolder != null -> folderColumns = columns
-                    else -> albumColumns = columns
+                updateViewPrefs {
+                    when {
+                        selectedTab == MainTab.Timeline -> it.copy(timelineColumns = columns)
+                        selectedTab == MainTab.Pixiv && (pixivSearchMode == PixivSearchMode.Tag || openedFolder != null) -> it.copy(folderColumns = columns)
+                        openedFolder != null -> it.copy(folderColumns = columns)
+                        else -> it.copy(albumColumns = columns)
+                    }
                 }
                 showColumnDialog = false
             }
         )
     }
     if (showLayoutDialog) {
-        val currentLayout = if (selectedTab == MainTab.Timeline) timelineLayout else folderLayout
+        val currentLayout = if (selectedTab == MainTab.Timeline) activeViewPrefs.timelineLayout else activeViewPrefs.folderLayout
         val options = MediaLayout.entries.map { appText(it.label, english) }
         VaultWheelChoiceSheet(
             title = appText("排布方式", english),
@@ -4205,10 +4238,9 @@ fun AlbumivApp(
             onDismiss = { showLayoutDialog = false },
             onApply = { label ->
                 val selected = MediaLayout.entries[options.indexOf(label)]
-                // One layout setting for every media page, so choosing "grid"
-                // on one page also means grid on the timeline and vice versa.
-                timelineLayout = selected
-                folderLayout = selected
+                updateViewPrefs {
+                    if (selectedTab == MainTab.Timeline) it.copy(timelineLayout = selected) else it.copy(folderLayout = selected)
+                }
                 showLayoutDialog = false
             }
         )

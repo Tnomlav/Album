@@ -464,7 +464,10 @@ private fun AlbumGrid(albums: List<MediaAlbum>, columns: Int, refreshing: Boolea
                 } else {
                     AlbumTile(
                         album = album,
-                        onLongClick = {},
+                        onLongClick = {
+                            onScrollPositionChanged(gridState.firstVisibleItemIndex, gridState.firstVisibleItemScrollOffset)
+                            onLongPressAlbum(album, gridState.firstVisibleItemIndex, gridState.firstVisibleItemScrollOffset)
+                        },
                         sharedElementEnabled = sharedElementEnabled,
                         selected = if (selectionPreview) album.key in selectedFolders else null,
                         showPixivMark = pixivFolder,
@@ -643,7 +646,15 @@ private fun FolderGrid(
             }
         }
         items(album.items, key = { it.uri.toString() }) { item ->
-            PressableMediaThumbnail(item, Modifier.fillMaxWidth().aspectRatio(1f), favorite = item.uri.toString() in favoriteUris, showFavoriteBadge = showFavoriteBadge, onLongClick = {}, sharedElementEnabled = sharedElementEnabled, selected = if (selectionPreview) item.uri.toString() in selectedUris else null) { onOpenMedia(item) }
+            PressableMediaThumbnail(
+                item,
+                Modifier.fillMaxWidth().aspectRatio(1f),
+                favorite = item.uri.toString() in favoriteUris,
+                showFavoriteBadge = showFavoriteBadge,
+                onLongClick = { onLongPressMedia(item) },
+                sharedElementEnabled = sharedElementEnabled,
+                selected = if (selectionPreview) item.uri.toString() in selectedUris else null
+            ) { onOpenMedia(item) }
         }
     }
     ListScrollHandle(
@@ -785,7 +796,7 @@ private fun AdaptiveFolderGrid(
                     Modifier.fillMaxWidth().aspectRatio(item.displayAspectRatio),
                     favorite = item.uri.toString() in favoriteUris,
                     showFavoriteBadge = showFavoriteBadge,
-                    onLongClick = {},
+                    onLongClick = { onLongPressMedia(item) },
                     sharedElementEnabled = sharedElementEnabled,
                     selected = if (selectionPreview) item.uri.toString() in selectedUris else null
                 ) { onOpenMedia(item) }

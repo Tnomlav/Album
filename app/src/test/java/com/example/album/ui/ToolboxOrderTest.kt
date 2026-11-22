@@ -12,7 +12,7 @@ class ToolboxOrderTest {
         )
 
         assertEquals(
-            listOf("slideshow", "wallpaper", "cleanup", "pixiv", "saucenao", "ascii2d"),
+            listOf("cleanup", "pixiv", "slideshow", "wallpaper", "saucenao", "ascii2d"),
             migrated
         )
         assertFalse(migrated.contains("archive"))
@@ -25,7 +25,7 @@ class ToolboxOrderTest {
         )
 
         assertEquals(
-            listOf("cleanup", "slideshow", "pixiv", "saucenao", "ascii2d", "wallpaper"),
+            listOf("cleanup", "pixiv", "wallpaper", "slideshow", "saucenao", "ascii2d"),
             normalized
         )
         assertEquals(normalized.size, normalized.distinct().size)

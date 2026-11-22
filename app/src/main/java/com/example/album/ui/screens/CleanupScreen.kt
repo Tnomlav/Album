@@ -2614,17 +2614,22 @@ private fun ArchivePrimaryButton(
 ) {
     val accent = MaterialTheme.colorScheme.primary
     val buttonColor = containerColor ?: if (filled) accent else accent.copy(alpha = .12f)
+    val effectiveColor = if (enabled) buttonColor else MaterialTheme.colorScheme.surfaceVariant
+    val textColor = when {
+        !enabled -> MaterialTheme.colorScheme.onSurfaceVariant
+        filled || containerColor != null -> Color.White
+        else -> accent
+    }
     val english = LocalAppEnglish.current
     Box(
         modifier
-            .height(42.dp)
+            .height(48.dp)
             .clip(RoundedCornerShape(7.dp))
-            .background(buttonColor)
-            .clickable(enabled = enabled, onClick = onClick)
-            .alpha(if (enabled) 1f else .42f),
+            .background(effectiveColor)
+            .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        Text(appText(label, english), color = if (filled || containerColor != null) Color.White else accent, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+        Text(appText(label, english), color = textColor, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
     }
 }
 

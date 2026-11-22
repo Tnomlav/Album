@@ -256,6 +256,7 @@ internal fun walkPixivFolders(
     list: (String) -> List<PixivDirEntry>?,
     includeHidden: Boolean,
     onItem: (PixivDirEntry, String, Map<String, PixivDirEntry>) -> Unit,
+    onFolder: (String) -> Unit = {},
     onFolderDone: () -> Unit = {}
 ): Pair<PixivWalkIndex, PixivWalkStats> {
     val next = PixivWalkIndex()
@@ -271,6 +272,7 @@ internal fun walkPixivFolders(
 
     fun replay(directoryUri: String, folder: String, depth: Int) {
         val cached = previous.entries(directoryUri) ?: return
+        onFolder(folder)
         val siblings = cached.entries.associateBy { it.name }
         cached.entries.forEach { entry ->
             if (hidden(entry)) return@forEach
@@ -278,7 +280,7 @@ internal fun walkPixivFolders(
                 previous.entries(entry.uri)?.let { child ->
                     next.putEntry(entry.uri, child)
                     reused++
-                    replay(entry.uri, folder, depth + 1)
+                    replay(entry.uri, if (folder.isBlank()) entry.name else "$folder/${entry.name}", depth + 1)
                 }
             } else if (entry.isImage) {
                 items++
@@ -289,6 +291,7 @@ internal fun walkPixivFolders(
 
     fun visit(directoryUri: String, folder: String, depth: Int) {
         if (depth > MAX_PIXIV_WALK_DEPTH) return
+        onFolder(folder)
         val entries = list(directoryUri) ?: return
         listed++
         val cached = previous.reusable(directoryUri, entries)
@@ -303,7 +306,7 @@ internal fun walkPixivFolders(
         entries.forEach { entry ->
             if (hidden(entry)) return@forEach
             if (entry.isDirectory) {
-                visit(entry.uri, folder, depth + 1)
+                visit(entry.uri, if (folder.isBlank()) entry.name else "$folder/${entry.name}", depth + 1)
             } else if (entry.isImage) {
                 items++
                 onItem(entry, folder, siblings)

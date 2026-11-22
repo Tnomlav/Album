@@ -676,7 +676,7 @@ class PixivArchiveRepository(private val context: Context) {
         val archivedFolderNames = artistFolders
             .mapNotNull { it.name?.takeIf(String::isNotBlank) }
             .toSet()
-        val folderNames = setOf(sourceFolderName) + archivedFolderNames
+        val discoveredFolders = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
         val archivedItems = mutableListOf<MediaItem>()
         val archivedLock = Any()
@@ -696,7 +696,7 @@ class PixivArchiveRepository(private val context: Context) {
                 items = (source.filterNot { it.uri.toString() in archivedUris } + archived)
                     .distinctBy { it.uri.toString() },
                 tagsByUri = tagsByUri,
-                folderNames = folderNames,
+                folderNames = setOf(sourceFolderName) + archivedFolderNames + discoveredFolders,
                 sourceFolderName = sourceFolderName,
                 sourceConfigured = sourceUri != null,
                 targetConfigured = targetUri != null,
@@ -742,6 +742,7 @@ class PixivArchiveRepository(private val context: Context) {
                 previous = previousWalk,
                 list = { uri -> listPixivDirectory(context, tree, Uri.parse(uri)) },
                 includeHidden = showHiddenMedia,
+                onFolder = { folderName -> if (folderName.isNotBlank()) discoveredFolders += folderName },
                 onItem = { entry, folderName, siblings ->
                     val item = itemFor(entry, folderName)
                     if (!adultFilter.contains(item)) {
