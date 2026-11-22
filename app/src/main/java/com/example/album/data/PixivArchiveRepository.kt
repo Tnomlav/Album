@@ -612,6 +612,7 @@ class PixivArchiveRepository(private val context: Context) {
         val showHiddenMedia = context.getSharedPreferences("album_settings", Context.MODE_PRIVATE)
             .getBoolean("show_hidden_media", false)
         return listOf(
+            "v3",
             preferences.getString("source_uri", "").orEmpty(),
             preferences.getString("target_uri", "").orEmpty(),
             showHiddenMedia.toString()
