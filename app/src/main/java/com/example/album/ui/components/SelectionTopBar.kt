@@ -236,19 +236,8 @@ fun SelectionSubBar(
     chromeAlpha: Float = 1f
 ) {
     Surface(
-        modifier = Modifier.fillMaxWidth().alpha(chromeAlpha).drawWithContent {
-            drawContent()
-            val shadow = 5.dp.toPx()
-            drawRect(
-                brush = Brush.verticalGradient(
-                    colors = listOf(Color.Black.copy(alpha = .22f), Color.Transparent),
-                    startY = 0f,
-                    endY = shadow
-                ),
-                size = Size(size.width, shadow)
-            )
-        },
-        color = MaterialTheme.colorScheme.surface
+        modifier = Modifier.fillMaxWidth().alpha(chromeAlpha),
+        color = com.example.album.ui.theme.VaultSecondarySurface
     ) {
         Box(
             modifier = Modifier.fillMaxWidth().height(36.dp)

@@ -865,7 +865,7 @@ fun SettingsScreen(
     if (showThemeColors) {
         VaultColorSheet(
             title = settingsText("主题颜色", isEnglish),
-            options = ThemeAccent.entries,
+            options = ThemeAccent.rainbow,
             selected = themeAccent,
             onDismiss = { showThemeColors = false },
             onSelect = { selected ->

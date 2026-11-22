@@ -120,20 +120,7 @@ fun AppBottomBar(
     Column(Modifier.fillMaxWidth()) {
     if (selectionMode) {
         Surface(
-            modifier = Modifier.drawWithContent {
-                drawContent()
-                val shadow = 5.dp.toPx()
-                drawRect(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = .22f)),
-                        startY = size.height - shadow,
-                        endY = size.height
-                    ),
-                    topLeft = Offset(0f, size.height - shadow),
-                    size = Size(size.width, shadow)
-                )
-            },
-            color = MaterialTheme.colorScheme.surface
+            color = com.example.album.ui.theme.VaultSecondarySurface
         ) {
             Row(
                 Modifier.fillMaxWidth().height(36.dp).padding(horizontal = 8.dp),

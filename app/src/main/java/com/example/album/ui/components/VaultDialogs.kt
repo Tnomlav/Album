@@ -296,7 +296,7 @@ fun VaultColorSheet(
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Surface(
-                        modifier = Modifier.size(34.dp).graphicsLayer { scaleX = selectedScale; scaleY = selectedScale },
+                        modifier = Modifier.size(28.dp).graphicsLayer { scaleX = selectedScale; scaleY = selectedScale },
                         color = option.color,
                         shape = CircleShape,
                         border = if (option == selected) androidx.compose.foundation.BorderStroke(3.dp, MaterialTheme.colorScheme.onSurface) else null

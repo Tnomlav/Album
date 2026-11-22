@@ -141,7 +141,8 @@ private fun TitleSwitchMark(
                         else androidx.compose.ui.graphics.Color.Transparent
                     )
                     .clickable { onChange(itemIndex) }
-                    .padding(horizontal = if (wideSwitch) 12.dp else 9.dp, vertical = 7.dp),
+                    .widthIn(min = if (wideSwitch) 62.dp else 0.dp)
+                    .padding(horizontal = if (wideSwitch) 18.dp else 9.dp, vertical = 7.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
