@@ -1248,15 +1248,15 @@ private fun RecycleContent(
                             RecycleThumbnail(entry, Modifier.fillMaxSize())
                             CleanupSelectionMark(entry.id in selectedIds, Modifier.align(Alignment.TopEnd).padding(5.dp).clickable { onToggle(entry) })
                             Row(
-                                Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(34.dp)
+                                Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(48.dp)
                                     .background(MaterialTheme.colorScheme.surface.copy(alpha = .82f)),
                                 horizontalArrangement = Arrangement.Center,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                IconButton(onClick = { onRestore(entry) }, modifier = Modifier.size(34.dp)) {
+                                IconButton(onClick = { onRestore(entry) }, modifier = Modifier.size(48.dp)) {
                                     Icon(Icons.Outlined.Restore, appText("还原", english), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                                 }
-                                IconButton(onClick = { onDelete(entry) }, modifier = Modifier.size(34.dp)) {
+                                IconButton(onClick = { onDelete(entry) }, modifier = Modifier.size(48.dp)) {
                                     Icon(Icons.Outlined.DeleteForever, appText("彻底删除", english), tint = Color(0xFFCC3B33), modifier = Modifier.size(18.dp))
                                 }
                             }
@@ -2206,7 +2206,7 @@ private fun ArchiveContent(
                 Text(appText("扫描结果", english), fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                 IconButton(
                     onClick = { resultGrid = !resultGrid },
-                    modifier = Modifier.size(34.dp)
+                    modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
                          if (resultGrid) Icons.Outlined.KeyboardArrowRight else Icons.Outlined.KeyboardArrowDown,

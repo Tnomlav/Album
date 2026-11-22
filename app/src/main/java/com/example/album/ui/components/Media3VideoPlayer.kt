@@ -1516,14 +1516,14 @@ internal fun Media3VideoPlayer(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                TextButton(onClick = { refreshControls(); pauseForPopup(); showSpeed = true }, modifier = Modifier.size(46.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {
+                TextButton(onClick = { refreshControls(); pauseForPopup(); showSpeed = true }, modifier = Modifier.size(48.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {
                     Text("${speed}x", color = Color.White, fontSize = 13.sp, maxLines = 1, softWrap = false)
                 }
-                IconButton(onClick = { refreshControls(); onFavorite() }, modifier = Modifier.size(46.dp)) {
+                IconButton(onClick = { refreshControls(); onFavorite() }, modifier = Modifier.size(48.dp)) {
                     Icon(HtmlStarIcon, appText("收藏", english), tint = if (favorite) Color(0xFFFFD60A) else Color.White)
                 }
                 Box {
-                    IconButton(onClick = { refreshControls(); pauseForPopup(); playerMenuOpen = true }, modifier = Modifier.size(46.dp)) {
+                    IconButton(onClick = { refreshControls(); pauseForPopup(); playerMenuOpen = true }, modifier = Modifier.size(48.dp)) {
                         Icon(Icons.Outlined.MoreVert, appText("菜单", english), tint = Color.White)
                     }
                 }
@@ -1618,7 +1618,7 @@ internal fun Media3VideoPlayer(
                             refreshControls()
                         }))
                     }.forEach { (icon, label, action) ->
-                        IconButton(onClick = action, modifier = Modifier.weight(1f).height(46.dp)) {
+                        IconButton(onClick = action, modifier = Modifier.weight(1f).height(48.dp)) {
                             Icon(
                                 icon,
                                 appText(label, english),

@@ -187,7 +187,7 @@ private fun SlideshowQueueTile(
         ) {
             MediaThumbnail(item, Modifier.fillMaxSize(), showVideoDuration = false, contentScale = ContentScale.Crop)
             Box(
-                Modifier.align(Alignment.TopEnd).padding(4.dp).size(26.dp)
+                Modifier.align(Alignment.TopEnd).padding(2.dp).size(48.dp)
                     .clickable { onRemove(item) },
                 contentAlignment = Alignment.Center
             ) {

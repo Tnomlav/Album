@@ -756,7 +756,7 @@ private fun EditorTopBar(
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Surface(
-            modifier = Modifier.size(42.dp).clickable(enabled = !saving, onClick = onClose),
+            modifier = Modifier.size(48.dp).clickable(enabled = !saving, onClick = onClose),
             color = Color(0xFFF4F4F2),
             shape = CircleShape
         ) {
