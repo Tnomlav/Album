@@ -1062,48 +1062,45 @@ private fun SettingsSearchField(
     english: Boolean,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        modifier = modifier,
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .55f),
-        shape = RoundedCornerShape(22.dp)
+    Row(
+        modifier.height(48.dp).padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            Modifier.fillMaxWidth().height(44.dp).padding(horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                Icons.Outlined.Search,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp)
-            )
-            BasicTextField(
-                value = value,
-                onValueChange = onValueChange,
-                modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
-                singleLine = true,
-                textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
-                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                decorationBox = { inner ->
-                    if (value.isBlank()) {
-                        Text(
-                            if (english) "Search settings" else "搜索设置",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                    inner()
-                }
-            )
-            if (value.isNotBlank()) {
-                IconButton(onClick = { onValueChange("") }, modifier = Modifier.size(36.dp)) {
-                    Icon(
-                        Icons.Outlined.Close,
-                        contentDescription = if (english) "Clear" else "清除",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp)
+        Icon(
+            Icons.Outlined.Search,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.size(19.dp)
+        )
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier.weight(1f).padding(horizontal = 9.dp),
+            singleLine = true,
+            textStyle = MaterialTheme.typography.bodySmall.copy(
+                color = MaterialTheme.colorScheme.onSurface,
+                fontSize = VaultDimens.SearchText
+            ),
+            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+            decorationBox = { inner ->
+                if (value.isBlank()) {
+                    Text(
+                        if (english) "Search settings" else "搜索设置",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = VaultDimens.SearchText
                     )
                 }
+                inner()
+            }
+        )
+        if (value.isNotBlank()) {
+            IconButton(onClick = { onValueChange("") }, modifier = Modifier.size(36.dp)) {
+                Icon(
+                    Icons.Outlined.Close,
+                    contentDescription = if (english) "Clear" else "清除",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(17.dp)
+                )
             }
         }
     }

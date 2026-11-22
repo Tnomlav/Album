@@ -5,12 +5,15 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items as listItems
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -22,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -39,6 +43,7 @@ import com.example.album.data.MediaItem
 import com.example.album.ui.LocalAppEnglish
 import com.example.album.ui.appText
 import com.example.album.ui.components.MediaThumbnail
+import com.example.album.ui.components.MediaListRow
 
 /** Slideshow queue: the images that will be played, managed like the wallpaper queue. */
 @Composable
@@ -121,6 +126,34 @@ fun SlideshowQueueScreen(
     // 自适应 keeps each picture's own aspect ratio, exactly like the timeline
     // page does; the old fixed-height adaptive grid looked identical to the
     // column count, so choosing it appeared to do nothing.
+    if (layout == com.example.album.ui.MediaLayout.List) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(horizontal = 7.dp, vertical = 8.dp)
+        ) {
+            item {
+                Text(
+                    if (english) "${visibleItems.size} item(s)" else "${visibleItems.size} 项",
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelSmall
+                )
+            }
+            listItems(visibleItems, key = { it.uri.toString() }) { item ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    MediaListRow(
+                        item = item,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onOpenMedia(item) }
+                    )
+                    IconButton(onClick = { onRemove(item) }) {
+                        Icon(Icons.Outlined.Close, contentDescription = appText("移出幻灯片队列", english))
+                    }
+                }
+            }
+        }
+        return
+    }
     if (layout == com.example.album.ui.MediaLayout.Adaptive) {
         LazyVerticalStaggeredGrid(
             columns = StaggeredGridCells.Fixed(columns.coerceIn(1, 6)),

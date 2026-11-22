@@ -15,5 +15,6 @@ enum class SortDirection(val label: String) {
 
 enum class MediaLayout(val label: String) {
     Grid("网格"),
-    Adaptive("自适应")
+    Adaptive("自适应"),
+    List("列表")
 }

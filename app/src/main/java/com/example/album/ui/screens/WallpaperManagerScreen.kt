@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items as listItems
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -26,10 +28,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -51,6 +55,7 @@ import com.example.album.ui.MediaLayout
 import com.example.album.ui.MediaSort
 import com.example.album.ui.SortDirection
 import com.example.album.ui.components.MediaThumbnail
+import com.example.album.ui.components.MediaListRow
 import com.example.album.ui.searchTextMatches
 import com.example.album.ui.theme.VaultDimens
 import java.text.SimpleDateFormat
@@ -168,6 +173,19 @@ fun WallpaperManagerScreen(
                     onOpenFolder = onOpenFolder
                 )
             }
+            return@BoxWithConstraints
+        }
+        if (mediaLayout == MediaLayout.List) {
+            WallpaperQueueList(
+                sections = sections,
+                visibleMedia = visibleMedia,
+                selectionMode = selectionMode,
+                selectedUris = selectedUris,
+                onOpenMedia = onOpenMedia,
+                onToggleSelection = onToggleSelection,
+                onEnterSelectionMode = onEnterSelectionMode,
+                onRemove = onRemove
+            )
             return@BoxWithConstraints
         }
         if (mediaLayout == MediaLayout.Adaptive) {
@@ -408,5 +426,49 @@ private fun WallpaperMediaCell(
             fontSize = 11.sp,
             color = MaterialTheme.colorScheme.onSurface
         )
+    }
+}
+
+@Composable
+private fun WallpaperQueueList(
+    sections: List<Map.Entry<String, List<MediaItem>>>,
+    visibleMedia: List<MediaItem>,
+    selectionMode: Boolean,
+    selectedUris: Set<String>,
+    onOpenMedia: (MediaItem) -> Unit,
+    onToggleSelection: (MediaItem) -> Unit,
+    onEnterSelectionMode: (MediaItem, List<MediaItem>) -> Unit,
+    onRemove: (MediaItem) -> Unit
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = 7.dp, vertical = 8.dp)
+    ) {
+        sections.forEach { (date, items) ->
+            item(key = "date:$date") {
+                Text(
+                    date,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    fontSize = 13.sp
+                )
+            }
+            listItems(items, key = { it.uri.toString() }) { item ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    MediaListRow(
+                        item = item,
+                        modifier = Modifier.weight(1f),
+                        selected = if (selectionMode) item.uri.toString() in selectedUris else null,
+                        onClick = {
+                            if (selectionMode) onToggleSelection(item) else onOpenMedia(item)
+                        },
+                        onLongClick = { onEnterSelectionMode(item, visibleMedia) }
+                    )
+                    IconButton(onClick = { onRemove(item) }) {
+                        Icon(Icons.Outlined.Delete, contentDescription = appText("移出壁纸队列", LocalAppEnglish.current))
+                    }
+                }
+            }
+        }
     }
 }

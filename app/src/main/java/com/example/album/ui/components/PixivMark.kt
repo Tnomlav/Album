@@ -55,7 +55,7 @@ internal fun PixivMarkBadge(size: Dp, modifier: Modifier = Modifier) {
             // Nearly opaque: a 70% white over the theme colour still read as a
             // tinted letter, and the mark has to look white with only a hint of
             // transparency.
-            tint = Color.White.copy(alpha = .9f),
+            tint = Color.White,
             modifier = Modifier.fillMaxSize(.74f).graphicsLayer { scaleX = 1.15f; scaleY = 1.15f }
         )
     }

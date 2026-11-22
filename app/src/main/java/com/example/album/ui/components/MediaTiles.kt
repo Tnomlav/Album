@@ -33,6 +33,8 @@ import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
@@ -405,4 +407,112 @@ private fun placeholderBrush(seed: Long): Brush {
         listOf(Color(0xFFC6D99A), Color(0xFF617348))
     )
     return Brush.linearGradient(palettes[(seed % palettes.size).toInt()])
+}
+
+/** One list-mode media row shared by Albums, Timeline and the P page. */
+@Composable
+@OptIn(ExperimentalFoundationApi::class)
+fun MediaListRow(
+    item: MediaItem,
+    modifier: Modifier = Modifier,
+    favorite: Boolean = false,
+    showFavoriteBadge: Boolean = true,
+    selected: Boolean? = null,
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null
+) {
+    Row(
+        modifier.fillMaxWidth()
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .semantics {
+                role = Role.Button
+                contentDescription = item.name
+                stateDescription = when (selected) {
+                    true -> "已选中"
+                    false -> "未选中"
+                    null -> ""
+                }
+            }
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Box(
+            Modifier.size(54.dp).clip(RoundedCornerShape(7.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            MediaThumbnail(item, Modifier.fillMaxSize(), showVideoDuration = true)
+            if (favorite && showFavoriteBadge) FavoriteBadge()
+            if (selected != null) SelectionMark(selected = selected, modifier = Modifier.align(Alignment.TopEnd).padding(3.dp))
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(item.name, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 14.sp)
+            Text(
+                item.folder,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 11.sp
+            )
+        }
+        Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/** One list-mode folder row. */
+@Composable
+fun AlbumListRow(
+    album: MediaAlbum,
+    modifier: Modifier = Modifier,
+    showPath: Boolean = false,
+    selected: Boolean? = null,
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null
+) {
+    Row(
+        modifier.fillMaxWidth()
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .semantics {
+                role = Role.Button
+                contentDescription = album.name
+                stateDescription = when (selected) {
+                    true -> "已选中"
+                    false -> "未选中"
+                    null -> ""
+                }
+            }
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Box(
+            Modifier.size(54.dp).clip(RoundedCornerShape(7.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            if (album.cover != null) {
+                MediaThumbnail(album.cover, Modifier.fillMaxSize(), showVideoDuration = false)
+            } else {
+                Icon(Icons.Outlined.Folder, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
+            }
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(album.name, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 14.sp)
+            Text(
+                if (showPath) album.key else "${album.items.size} 项",
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 11.sp
+            )
+        }
+        if (selected != null) {
+            Icon(
+                if (selected) Icons.Outlined.CheckCircle else Icons.Outlined.Folder,
+                contentDescription = null,
+                tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        } else {
+            Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
 }

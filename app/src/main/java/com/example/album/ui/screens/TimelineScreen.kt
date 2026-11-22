@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items as listItems
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -170,6 +172,19 @@ fun TimelineScreen(
     val groupedDates = remember(groups) { groups.entries.toList() }
     // The viewer must page through exactly what this page shows, in this order.
     LaunchedEffect(filtered) { onVisibleScopeChanged(filtered) }
+
+    if (layout == MediaLayout.List) {
+        TimelineList(
+            groupedDates = groupedDates,
+            favoriteUris = favoriteUris,
+            showFavoriteBadge = showFavoriteBadge,
+            selectionPreview = selectionPreview,
+            selectedUris = selectedUris,
+            onOpenMedia = onOpenMedia,
+            onLongPressMedia = onLongPressMedia
+        )
+        return
+    }
 
     if (layout == MediaLayout.Adaptive) {
         AdaptiveTimeline(
@@ -649,3 +664,41 @@ private fun sameDay(first: Calendar, second: Calendar): Boolean =
     first.get(Calendar.ERA) == second.get(Calendar.ERA) &&
         first.get(Calendar.YEAR) == second.get(Calendar.YEAR) &&
         first.get(Calendar.DAY_OF_YEAR) == second.get(Calendar.DAY_OF_YEAR)
+
+
+@Composable
+private fun TimelineList(
+    groupedDates: List<Map.Entry<String, List<MediaItem>>>,
+    favoriteUris: Set<String>,
+    showFavoriteBadge: Boolean,
+    selectionPreview: Boolean,
+    selectedUris: Set<String>,
+    onOpenMedia: (MediaItem) -> Unit,
+    onLongPressMedia: (MediaItem) -> Unit
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 7.dp, vertical = 8.dp)
+    ) {
+        groupedDates.forEach { (date, items) ->
+            item(key = "date:") {
+                Text(
+                    date,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            listItems(items, key = { it.uri.toString() }) { item ->
+                com.example.album.ui.components.MediaListRow(
+                    item = item,
+                    favorite = item.uri.toString() in favoriteUris,
+                    showFavoriteBadge = showFavoriteBadge,
+                    selected = if (selectionPreview) item.uri.toString() in selectedUris else null,
+                    onClick = { onOpenMedia(item) },
+                    onLongClick = { onLongPressMedia(item) }
+                )
+            }
+        }
+    }
+}

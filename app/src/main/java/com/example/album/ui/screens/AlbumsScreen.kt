@@ -25,6 +25,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items as listItems
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -336,7 +338,27 @@ fun AlbumsScreen(
             val parentVisibilityScope = LocalMediaAnimatedVisibilityScope.current
             val mediaVisibilityScope = if (LocalActiveSharedMediaKey.current == null) this else parentVisibilityScope
             CompositionLocalProvider(LocalMediaAnimatedVisibilityScope provides mediaVisibilityScope) {
-                if (shownAlbum != null) {
+                if (layout == MediaLayout.List) {
+                    if (shownAlbum != null) {
+                        MediaListColumn(
+                            album = shownAlbum,
+                            favoriteUris = favoriteUris,
+                            showFavoriteBadge = showFavoriteBadge,
+                            selectionPreview = selectionPreview,
+                            selectedUris = selectedUris,
+                            onOpenMedia = onOpenMedia,
+                            onLongPressMedia = onLongPressMedia
+                        )
+                    } else {
+                        AlbumListColumn(
+                            albums = albums,
+                            selectedFolders = selectedFolders,
+                            selectionPreview = selectionPreview,
+                            onOpenAlbum = onOpenedFolderChange,
+                            onLongPressAlbum = onLongPressAlbum
+                        )
+                    }
+                } else if (shownAlbum != null) {
                     FolderGrid(shownAlbum, folderColumns, layout, refreshing = refreshing, onOpenMedia = onOpenMedia, onLongPressMedia = onLongPressMedia, onSelectionGestureStartMedia = onSelectionGestureStartMedia, onBatchSelectMedia = onBatchSelectMedia, onSelectionGestureEnd = onSelectionGestureEnd, onRefresh = onRefresh, sharedElementEnabled = sharedElementEnabled, onOpenPixivArchive = onOpenPixivArchive, favoriteUris = favoriteUris, showFavoriteBadge = showFavoriteBadge, selectionPreview = selectionPreview, selectedUris = selectedUris, initialFirstVisibleItem = initialMediaFirstVisibleItem, initialFirstVisibleOffset = initialMediaFirstVisibleOffset, onScrollPositionChanged = onMediaScrollPositionChanged,
                     scrollToUri = scrollToUri,
                     scrollToToken = scrollToToken,
@@ -866,6 +888,66 @@ private fun EmptyFolderMessage() {
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(appText("文件夹为空", LocalAppEnglish.current), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+private fun AlbumListColumn(
+    albums: List<MediaAlbum>,
+    selectedFolders: Set<String>,
+    selectionPreview: Boolean,
+    onOpenAlbum: (String) -> Unit,
+    onLongPressAlbum: (MediaAlbum, Int, Int) -> Unit
+) {
+    val duplicateNames = remember(albums) {
+        albums.groupingBy { it.name }.eachCount().filterValues { it > 1 }.keys
+    }
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 7.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        listItems(albums, key = { it.key }) { album ->
+            com.example.album.ui.components.AlbumListRow(
+                album = album,
+                showPath = album.name in duplicateNames,
+                selected = if (selectionPreview) album.key in selectedFolders else null,
+                onClick = { onOpenAlbum(album.key) },
+                onLongClick = { onLongPressAlbum(album, 0, 0) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun MediaListColumn(
+    album: MediaAlbum,
+    favoriteUris: Set<String>,
+    showFavoriteBadge: Boolean,
+    selectionPreview: Boolean,
+    selectedUris: Set<String>,
+    onOpenMedia: (MediaItem) -> Unit,
+    onLongPressMedia: (MediaItem) -> Unit
+) {
+    if (album.items.isEmpty()) {
+        EmptyFolderMessage()
+        return
+    }
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 7.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        listItems(album.items, key = { it.uri.toString() }) { item ->
+            com.example.album.ui.components.MediaListRow(
+                item = item,
+                favorite = item.uri.toString() in favoriteUris,
+                showFavoriteBadge = showFavoriteBadge,
+                selected = if (selectionPreview) item.uri.toString() in selectedUris else null,
+                onClick = { onOpenMedia(item) },
+                onLongClick = { onLongPressMedia(item) }
+            )
         }
     }
 }

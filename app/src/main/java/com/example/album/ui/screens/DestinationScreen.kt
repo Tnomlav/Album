@@ -28,6 +28,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -41,12 +43,16 @@ import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -73,6 +79,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -87,6 +94,7 @@ import com.example.album.ui.theme.VaultDimens
 import com.example.album.ui.LocalAppEnglish
 import com.example.album.ui.appText
 import com.example.album.ui.components.MediaThumbnail
+import com.example.album.ui.components.emptyFolderTone
 import com.example.album.data.openMediaInputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -221,35 +229,25 @@ fun DestinationScreen(
         }
     }
 
+    var menuOpen by remember { mutableStateOf(false) }
+    fun beginCreateFolder() {
+        createFolderName = ""
+        createFolderError = false
+        showCreateFolderDialog = true
+        menuOpen = false
+    }
     Scaffold(
-        floatingActionButton = {
-            val canCreate = currentFolder != null
-            FloatingActionButton(
-                onClick = {
-                    if (canCreate) {
-                        createFolderName = ""
-                        createFolderError = false
-                        showCreateFolderDialog = true
-                    }
-                },
-                containerColor = if (canCreate) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                contentColor = if (canCreate) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 8.dp)
-            ) {
-                Icon(Icons.Outlined.CreateNewFolder, appText("新建文件夹", english))
-            }
-        },
         topBar = {
             Surface(color = MaterialTheme.colorScheme.surface) {
                 Row(
                     modifier = Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBars)
-                        .height(VaultDimens.HeaderContentHeight).padding(horizontal = 18.dp),
+                        .height(VaultDimens.HeaderContentHeight).padding(horizontal = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     TextButton(
                         onClick = onBack,
-                        modifier = Modifier.widthIn(min = 56.dp).height(48.dp),
+                        modifier = Modifier.widthIn(min = 52.dp).height(48.dp),
                         contentPadding = PaddingValues(0.dp)
                     ) {
                         Text(appText("取消", english), maxLines = 1)
@@ -257,21 +255,29 @@ fun DestinationScreen(
                     Row(
                         modifier = Modifier.weight(1f).height(48.dp)
                             .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(16.dp))
-                            .padding(horizontal = 14.dp),
+                            .padding(horizontal = 13.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(9.dp)
                     ) {
-                        Icon(Icons.Outlined.Search, null, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Outlined.Search, null, modifier = Modifier.size(19.dp))
                         BasicTextField(
                             value = query,
                             onValueChange = { query = it; selectedFolder = null },
                             modifier = Modifier.weight(1f),
                             singleLine = true,
-                            textStyle = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurface),
+                            textStyle = MaterialTheme.typography.bodySmall.copy(
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontSize = VaultDimens.SearchText
+                            ),
                             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                             decorationBox = { inner ->
                                 Box(contentAlignment = Alignment.CenterStart) {
-                                    if (query.isEmpty()) Text(appText("搜索文件夹、图片名称", english), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = VaultDimens.SearchText, maxLines = 1)
+                                    if (query.isEmpty()) Text(
+                                        appText("搜索文件夹", english),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontSize = VaultDimens.SearchText,
+                                        maxLines = 1
+                                    )
                                     inner()
                                 }
                             }
@@ -282,33 +288,69 @@ fun DestinationScreen(
                             }
                         }
                     }
-                    TextButton(
-                        onClick = {
-                            selectedFolder?.let { onConfirm(it, defaultConflictPolicy, defaultPreserveDate) }
-                        },
-                        enabled = selectedFolder != null,
-                        modifier = Modifier.widthIn(min = 56.dp).height(48.dp),
-                        contentPadding = PaddingValues(0.dp)
-                    ) {
-                        Text(appText("确认", english), maxLines = 1)
+                    IconButton(onClick = ::beginCreateFolder, modifier = Modifier.size(48.dp)) {
+                        Icon(Icons.Outlined.CreateNewFolder, contentDescription = appText("新建文件夹", english))
                     }
+                    Box {
+                        IconButton(onClick = { menuOpen = true }, modifier = Modifier.size(48.dp)) {
+                            Icon(Icons.Outlined.MoreVert, contentDescription = appText("更多操作", english))
+                        }
+                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                            DropdownMenuItem(
+                                text = { Text(appText("新建文件夹", english)) },
+                                onClick = ::beginCreateFolder
+                            )
+                            if (currentFolder != null) {
+                                DropdownMenuItem(
+                                    text = { Text(appText("回到根目录", english)) },
+                                    onClick = {
+                                        currentFolder = null
+                                        selectedFolder = null
+                                        query = ""
+                                        menuOpen = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        bottomBar = {
+            Surface(color = MaterialTheme.colorScheme.surface) {
+                Button(
+                    onClick = {
+                        selectedFolder?.let { onConfirm(it, defaultConflictPolicy, defaultPreserveDate) }
+                    },
+                    enabled = selectedFolder != null,
+                    modifier = Modifier.fillMaxWidth()
+                        .windowInsetsPadding(WindowInsets.navigationBars)
+                        .padding(horizontal = 14.dp, vertical = 10.dp)
+                        .height(48.dp)
+                ) {
+                    Text(
+                        if (mode == TransferMode.Move) appText("移动到此处", english) else appText("复制到此处", english),
+                        maxLines = 1
+                    )
                 }
             }
         }
     ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 7.dp).windowInsetsPadding(WindowInsets.navigationBars)) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(padding)
+                .padding(horizontal = 7.dp)
+        ) {
             Text(
                 if (english) "Selected $itemCount items" else "已选择 $itemCount 项",
-                modifier = Modifier.padding(horizontal = 2.dp, vertical = 10.dp),
+                modifier = Modifier.padding(horizontal = 2.dp, vertical = 8.dp),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 12.sp
             )
             currentFolder?.let { folder ->
                 Row(
                     modifier = Modifier.fillMaxWidth().clickable {
-                        val parent = folder.substringBeforeLast('/', "").ifBlank { null }
-                        currentFolder = parent
-                        selectedFolder = parent
+                        currentFolder = folder.substringBeforeLast('/', "").ifBlank { null }
+                        selectedFolder = currentFolder
                         query = ""
                     }.padding(horizontal = 2.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -316,51 +358,6 @@ fun DestinationScreen(
                     Icon(Icons.AutoMirrored.Outlined.ArrowBack, null, modifier = Modifier.size(18.dp))
                     Text(folder.substringAfterLast('/'), modifier = Modifier.padding(start = 6.dp), fontSize = 13.sp)
                 }
-            }
-            LazyRow(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 2.dp)
-            ) {
-                items(items.size, key = { index -> "${items[index].uri}:$index" }) { index ->
-                    val item = items[index]
-                    if (item.isDocument) {
-                        DocumentPreviewThumbnail(item)
-                    } else {
-                        MediaThumbnail(
-                            item = item,
-                            modifier = Modifier.size(62.dp).clip(RoundedCornerShape(7.dp)),
-                            requestedSize = 180
-                        )
-                    }
-                }
-            }
-            if (currentFolder == null) {
-                Text(
-                    appText("近期使用", english),
-                    modifier = Modifier.padding(horizontal = 2.dp, vertical = 10.dp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 12.sp
-                )
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 2.dp)
-                ) {
-                    items(recentEntries, key = { it.second }) { (name, folder) ->
-                        RecentFolderCell(name = name, selected = folder == selectedFolder) {
-                            currentFolder = folder
-                            selectedFolder = folder
-                            query = ""
-                        }
-                    }
-                }
-                Text(
-                    appText("选择文件夹", english),
-                    modifier = Modifier.padding(horizontal = 2.dp, vertical = 10.dp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 12.sp
-                )
             }
             if (searchingFolders && query.isNotBlank() && visibleFolders.isEmpty()) {
                 Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
@@ -371,47 +368,29 @@ fun DestinationScreen(
                     Text(appText("没有找到相关文件夹", english), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             } else {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
+                LazyColumn(
                     modifier = Modifier.fillMaxWidth().weight(1f),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(18.dp)
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    contentPadding = PaddingValues(bottom = 16.dp)
                 ) {
-                    itemsIndexed(visibleFolders, key = { _, entry -> "folder:${entry.second}" }) { index, (name, folder) ->
-                        DestinationFolderCell(
+                    items(visibleFolders, key = { entry -> "folder:${entry.second}" }) { (name, folder) ->
+                        DestinationFolderRow(
                             name = name,
+                            path = folder,
                             selected = folder == selectedFolder,
-                            index = index,
-                            cover = coverFor(folder)
-                        , onToggle = { selectedFolder = if (selectedFolder == folder) null else folder },
-                        onOpen = {
-                            currentFolder = folder
-                            selectedFolder = folder
-                            query = ""
-                        }
-                        )
-                    }
-                    if (currentFolder != null && query.isBlank()) {
-                        items(currentFolderItems, key = { "item:${it.uri}" }) { item ->
-                            if (item.isDocument) {
-                                DocumentPreviewThumbnail(
-                                    item,
-                                    modifier = Modifier.fillMaxWidth().aspectRatio(1f)
-                                )
-                            } else {
-                                MediaThumbnail(
-                                    item = item,
-                                    modifier = Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(7.dp)),
-                                    requestedSize = 220
-                                )
+                            cover = coverFor(folder),
+                            onToggle = { selectedFolder = if (selectedFolder == folder) null else folder },
+                            onOpen = {
+                                currentFolder = folder
+                                selectedFolder = folder
+                                query = ""
                             }
-                        }
+                        )
                     }
                 }
             }
         }
     }
-
     if (showCreateFolderDialog) {
         AlertDialog(
             onDismissRequest = { showCreateFolderDialog = false },
@@ -439,18 +418,19 @@ fun DestinationScreen(
                 TextButton(
                     enabled = createFolderName.trim().isNotBlank(),
                     onClick = {
-                        val parent = currentFolder
+                        val parent = currentFolder.orEmpty()
                         val name = createFolderName.trim()
-                        if (parent != null) {
-                            scope.launch {
-                                val created = onCreateFolder(parent, name)
-                                if (created) {
-                                    createdFolders = createdFolders + "$parent/$name"
-                                    showCreateFolderDialog = false
-                                    query = ""
-                                } else {
-                                    createFolderError = true
-                                }
+                        scope.launch {
+                            val created = onCreateFolder(parent, name)
+                            if (created) {
+                                val path = if (parent.isBlank()) name else "/"
+                                createdFolders = createdFolders + path
+                                selectedFolder = path
+                                currentFolder = parent.ifBlank { null }
+                                showCreateFolderDialog = false
+                                query = ""
+                            } else {
+                                createFolderError = true
                             }
                         }
                     }
@@ -460,6 +440,60 @@ fun DestinationScreen(
                 TextButton(onClick = { showCreateFolderDialog = false }) { Text(appText("取消", english)) }
             }
         )
+    }
+}
+
+@Composable
+private fun DestinationFolderRow(
+    name: String,
+    path: String,
+    selected: Boolean,
+    cover: MediaItem?,
+    onToggle: () -> Unit,
+    onOpen: () -> Unit
+) {
+    val darkTheme = MaterialTheme.colorScheme.surfaceVariant.luminance() < .45f
+    val tone = emptyFolderTone(name, darkTheme)
+    Row(
+        modifier = Modifier.fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .clickable(onClick = onToggle)
+            .padding(horizontal = 6.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Box(
+            Modifier.size(56.dp).clip(RoundedCornerShape(8.dp)).background(tone.background),
+            contentAlignment = Alignment.Center
+        ) {
+            if (cover != null) {
+                MediaThumbnail(
+                    item = cover,
+                    modifier = Modifier.fillMaxSize(),
+                    requestedSize = 180,
+                    contentScale = ContentScale.Crop,
+                    showVideoDuration = false
+                )
+            } else {
+                Icon(Icons.Outlined.Folder, contentDescription = null, tint = tone.icon, modifier = Modifier.size(28.dp))
+            }
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(
+                path,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        if (selected) {
+            Icon(Icons.Outlined.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
+        }
+        IconButton(onClick = onOpen, modifier = Modifier.size(48.dp)) {
+            Icon(Icons.Outlined.ChevronRight, contentDescription = appText("打开文件夹", LocalAppEnglish.current))
+        }
     }
 }
 
