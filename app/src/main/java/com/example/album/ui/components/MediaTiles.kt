@@ -65,6 +65,10 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.viewinterop.AndroidView
 import com.example.album.data.MediaAlbum
 import com.example.album.data.MediaItem
@@ -109,6 +113,10 @@ fun AlbumTile(
                 onClick = onClick,
                 onLongClick = onLongClick
             )
+            .semantics {
+                role = Role.Button
+                contentDescription = if (english) "${album.name}, ${album.items.size} items" else "${album.name}，${album.items.size} 项"
+            }
     ) {
         Box(
             Modifier.fillMaxWidth().aspectRatio(1f)
@@ -188,6 +196,10 @@ fun PressableMediaThumbnail(
                 onClick = onClick,
                 onLongClick = onLongClick
             )
+            .semantics {
+                role = Role.Button
+                contentDescription = item.name
+            }
             .let { if (sharedElementEnabled) it.mediaSharedElement(item) else it }
     ) {
         MediaThumbnail(item, Modifier.fillMaxSize())
