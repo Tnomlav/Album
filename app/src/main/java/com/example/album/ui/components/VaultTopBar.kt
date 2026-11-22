@@ -3,6 +3,7 @@ package com.example.album.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -151,6 +152,11 @@ fun VaultTopBar(
     onBack: (() -> Unit)? = null,
     onSearchClick: (() -> Unit)? = null,
     onSearchFocus: (() -> Unit)? = null,
+    onSearchDismiss: (() -> Unit)? = null,
+    selectionMode: Boolean = false,
+    selectedCount: Int = 0,
+    selectionTotal: Int = 0,
+    onSelectAll: () -> Unit = {},
     searchPlaceholder: String? = null,
     searchModeLabels: List<String> = emptyList(),
     selectedSearchMode: Int = 0,
@@ -185,6 +191,10 @@ fun VaultTopBar(
     val english = LocalAppEnglish.current
     var menuExpanded by remember { mutableStateOf(false) }
     var focusSearchOnExpand by remember { mutableStateOf(false) }
+    var searchExpanded by remember { mutableStateOf(false) }
+    LaunchedEffect(query) { if (query.isNotBlank()) searchExpanded = true }
+    LaunchedEffect(searchEnabled) { if (!searchEnabled) searchExpanded = false }
+    val searching = searchEnabled && searchExpanded
     val searchFocusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
     val destructiveAction = actionDestructive ?: (actionLabel == appText("清除", english))
@@ -199,6 +209,7 @@ fun VaultTopBar(
     }
 
     Surface(modifier = Modifier.alpha(chromeAlpha), color = MaterialTheme.colorScheme.surface) {
+        Column {
         Row(
             modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)
                 .windowInsetsPadding(WindowInsets.statusBars)
@@ -217,7 +228,21 @@ fun VaultTopBar(
                 }
             )
         ) {
-            if (onBack != null) {
+            if (searching) {
+                IconButton(
+                    onClick = {
+                        searchExpanded = false
+                        onQueryChange("")
+                        onSearchDismiss?.invoke()
+                    },
+                    modifier = Modifier.height(48.dp)
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Outlined.ArrowBack,
+                        contentDescription = backLabel ?: appText("返回", english)
+                    )
+                }
+            } else if (onBack != null) {
                 IconButton(onClick = onBack, modifier = Modifier.height(48.dp)) {
                     Icon(
                         Icons.AutoMirrored.Outlined.ArrowBack,
@@ -322,7 +347,7 @@ fun VaultTopBar(
                     }
                 }
             }
-            if (searchEnabled) {
+            if (searching) {
                 Row(
                     modifier = Modifier.weight(1f).height(48.dp)
                         .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(16.dp))
@@ -387,16 +412,8 @@ fun VaultTopBar(
                 }
             } else {
                 // Keep the actions anchored to the right when a search is
-                // suspended after back navigation.
+                // collapsed.
                 if (onBack == null) Spacer(Modifier.weight(1f))
-                if (onSearchClick != null) {
-                    IconButton(onClick = {
-                        focusSearchOnExpand = true
-                        onSearchClick()
-                    }, modifier = Modifier.height(48.dp)) {
-                        Icon(Icons.Outlined.Search, contentDescription = appText("搜索", english))
-                    }
-                }
             }
             // The page action and the overflow menu form one trailing group
             // with a fixed gap and a fixed button size, so the action lands on
@@ -408,6 +425,18 @@ fun VaultTopBar(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
+                if (searchEnabled && !searching && onSearchClick != null) {
+                    IconButton(
+                        onClick = {
+                            focusSearchOnExpand = true
+                            searchExpanded = true
+                            onSearchClick()
+                        },
+                        modifier = Modifier.height(48.dp).width(48.dp)
+                    ) {
+                        Icon(Icons.Outlined.Search, contentDescription = appText("搜索", english))
+                    }
+                }
                 if (titleSwitch != null && titleSwitch.isNotEmpty() && titleSwitchAtEnd) {
                     Box(Modifier.padding(end = 6.dp)) {
                         TitleSwitchMark(titleSwitch, selectedSearchMode, onTitleSwitchChange, english)
@@ -450,6 +479,14 @@ fun VaultTopBar(
                 }
             }
             Spacer(Modifier.height(1.dp))
+        }
+        if (selectionMode) {
+            SelectionSubBar(
+                selected = selectedCount,
+                total = selectionTotal,
+                onSelectAll = onSelectAll
+            )
+        }
         }
     }
 }

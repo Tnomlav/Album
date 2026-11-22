@@ -22,11 +22,18 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.TextFields
+import androidx.compose.material.icons.automirrored.outlined.DriveFileMove
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -58,7 +65,6 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.zIndex
 import com.example.album.data.MediaItem
 import com.example.album.data.folderKey
-import com.example.album.ui.components.SelectionSubBar
 import com.example.album.ui.theme.VaultDimens
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -91,7 +97,12 @@ fun AppBottomBar(
     onReselectTab: (MainTab) -> Unit,
     onReorder: (List<MainTab>) -> Unit,
     onSelectedFoldersChange: (Set<String>) -> Unit,
-    onSelectedUrisChange: (Set<String>) -> Unit
+    onSelectedUrisChange: (Set<String>) -> Unit,
+    onDeleteSelected: () -> Unit = {},
+    onMoveSelected: () -> Unit = {},
+    onCopySelected: () -> Unit = {},
+    onRenameSelected: () -> Unit = {},
+    renameEnabled: Boolean = true
 ) {
     var bottomBarWidth by remember { mutableIntStateOf(0) }
     var draggedNavTab by remember { mutableStateOf<MainTab?>(null) }
@@ -103,26 +114,28 @@ fun AppBottomBar(
     val english = LocalAppEnglish.current
 
     Column(Modifier.fillMaxWidth()) {
-        if (selectionMode) SelectionSubBar(
-            selected = if (selectingFolders) selectedFolders.size else selectedItemsForAction.size,
-            total = if (selectingFolders) selectionMedia.map { it.folder }.distinct().size else selectionMedia.size,
-            onSelectAll = {
-                if (selectingFolders) {
-                    val all = selectionMedia.mapTo(mutableSetOf()) { it.folderKey() }
-                    onSelectedFoldersChange(
-                        if (all.isNotEmpty() && all.all { it in selectedFolders }) selectedFolders - all
-                        else selectedFolders + all
-                    )
-                } else {
-                    val visibleKeys = selectionMedia.mapTo(mutableSetOf()) { it.uri.toString() }
-                    onSelectedUrisChange(
-                        if (visibleKeys.isNotEmpty() && visibleKeys.all { it in selectedUris }) selectedUris - visibleKeys
-                        else selectedUris + visibleKeys
-                    )
+    if (selectionMode) {
+        Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 6.dp) {
+            Row(
+                Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceEvenly
+            ) {
+                IconButton(onClick = onDeleteSelected) {
+                    Icon(Icons.Outlined.Delete, contentDescription = if (english) "Delete" else "删除")
                 }
-            },
-            chromeAlpha = chromeAlpha
-        )
+                IconButton(onClick = onMoveSelected) {
+                    Icon(Icons.AutoMirrored.Outlined.DriveFileMove, contentDescription = if (english) "Move" else "移动")
+                }
+                IconButton(onClick = onCopySelected) {
+                    Icon(Icons.Outlined.ContentCopy, contentDescription = if (english) "Copy" else "复制")
+                }
+                IconButton(onClick = onRenameSelected, enabled = renameEnabled) {
+                    Icon(Icons.Outlined.TextFields, contentDescription = if (english) "Rename" else "重命名")
+                }
+            }
+        }
+    }
     AnimatedVisibility(
         visible = barVisible,
         enter = slideInVertically(tween(170, easing = CubicBezierEasing(.22f, .8f, .28f, 1f))) { it } + fadeIn(tween(120)),

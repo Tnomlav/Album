@@ -2997,77 +2997,6 @@ fun AlbumivApp(
                     }
                 },
                 chromeAlpha = pageChromeAlpha
-            ) else if (selectionMode || selectionGestureActive) SelectionTopBar(
-                selected = if (selectingFolders) selectedFolders.size else selectedItemsForAction.size,
-                selectingFolders = selectingFolders,
-                onClose = { clearSelection() },
-                query = query,
-                onQueryChange = { query = it },
-                favoriteSelected = selectedItemsForAction.isNotEmpty() && selectedItemsForAction.all { it.uri.toString() in favoriteUris },
-                onFavorite = {
-                    val selectedKeys = selectedItemsForAction.mapTo(mutableSetOf()) { it.uri.toString() }
-                    favoriteUris = if (selectedKeys.all { it in favoriteUris }) favoriteUris - selectedKeys else favoriteUris + selectedKeys
-                    preferences.edit { putStringSet("favorites", favoriteUris) }
-                },
-                onCopy = {
-                    if (selectedItemsForAction.isNotEmpty()) transferRequest = TransferRequest(selectedItemsForAction, TransferMode.Copy)
-                },
-                onMove = {
-                    if (selectedItemsForAction.isNotEmpty()) transferRequest = TransferRequest(selectedItemsForAction, TransferMode.Move)
-                },
-                onRename = {
-                    if (selectingFolders) {
-                        selectionRenameFolder = selectedFolders.singleOrNull()
-                        selectionRenameText = selectionRenameFolder.orEmpty()
-                    } else selectedItemsForAction.singleOrNull()?.let {
-                        selectionRenameItem = it
-                        selectionRenameText = it.name
-                    }
-                },
-                renameEnabled = !selectingFolders || selectedFolders.size == 1,
-                onShare = {
-                    shareMedia(context, selectedItemsForAction, english)
-                },
-                onDelete = {
-                    requestDeleteWithConfirmation(selectedItemsForAction)
-                },
-                onAddToSlideshowQueue = selectedItemsForAction.takeIf { items -> items.any { !it.isVideo } }?.let {{
-                    addToSlideshowQueue(selectedItemsForAction.filterNot { it.isVideo })
-                    selectionMode = false
-                    selectingFolders = false
-                }},
-                onOpenWith = selectedItemsForAction.singleOrNull()?.takeIf { !selectingFolders }?.let { selected -> {
-                    openMediaWith(context, selected, english)
-                }},
-                onInfo = selectedItemsForAction.singleOrNull()?.takeIf { !selectingFolders }?.let { selected -> { selectionInfoItem = selected }},
-                onEditTags = selectedItemsForAction.singleOrNull()?.takeIf { !selectingFolders && !it.isVideo }?.let { selected -> { openTagEditor(selected) }},
-                onEdit = selectedItemsForAction.singleOrNull()?.takeIf { !selectingFolders && !it.isVideo }?.let { selected -> {
-                    selectionMode = false
-                    beginEditing(selected)
-                }},
-                onWallpaper = selectedItemsForAction.singleOrNull()?.takeIf { !selectingFolders }?.let { selected -> {
-                    requestWallpaper(selected)
-                }},
-                onAddToWallpaperQueue = if (selectedItemsForAction.isNotEmpty()) {
-                    {
-                        addToWallpaperQueue(selectedItemsForAction)
-                        clearSelection()
-                    }
-                } else null,
-                onSearchSauceNao = singleSelectedImage?.let { selected -> {
-                    openImageSearch(selected, ImageSearchSource.SauceNao)
-                }},
-                onSearchAscii2d = singleSelectedImage?.let { selected -> {
-                    openImageSearch(selected, ImageSearchSource.Ascii2d)
-                }},
-                onExclude = if (selectingFolders && selectedFolders.isNotEmpty()) {{
-                    selectedFolders.forEach(library::excludeFolder)
-                    Toast.makeText(context, if (english) "Excluded ${selectedFolders.size} folders" else "已排除 ${selectedFolders.size} 个文件夹", Toast.LENGTH_SHORT).show()
-                    selectionMode = false
-                    selectingFolders = false
-                    selectedFolders = emptySet()
-                }} else null,
-                chromeAlpha = pageChromeAlpha
             ) else AnimatedContent(
                 targetState = selectedTab,
                 modifier = Modifier.fillMaxWidth(),
@@ -3094,9 +3023,22 @@ fun AlbumivApp(
                     if (appLanguage == "English") "Timeline" else "时间轴"
                 } else tabLabel(tab),
                 query = query,
-                searchEnabled = searchOpen || openedFolder == null,
+                searchEnabled = true,
                 onSearchClick = { resumeSearch() },
                 onSearchFocus = { resumeSearch() },
+                onSearchDismiss = { suspendSearch() },
+                selectionMode = selectionMode || selectionGestureActive,
+                selectedCount = if (selectingFolders) selectedFolders.size else selectedItemsForAction.size,
+                selectionTotal = if (selectingFolders) selectionMedia.map { it.folder }.distinct().size else selectionMedia.size,
+                onSelectAll = {
+                    if (selectingFolders) {
+                        val all = selectionMedia.mapTo(mutableSetOf()) { it.folderKey() }
+                        selectedFolders = if (all.isNotEmpty() && all.all { it in selectedFolders }) selectedFolders - all else selectedFolders + all
+                    } else {
+                        val visible = selectionMedia.mapTo(mutableSetOf()) { it.uri.toString() }
+                        selectedUris = if (visible.isNotEmpty() && visible.all { it in selectedUris }) selectedUris - visible else selectedUris + visible
+                    }
+                },
                 onQueryChange = {
                     suspendedSearchQuery = null
                     searchOpen = true
@@ -3118,10 +3060,10 @@ fun AlbumivApp(
                 onFavoriteClick = { favoriteFilter = !favoriteFilter },
                 menuItems = when (tab) {
                     MainTab.Albums -> if (appLanguage == "English") {
-                        if (openedFolder == null) listOf("Select", "Sort", "Columns", "Add local folder", "Rescan")
+                        if (openedFolder == null) listOf("Select", "Sort", "Layout", "Columns", "Add local folder", "Rescan")
                         else listOf("Select", "Sort", "Layout", "Columns", "New folder", "Rescan")
                     } else {
-                        if (openedFolder == null) listOf("进入多选", "排序方式", "列数", "添加本地文件夹", "重新扫描")
+                        if (openedFolder == null) listOf("进入多选", "排序方式", "排布方式", "列数", "添加本地文件夹", "重新扫描")
                         else listOf("进入多选", "排序方式", "排布方式", "列数", "新建文件夹", "重新扫描")
                     }
                     MainTab.Timeline -> if (appLanguage == "English") {
@@ -3138,6 +3080,11 @@ fun AlbumivApp(
                     } else listOf("进入多选", "排序方式", "排布方式", "列数", "新建文件夹", "注意事项", "重新扫描")
                     MainTab.Tools -> emptyList()
                     MainTab.Settings -> emptyList()
+                }.filterNot { item ->
+                    item == appText("列数", english) && when (tab) {
+                        MainTab.Timeline -> activeViewPrefs.timelineLayout == MediaLayout.List
+                        else -> activeViewPrefs.folderLayout == MediaLayout.List
+                    }
                 },
                 onMenuItemClick = { action ->
                     when (MainMenuAction.fromLabel(action)) {
@@ -3334,7 +3281,26 @@ fun AlbumivApp(
                     albumSettings.edit { putString("nav_order", order.joinToString(",") { it.name }) }
                 },
                 onSelectedFoldersChange = { selectedFolders = it },
-                onSelectedUrisChange = { selectedUris = it }
+                onSelectedUrisChange = { selectedUris = it },
+                onDeleteSelected = {
+                    if (selectedItemsForAction.isNotEmpty()) requestDeleteWithConfirmation(selectedItemsForAction)
+                },
+                onMoveSelected = {
+                    if (selectedItemsForAction.isNotEmpty()) transferRequest = TransferRequest(selectedItemsForAction, TransferMode.Move)
+                },
+                onCopySelected = {
+                    if (selectedItemsForAction.isNotEmpty()) transferRequest = TransferRequest(selectedItemsForAction, TransferMode.Copy)
+                },
+                onRenameSelected = {
+                    if (selectingFolders) {
+                        selectionRenameFolder = selectedFolders.singleOrNull()
+                        selectionRenameText = selectionRenameFolder.orEmpty()
+                    } else selectedItemsForAction.singleOrNull()?.let {
+                        selectionRenameItem = it
+                        selectionRenameText = it.name
+                    }
+                },
+                renameEnabled = !selectingFolders || selectedFolders.size == 1
             )
         },
         ) { padding ->
