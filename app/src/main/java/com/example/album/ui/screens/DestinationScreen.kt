@@ -296,10 +296,6 @@ fun DestinationScreen(
                             Icon(Icons.Outlined.MoreVert, contentDescription = appText("更多操作", english))
                         }
                         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                            DropdownMenuItem(
-                                text = { Text(appText("新建文件夹", english)) },
-                                onClick = ::beginCreateFolder
-                            )
                             if (currentFolder != null) {
                                 DropdownMenuItem(
                                     text = { Text(appText("回到根目录", english)) },
