@@ -67,6 +67,9 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.clickable
 import com.example.album.ui.theme.VaultDimens
@@ -221,7 +224,17 @@ fun VaultTopBar(
         }
     }
 
-    Surface(modifier = Modifier.alpha(chromeAlpha), color = MaterialTheme.colorScheme.surface, shadowElevation = 2.dp) {
+    Surface(
+        modifier = Modifier.alpha(chromeAlpha).drawBehind {
+            val stroke = 1.dp.toPx()
+            drawRect(
+                color = Color.Black.copy(alpha = .06f),
+                topLeft = Offset(0f, size.height - stroke),
+                size = Size(size.width, stroke)
+            )
+        },
+        color = MaterialTheme.colorScheme.surface
+    ) {
         Column {
         Row(
             modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)
@@ -425,8 +438,8 @@ fun VaultTopBar(
                 }
             } else {
                 // Keep the actions anchored to the right when a search is
-                // collapsed.
-                if (onBack == null) Spacer(Modifier.weight(1f))
+                // collapsed, whether or not a back arrow occupies the left.
+                Spacer(Modifier.weight(1f))
             }
             // The page action and the overflow menu form one trailing group
             // with a fixed gap and a fixed button size, so the action lands on

@@ -1113,7 +1113,7 @@ private fun SettingsPageHeader(
     onSearchChange: (String) -> Unit
 ) {
     Row(
-        Modifier.fillMaxWidth().padding(start = 4.dp, top = 8.dp, bottom = 6.dp),
+        Modifier.fillMaxWidth().height(VaultDimens.HeaderContentHeight).padding(horizontal = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(

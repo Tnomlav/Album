@@ -109,6 +109,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
@@ -416,7 +419,16 @@ private fun ToolsScreen(
     Column(Modifier.fillMaxSize()) {
         Row(
             Modifier.fillMaxWidth().statusBarsPadding()
-                .height(VaultDimens.HeaderContentHeight).padding(horizontal = 18.dp),
+                .height(VaultDimens.HeaderContentHeight)
+                .drawBehind {
+                    val stroke = 1.dp.toPx()
+                    drawRect(
+                        color = Color.Black.copy(alpha = .06f),
+                        topLeft = Offset(0f, size.height - stroke),
+                        size = Size(size.width, stroke)
+                    )
+                }
+                .padding(horizontal = 18.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(

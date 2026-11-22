@@ -52,6 +52,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
@@ -230,19 +235,25 @@ fun SelectionSubBar(
     chromeAlpha: Float = 1f
 ) {
     Surface(
-        modifier = Modifier.fillMaxWidth().alpha(chromeAlpha),
-        color = MaterialTheme.colorScheme.primary.copy(alpha = .08f),
-        shadowElevation = 0.dp
+        modifier = Modifier.fillMaxWidth().alpha(chromeAlpha).drawBehind {
+            val stroke = 1.dp.toPx()
+            drawRect(
+                color = Color.Black.copy(alpha = .06f),
+                topLeft = Offset(0f, size.height - stroke),
+                size = Size(size.width, stroke)
+            )
+        },
+        color = MaterialTheme.colorScheme.surface
     ) {
         Box(
-            modifier = Modifier.fillMaxWidth().height(40.dp)
+            modifier = Modifier.fillMaxWidth().height(48.dp)
         ) {
             Layout(
-                modifier = Modifier.fillMaxWidth().height(40.dp).align(Alignment.Center),
+                modifier = Modifier.fillMaxWidth().height(48.dp).align(Alignment.Center),
                 content = {
-                    Text(selected.toString(), style = MaterialTheme.typography.labelSmall.copy(lineHeight = 20.sp))
+                    Text(selected.toString(), style = MaterialTheme.typography.titleMedium.copy(fontSize = 17.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, lineHeight = 22.sp))
                     Text("/", style = MaterialTheme.typography.labelSmall.copy(lineHeight = 20.sp))
-                    Text(total.toString(), style = MaterialTheme.typography.labelSmall.copy(lineHeight = 20.sp))
+                    Text(total.toString(), style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp, lineHeight = 20.sp))
                 }
             ) { measurables, constraints ->
                 val placeables = measurables.map { it.measure(constraints.copy(minWidth = 0, minHeight = 0)) }
@@ -263,10 +274,10 @@ fun SelectionSubBar(
             }
             IconButton(
                 onClick = onSelectAll,
-                modifier = Modifier.align(Alignment.CenterEnd).padding(end = 6.dp).size(48.dp)
+                modifier = Modifier.align(Alignment.CenterEnd).padding(end = 6.dp).size(40.dp)
             ) {
                 Box(
-                    Modifier.size(18.dp)
+                    Modifier.size(16.dp)
                         .background(
                             if (selected == total && total > 0) MaterialTheme.colorScheme.primary
                             else MaterialTheme.colorScheme.surface,

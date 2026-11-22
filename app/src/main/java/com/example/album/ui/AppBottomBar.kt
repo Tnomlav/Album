@@ -50,6 +50,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -115,9 +118,19 @@ fun AppBottomBar(
 
     Column(Modifier.fillMaxWidth()) {
     if (selectionMode) {
-        Surface(color = MaterialTheme.colorScheme.primary.copy(alpha = .08f), shadowElevation = 0.dp) {
+        Surface(
+            modifier = Modifier.drawBehind {
+                val stroke = 1.dp.toPx()
+                drawRect(
+                    color = Color.Black.copy(alpha = .06f),
+                    topLeft = Offset(0f, size.height - stroke),
+                    size = Size(size.width, stroke)
+                )
+            },
+            color = MaterialTheme.colorScheme.surface
+        ) {
             Row(
-                Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 8.dp),
+                Modifier.fillMaxWidth().height(48.dp).padding(horizontal = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceEvenly
             ) {
