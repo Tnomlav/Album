@@ -54,6 +54,7 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -121,11 +122,15 @@ fun AppBottomBar(
         Surface(
             modifier = Modifier.drawWithContent {
                 drawContent()
-                val stroke = 3.dp.toPx()
+                val shadow = 5.dp.toPx()
                 drawRect(
-                    color = Color.Black.copy(alpha = .22f),
-                    topLeft = Offset(0f, size.height - stroke),
-                    size = Size(size.width, stroke)
+                    brush = Brush.verticalGradient(
+                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = .22f)),
+                        startY = size.height - shadow,
+                        endY = size.height
+                    ),
+                    topLeft = Offset(0f, size.height - shadow),
+                    size = Size(size.width, shadow)
                 )
             },
             color = MaterialTheme.colorScheme.surface

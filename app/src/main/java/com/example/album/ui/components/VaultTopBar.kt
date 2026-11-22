@@ -228,15 +228,7 @@ fun VaultTopBar(
     }
 
     Surface(
-        modifier = Modifier.alpha(chromeAlpha).drawWithContent {
-            drawContent()
-            val stroke = 3.dp.toPx()
-            drawRect(
-                color = Color.Black.copy(alpha = .22f),
-                topLeft = Offset(0f, size.height - stroke),
-                size = Size(size.width, stroke)
-            )
-        },
+        modifier = Modifier.alpha(chromeAlpha),
         color = MaterialTheme.colorScheme.surface
     ) {
         Column {
@@ -285,7 +277,7 @@ fun VaultTopBar(
                     // pages fall back to the title text.
                     Box(Modifier.weight(1f)) {
                         if (titleSwitch != null && titleSwitch.isNotEmpty()) {
-                            TitleSwitchMark(titleSwitch, selectedSearchMode, onTitleSwitchChange, english)
+                            TitleSwitchMark(titleSwitch, selectedSearchMode, onTitleSwitchChange, english, wideSwitch)
                         } else {
                             Text(title, style = VaultText.TopBarTitle, maxLines = 1)
                         }
@@ -299,11 +291,11 @@ fun VaultTopBar(
                     // switch disappeared as soon as a tag query was typed and
                     // the mode could not be changed back.
                     Box(Modifier.padding(start = 4.dp)) {
-                        TitleSwitchMark(titleSwitch, selectedSearchMode, onTitleSwitchChange, english)
+                        TitleSwitchMark(titleSwitch, selectedSearchMode, onTitleSwitchChange, english, wideSwitch)
                     }
                 }
             } else if (titleSwitch != null && titleSwitch.isNotEmpty() && !titleSwitchAtEnd) {
-                TitleSwitchMark(titleSwitch, selectedSearchMode, onTitleSwitchChange, english)
+                TitleSwitchMark(titleSwitch, selectedSearchMode, onTitleSwitchChange, english, wideSwitch)
             } else {
                 Row(
                     modifier = Modifier.widthIn(min = 48.dp).then(
@@ -469,7 +461,7 @@ fun VaultTopBar(
                 }
                 if (titleSwitch != null && titleSwitch.isNotEmpty() && titleSwitchAtEnd) {
                     Box(Modifier.padding(end = 6.dp)) {
-                        TitleSwitchMark(titleSwitch, selectedSearchMode, onTitleSwitchChange, english)
+                        TitleSwitchMark(titleSwitch, selectedSearchMode, onTitleSwitchChange, english, wideSwitch)
                     }
                 }
                 actionContent()

@@ -109,7 +109,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.zIndex
@@ -3398,6 +3399,29 @@ fun AlbumivApp(
                 .padding(padding)
                 .fillMaxSize()
                 .clipToBounds()
+                .drawWithContent {
+                    drawContent()
+                    if (selectionMode || selectionGestureActive) {
+                        val shadow = 6.dp.toPx()
+                        drawRect(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(Color.Black.copy(alpha = .18f), Color.Transparent),
+                                startY = 0f,
+                                endY = shadow
+                            ),
+                            size = Size(size.width, shadow)
+                        )
+                        drawRect(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = .18f)),
+                                startY = size.height - shadow,
+                                endY = size.height
+                            ),
+                            topLeft = Offset(0f, size.height - shadow),
+                            size = Size(size.width, shadow)
+                        )
+                    }
+                }
                 .pointerInput(selectedTab, tabOrder, pixivTabEnabled, openedFolder, selectionMode, selectedMedia, editingMedia, selectionSlideshow) {
                     val swipeTabs = tabOrder.filter { it in enabledMainTabs(pixivTabEnabled) }
                     val swipeIndex = swipeTabs.indexOf(selectedTab)

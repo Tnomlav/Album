@@ -56,6 +56,7 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
@@ -237,11 +238,14 @@ fun SelectionSubBar(
     Surface(
         modifier = Modifier.fillMaxWidth().alpha(chromeAlpha).drawWithContent {
             drawContent()
-            val stroke = 3.dp.toPx()
+            val shadow = 5.dp.toPx()
             drawRect(
-                color = Color.Black.copy(alpha = .22f),
-                topLeft = Offset(0f, size.height - stroke),
-                size = Size(size.width, stroke)
+                brush = Brush.verticalGradient(
+                    colors = listOf(Color.Black.copy(alpha = .22f), Color.Transparent),
+                    startY = 0f,
+                    endY = shadow
+                ),
+                size = Size(size.width, shadow)
             )
         },
         color = MaterialTheme.colorScheme.surface
