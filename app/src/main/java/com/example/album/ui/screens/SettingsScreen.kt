@@ -119,6 +119,8 @@ fun SettingsScreen(
     onThemeColorChange: (String) -> Unit,
     onNavReorderChange: (Boolean) -> Unit,
     onToolsReorderChange: (Boolean) -> Unit = {},
+    viewSettingsGlobal: Boolean = false,
+    onViewSettingsGlobalChange: (Boolean) -> Unit = {},
     onPixivTabEnabledChange: (Boolean) -> Unit,
     onRetentionChange: (Int) -> Unit,
     onBackgroundOptimizationChange: (Boolean) -> Unit,
@@ -371,12 +373,11 @@ fun SettingsScreen(
                 )
             }
         } else {
-            item { SettingsPageHeader(isEnglish) }
             item {
-                SettingsSearchField(
-                    value = settingsSearch,
-                    onValueChange = { settingsSearch = it },
-                    english = isEnglish
+                SettingsPageHeader(
+                    english = isEnglish,
+                    searchValue = settingsSearch,
+                    onSearchChange = { settingsSearch = it }
                 )
             }
             val visibleCategories = if (settingsSearch.isBlank()) {
@@ -416,6 +417,16 @@ fun SettingsScreen(
                 ValueRow("语言", language) {
                     choose("语言", "language", listOf("简体中文", "English"), language, onLanguageChange)
                 }
+            }
+        }
+        item {
+            SettingsCard(if (isEnglish) "Layout" else "布局") {
+                ToggleRow(
+                    if (isEnglish) "Sync layout across pages" else "全局同步排序与排布",
+                    if (isEnglish) "On: every page uses one sort/layout/columns. Off: each page and folder keeps its own, and the independent settings are kept when you turn sync back off."
+                    else "开启后所有页面共用一套排序/排布/列数；关闭后每个页面和文件夹各自独立，切回全局再关掉也不会丢失之前的独立配置。",
+                    viewSettingsGlobal
+                ) { setBoolean("view_settings_global", it) { onViewSettingsGlobalChange(it) } }
             }
         }
         item {
@@ -1048,10 +1059,11 @@ private val settingsCategories = listOf(
 private fun SettingsSearchField(
     value: String,
     onValueChange: (String) -> Unit,
-    english: Boolean
+    english: Boolean,
+    modifier: Modifier = Modifier
 ) {
     Surface(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp),
+        modifier = modifier,
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .55f),
         shape = RoundedCornerShape(22.dp)
     ) {
@@ -1098,14 +1110,25 @@ private fun SettingsSearchField(
 }
 
 @Composable
-private fun SettingsPageHeader(english: Boolean) {
-    Column(
-        Modifier.fillMaxWidth().padding(start = 4.dp, top = 10.dp, bottom = 6.dp)
+private fun SettingsPageHeader(
+    english: Boolean,
+    searchValue: String,
+    onSearchChange: (String) -> Unit
+) {
+    Row(
+        Modifier.fillMaxWidth().padding(start = 4.dp, top = 8.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             settingsText("设置", english),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.SemiBold
+        )
+        SettingsSearchField(
+            value = searchValue,
+            onValueChange = onSearchChange,
+            english = english,
+            modifier = Modifier.weight(1f).padding(start = 10.dp)
         )
     }
 }

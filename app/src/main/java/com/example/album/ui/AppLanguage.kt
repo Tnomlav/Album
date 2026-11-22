@@ -37,7 +37,7 @@ fun appSeekDeltaText(seconds: Long, english: Boolean): String {
 
 private val APP_ENGLISH = mapOf(
     "请输入文本" to "Enter text",
-    "相册" to "Albums", "视频" to "Videos", "时间轴" to "Timeline", "设置" to "Settings",
+    "相册" to "Albums", "视频" to "Videos", "时间轴" to "Timeline", "设置" to "Settings", "工具箱" to "Tools",
     "返回" to "Back", "取消" to "Cancel", "确定" to "OK", "应用" to "Apply", "重新应用" to "Re-apply", "保存" to "Save", "保存副本" to "Save copy",
     "完成" to "Done", "关闭" to "Close", "知道了" to "Done", "添加" to "Add", "清除" to "Clear",
     "信息" to "Info", "编辑" to "Edit", "删除" to "Delete", "彻底删除" to "Delete permanently",

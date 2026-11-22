@@ -286,6 +286,43 @@ internal data class PageViewPrefs(
     val timelineLayout: MediaLayout = MediaLayout.Grid
 )
 
+internal fun loadPageViewPrefs(preferences: android.content.SharedPreferences): Map<String, PageViewPrefs> = runCatching {
+    val root = org.json.JSONObject(preferences.getString("page_view_prefs", "{}") ?: "{}")
+    buildMap {
+        root.keys().forEach { key ->
+            val value = root.optJSONObject(key) ?: return@forEach
+            put(
+                key,
+                PageViewPrefs(
+                    sort = MediaSort.valueOf(value.optString("sort", MediaSort.Time.name)),
+                    direction = SortDirection.valueOf(value.optString("direction", SortDirection.Descending.name)),
+                    albumColumns = value.optInt("albumColumns", 3),
+                    folderColumns = value.optInt("folderColumns", 4),
+                    timelineColumns = value.optInt("timelineColumns", 4),
+                    folderLayout = MediaLayout.valueOf(value.optString("folderLayout", MediaLayout.Grid.name)),
+                    timelineLayout = MediaLayout.valueOf(value.optString("timelineLayout", MediaLayout.Grid.name))
+                )
+            )
+        }
+    }
+}.getOrDefault(emptyMap())
+
+internal fun savePageViewPrefs(preferences: android.content.SharedPreferences, values: Map<String, PageViewPrefs>) {
+    val root = org.json.JSONObject()
+    values.forEach { (key, value) ->
+        root.put(key, org.json.JSONObject().apply {
+            put("sort", value.sort.name)
+            put("direction", value.direction.name)
+            put("albumColumns", value.albumColumns)
+            put("folderColumns", value.folderColumns)
+            put("timelineColumns", value.timelineColumns)
+            put("folderLayout", value.folderLayout.name)
+            put("timelineLayout", value.timelineLayout.name)
+        })
+    }
+    preferences.edit { putString("page_view_prefs", root.toString()) }
+}
+
 private val DEFAULT_TOOLBOX_ORDER = listOf(
     "cleanup",
     "pixiv",
@@ -363,14 +400,24 @@ private fun ToolsScreen(
         "saucenao" to onOpenSauceNao,
         "ascii2d" to onOpenAscii2d
     )
-    Column(
-        Modifier.fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            // This page has no top bar any more, so it owns the status bar inset.
-            .statusBarsPadding()
-            .padding(horizontal = 12.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
+    Column(Modifier.fillMaxSize()) {
+        Row(
+            Modifier.fillMaxWidth().statusBarsPadding()
+                .height(VaultDimens.HeaderContentHeight).padding(horizontal = 18.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                appText("工具箱", english),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+        Column(
+            Modifier.weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 12.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
         displayOrder.forEachIndexed { index, id ->
             val entry = entryById[id] ?: return@forEachIndexed
             // The drag state has to follow the entry, not the slot: without a
@@ -409,6 +456,7 @@ private fun ToolsScreen(
                     onClick = actions[id] ?: {}
                 )
             }
+        }
         }
     }
 }
@@ -637,6 +685,7 @@ fun AlbumivApp(
     // album page's folder/filter state) before the sub-page could react.
     var settingsSection by rememberSaveable { mutableStateOf<String?>(null) }
     var settingsReturnTab by remember { mutableStateOf<MainTab?>(null) }
+    var viewSettingsGlobal by remember { mutableStateOf(albumSettings.getBoolean("view_settings_global", false)) }
     var wallpaperShowVideos by rememberSaveable { mutableStateOf(false) }
     var wallpaperQuery by rememberSaveable { mutableStateOf("") }
     var wallpaperSelectionMode by rememberSaveable { mutableStateOf(false) }
@@ -660,7 +709,11 @@ fun AlbumivApp(
     // The key is deliberately stable across recomposition and process death is
     // not promised here (the old globals were rememberSaveable but not
     // persisted either).
-    val pageViewPrefs = remember { androidx.compose.runtime.mutableStateMapOf<String, PageViewPrefs>() }
+    val pageViewPrefs = remember {
+        androidx.compose.runtime.mutableStateMapOf<String, PageViewPrefs>().apply {
+            putAll(loadPageViewPrefs(albumSettings))
+        }
+    }
     fun defaultViewPrefs(): PageViewPrefs = PageViewPrefs(
         sort = initialSort,
         direction = SortDirection.Descending
@@ -872,7 +925,9 @@ fun AlbumivApp(
     var wallpaperReturnTab by remember { mutableStateOf<MainTab?>(null) }
     var wallpaperReturnFolder by remember { mutableStateOf<String?>(null) }
     var openedFolder by rememberSaveable { mutableStateOf<String?>(null) }
-    val activeViewKey = when (selectedTab) {
+    val activeViewKey = if (viewSettingsGlobal) {
+        "global"
+    } else when (selectedTab) {
         MainTab.Albums -> openedFolder?.let { "albums:${if (albumShowsVideos) "video" else "image"}:$it" } ?: "albums:root"
         MainTab.Timeline -> "timeline"
         MainTab.Pixiv -> openedFolder?.let { "pixiv:folder:$it" } ?: "pixiv:root"
@@ -881,6 +936,7 @@ fun AlbumivApp(
     val activeViewPrefs = pageViewPrefs[activeViewKey] ?: defaultViewPrefs()
     fun updateViewPrefs(transform: (PageViewPrefs) -> PageViewPrefs) {
         pageViewPrefs[activeViewKey] = transform(pageViewPrefs[activeViewKey] ?: defaultViewPrefs())
+        savePageViewPrefs(albumSettings, pageViewPrefs)
     }
 
     // Entering the search page puts the (much shorter) result list at the top,
@@ -3687,6 +3743,8 @@ fun AlbumivApp(
                     onThemeColorChange = onThemeColorChange,
                     onNavReorderChange = { navReorderEnabled = it },
                     onToolsReorderChange = { toolsReorderEnabled = it },
+                    viewSettingsGlobal = viewSettingsGlobal,
+                    onViewSettingsGlobalChange = { viewSettingsGlobal = it },
                     onPixivTabEnabledChange = { enabled ->
                         pixivTabEnabled = enabled
                         tabOrder = normalizedTabOrder(tabOrder, enabled)

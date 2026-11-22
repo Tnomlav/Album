@@ -44,12 +44,11 @@ private fun lightScheme(accent: Color, background: Color, surface: Color, onSurf
 @Composable
 fun AlbumivTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    accent: Color = VaultGreen,
+    accent: Color = VaultBlue,
     content: @Composable () -> Unit
 ) {
     val duration = 200
     val animatedAccent = animateColorAsState(accent, tween(duration), label = "theme-accent").value
-    val animatedLightAccent = animateColorAsState(lightAccentForText(accent), tween(duration), label = "theme-light-accent").value
     val background = animateColorAsState(if (darkTheme) VaultDarkBackground else VaultBackground, tween(duration), label = "theme-background").value
     val surface = animateColorAsState(if (darkTheme) VaultDarkSurface else VaultSurface, tween(duration), label = "theme-surface").value
     val onSurface = animateColorAsState(if (darkTheme) Color(0xFFF2F6F3) else VaultInk, tween(duration), label = "theme-on-surface").value
@@ -58,7 +57,7 @@ fun AlbumivTheme(
         colorScheme = if (darkTheme) {
             darkScheme(animatedAccent, background, surface, onSurface, onSurfaceVariant)
         } else {
-            lightScheme(animatedLightAccent, background, surface, onSurface, onSurfaceVariant)
+            lightScheme(animatedAccent, background, surface, onSurface, onSurfaceVariant)
         },
         typography = Typography
     ) {

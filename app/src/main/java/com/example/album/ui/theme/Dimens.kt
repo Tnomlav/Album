@@ -4,7 +4,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 object VaultDimens {
-    val HeaderContentHeight = 72.dp
+    val HeaderContentHeight = 60.dp
     val TouchTarget = 48.dp
     val HeaderHorizontalPadding = 18.dp
     val HeaderGap = 15.dp

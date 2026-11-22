@@ -12,8 +12,8 @@ class ThemeAccentTest {
     }
 
     @Test
-    fun unknownThemeColorFallsBackToGreen() {
-        assertEquals(ThemeAccent.Green, ThemeAccent.fromStored("#123456"))
-        assertEquals(ThemeAccent.Green, ThemeAccent.fromStored(null))
+    fun unknownThemeColorFallsBackToPixivBlue() {
+        assertEquals(ThemeAccent.Blue, ThemeAccent.fromStored("#123456"))
+        assertEquals(ThemeAccent.Blue, ThemeAccent.fromStored(null))
     }
 }
