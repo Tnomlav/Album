@@ -47,6 +47,9 @@ import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.Sort
+import androidx.compose.material.icons.outlined.ViewAgenda
+import androidx.compose.material.icons.outlined.ViewColumn
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.AlertDialog
@@ -98,6 +101,8 @@ import com.example.album.ui.LocalAppEnglish
 import com.example.album.ui.appText
 import com.example.album.ui.components.MediaThumbnail
 import com.example.album.ui.components.emptyFolderTone
+import com.example.album.ui.components.VaultSortWheelSheet
+import com.example.album.ui.components.VaultWheelChoiceSheet
 import com.example.album.ui.MediaLayout
 import com.example.album.data.openMediaInputStream
 import kotlinx.coroutines.Dispatchers
@@ -188,19 +193,22 @@ fun DestinationScreen(
     }
     var destinationLayout by rememberSaveable { mutableStateOf(MediaLayout.List) }
     var destinationColumns by rememberSaveable { mutableIntStateOf(3) }
-    var destinationSort by rememberSaveable { mutableIntStateOf(0) }
+    var destinationSort by rememberSaveable { mutableIntStateOf(2) }
+    var destinationSortDescending by rememberSaveable { mutableStateOf(true) }
     var showDestinationSort by remember { mutableStateOf(false) }
     var showDestinationLayout by remember { mutableStateOf(false) }
     var showDestinationColumns by remember { mutableStateOf(false) }
     val visibleFolders = remember(folderEntries, query) {
         folderEntries.filter { (name, _) -> searchTextMatches(query, name) }
     }
-    val orderedFolders = remember(visibleFolders, destinationSort) {
-        when (destinationSort) {
-            1 -> visibleFolders.sortedByDescending { (_, path) -> path.count { it == '/' } }
-            2 -> visibleFolders.sortedBy { (_, path) -> path.lowercase() }
+    val orderedFolders = remember(visibleFolders, destinationSort, destinationSortDescending, folderItems, folderCovers) {
+        val sorted = when (destinationSort) {
+            1 -> visibleFolders.sortedBy { (_, path) ->
+                folderItems[path]?.maxOfOrNull { it.dateTaken } ?: folderCovers[path]?.dateTaken ?: 0L
+            }
             else -> visibleFolders.sortedBy { (name, _) -> name.lowercase() }
         }
+        if (destinationSortDescending) sorted.reversed() else sorted
     }
     val indexedChildNames = remember(folderChildren) {
         folderChildren.values.flatten().toSet()
@@ -315,14 +323,17 @@ fun DestinationScreen(
                         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                             DropdownMenuItem(
                                 text = { Text(appText("排序方式", english)) },
+                                leadingIcon = { Icon(Icons.Outlined.Sort, null) },
                                 onClick = { showDestinationSort = true; menuOpen = false }
                             )
                             DropdownMenuItem(
                                 text = { Text(appText("排布方式", english)) },
+                                leadingIcon = { Icon(Icons.Outlined.ViewAgenda, null) },
                                 onClick = { showDestinationLayout = true; menuOpen = false }
                             )
                             DropdownMenuItem(
                                 text = { Text(appText("列数", english)) },
+                                leadingIcon = { Icon(Icons.Outlined.ViewColumn, null) },
                                 onClick = { showDestinationColumns = true; menuOpen = false }
                             )
                             if (currentFolder != null) {
@@ -441,62 +452,45 @@ fun DestinationScreen(
         }
     }
     if (showDestinationSort) {
-        AlertDialog(
-            onDismissRequest = { showDestinationSort = false },
-            title = { Text(appText("排序方式", english)) },
-            text = {
-                Column {
-                    listOf(0, 1, 2).forEach { option ->
-                        TextButton(onClick = { destinationSort = option; showDestinationSort = false }) {
-                            Text(
-                                when (option) {
-                                    1 -> if (english) "Folder depth" else "文件夹层级"
-                                    2 -> if (english) "Full path" else "完整路径"
-                                    else -> if (english) "Name" else "名称"
-                                }
-                            )
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showDestinationSort = false }) { Text(appText("取消", english)) }
+        val methods = listOf(appText("时间", english), appText("名称", english))
+        val directions = listOf(appText("降序", english), appText("升序", english))
+        VaultSortWheelSheet(
+            title = appText("排序方式", english),
+            methods = methods,
+            selectedMethod = methods[if (destinationSort == 2) 0 else 1],
+            selectedDirection = directions[if (destinationSortDescending) 0 else 1],
+            directions = directions,
+            onDismiss = { showDestinationSort = false },
+            onApply = { method, direction ->
+                destinationSort = if (method == methods[0]) 2 else 0
+                destinationSortDescending = direction == directions[0]
+                showDestinationSort = false
             }
         )
     }
     if (showDestinationLayout) {
-        AlertDialog(
-            onDismissRequest = { showDestinationLayout = false },
-            title = { Text(appText("排布方式", english)) },
-            text = {
-                Column {
-                    listOf(MediaLayout.List, MediaLayout.Grid).forEach { option ->
-                        TextButton(onClick = { destinationLayout = option; showDestinationLayout = false }) {
-                            Text(appText(option.label, english))
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showDestinationLayout = false }) { Text(appText("取消", english)) }
+        val options = listOf(appText(MediaLayout.List.label, english), appText(MediaLayout.Grid.label, english))
+        VaultWheelChoiceSheet(
+            title = appText("排布方式", english),
+            options = options,
+            selected = appText(destinationLayout.label, english),
+            onDismiss = { showDestinationLayout = false },
+            onApply = { label ->
+                destinationLayout = if (label == options[1]) MediaLayout.Grid else MediaLayout.List
+                showDestinationLayout = false
             }
         )
     }
     if (showDestinationColumns) {
-        AlertDialog(
-            onDismissRequest = { showDestinationColumns = false },
-            title = { Text(appText("列数", english)) },
-            text = {
-                Column {
-                    (2..5).forEach { option ->
-                        TextButton(onClick = { destinationColumns = option; showDestinationColumns = false }) {
-                            Text(if (english) "$option columns" else "$option 列")
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showDestinationColumns = false }) { Text(appText("取消", english)) }
+        val options = (2..5).map { if (english) " columns" else " 列" }
+        VaultWheelChoiceSheet(
+            title = appText("列数", english),
+            options = options,
+            selected = options[destinationColumns.coerceIn(2, 5) - 2],
+            onDismiss = { showDestinationColumns = false },
+            onApply = { label ->
+                destinationColumns = label.substringBefore(' ').toIntOrNull() ?: 3
+                showDestinationColumns = false
             }
         )
     }

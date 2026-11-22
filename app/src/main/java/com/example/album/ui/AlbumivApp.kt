@@ -1428,6 +1428,20 @@ fun AlbumivApp(
     } }
     val singleSelectedImage = selectedItemsForAction.singleOrNull()
         ?.takeIf { !selectingFolders && !it.isVideo }
+    var pendingAllSelectionAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+    fun selectionCoversEverything(): Boolean {
+        if (selectionMedia.isEmpty()) return false
+        return if (selectingFolders) {
+            val all = selectionMedia.mapTo(hashSetOf()) { it.folderKey() }
+            selectedFolders.containsAll(all)
+        } else {
+            val all = selectionMedia.mapTo(hashSetOf()) { it.uri.toString() }
+            selectedUris.containsAll(all)
+        }
+    }
+    fun runBulkSelectionAction(action: () -> Unit) {
+        if (selectionCoversEverything()) pendingAllSelectionAction = action else action()
+    }
     val observerRefreshJob = remember { arrayOfNulls<Job>(1) }
     var suppressObserverRefreshUntil by remember { mutableLongStateOf(0L) }
     val latestSuppressObserverRefreshUntil by rememberUpdatedState(suppressObserverRefreshUntil)
@@ -3054,7 +3068,9 @@ fun AlbumivApp(
                 // switch and no menu, so their top bar carried nothing: the
                 // Tools page drops it entirely.
                 if (tab != MainTab.Settings && tab != MainTab.Tools) VaultTopBar(
-                title = if (openedFolder != null) {
+                title = if (selectionMode || selectionGestureActive) {
+                    ""
+                } else if (openedFolder != null) {
                     com.example.album.data.albumDisplayName(openedFolder.orEmpty())
                 } else if (tab == MainTab.Timeline) {
                     if (appLanguage == "English") "Timeline" else "时间轴"
@@ -3339,13 +3355,19 @@ fun AlbumivApp(
                 onSelectedFoldersChange = { selectedFolders = it },
                 onSelectedUrisChange = { selectedUris = it },
                 onDeleteSelected = {
-                    if (selectedItemsForAction.isNotEmpty()) requestDeleteWithConfirmation(selectedItemsForAction)
+                    if (selectedItemsForAction.isNotEmpty()) runBulkSelectionAction {
+                        requestDeleteWithConfirmation(selectedItemsForAction)
+                    }
                 },
                 onMoveSelected = {
-                    if (selectedItemsForAction.isNotEmpty()) transferRequest = TransferRequest(selectedItemsForAction, TransferMode.Move)
+                    if (selectedItemsForAction.isNotEmpty()) runBulkSelectionAction {
+                        transferRequest = TransferRequest(selectedItemsForAction, TransferMode.Move)
+                    }
                 },
                 onCopySelected = {
-                    if (selectedItemsForAction.isNotEmpty()) transferRequest = TransferRequest(selectedItemsForAction, TransferMode.Copy)
+                    if (selectedItemsForAction.isNotEmpty()) runBulkSelectionAction {
+                        transferRequest = TransferRequest(selectedItemsForAction, TransferMode.Copy)
+                    }
                 },
                 onRenameSelected = {
                     if (selectingFolders) {
@@ -4509,6 +4531,18 @@ fun AlbumivApp(
                         Toast.LENGTH_SHORT
                     ).show()
                 }
+            }
+        )
+    }
+    pendingAllSelectionAction?.let { action ->
+        VaultConfirmationSheet(
+            title = if (english) "All files are selected" else "已选择全部文件",
+            body = if (english) "This action will affect every file currently listed. Continue?" else "此操作会影响当前列表中的全部文件，确定继续吗？",
+            confirmLabel = if (english) "Continue" else "继续",
+            onDismiss = { pendingAllSelectionAction = null },
+            onConfirm = {
+                pendingAllSelectionAction = null
+                action()
             }
         )
     }

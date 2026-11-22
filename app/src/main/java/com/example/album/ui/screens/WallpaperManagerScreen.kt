@@ -29,6 +29,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Folder
@@ -163,15 +164,46 @@ fun WallpaperManagerScreen(
         val adaptiveFolderColumns = (maxWidth / 96.dp).toInt().coerceIn(2, 6)
         val folderColumns = if (folderLayout == MediaLayout.Adaptive) adaptiveFolderColumns else columns.coerceIn(1, 6)
         if (showFolderTiles) {
-            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 7.dp, vertical = 8.dp)) {
-                WallpaperFolderSection(
-                    folders = folderQueue.keys.toList(),
-                    covers = folderQueue.mapValues { it.value.firstOrNull() },
-                    counts = folderQueue.mapValues { it.value.size },
-                    columns = folderColumns,
-                    english = english,
-                    onOpenFolder = onOpenFolder
-                )
+            if (folderLayout == MediaLayout.List) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 7.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    listItems(folderQueue.entries.toList(), key = { it.key }) { entry ->
+                        Row(
+                            Modifier.fillMaxWidth().clickable { onOpenFolder(entry.key) }.padding(vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Box(
+                                Modifier.size(56.dp).clip(RoundedCornerShape(7.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                entry.value.firstOrNull()?.let { cover ->
+                                    MediaThumbnail(cover, Modifier.fillMaxSize(), showVideoDuration = false)
+                                } ?: Icon(Icons.Outlined.Folder, null, tint = MaterialTheme.colorScheme.primary)
+                            }
+                            Column(Modifier.weight(1f)) {
+                                Text(entry.key, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                                Text(entry.value.size.toString(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Icon(Icons.Outlined.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+            } else {
+                Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 7.dp, vertical = 8.dp)) {
+                    WallpaperFolderSection(
+                        folders = folderQueue.keys.toList(),
+                        covers = folderQueue.mapValues { it.value.firstOrNull() },
+                        counts = folderQueue.mapValues { it.value.size },
+                        columns = folderColumns,
+                        english = english,
+                        onOpenFolder = onOpenFolder
+                    )
+                }
             }
             return@BoxWithConstraints
         }

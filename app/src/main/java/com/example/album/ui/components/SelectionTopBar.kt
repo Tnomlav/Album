@@ -246,10 +246,10 @@ fun SelectionSubBar(
         color = MaterialTheme.colorScheme.surface
     ) {
         Box(
-            modifier = Modifier.fillMaxWidth().height(48.dp)
+            modifier = Modifier.fillMaxWidth().height(44.dp)
         ) {
             Layout(
-                modifier = Modifier.fillMaxWidth().height(48.dp).align(Alignment.Center),
+                modifier = Modifier.fillMaxWidth().height(44.dp).align(Alignment.Center),
                 content = {
                     Text(selected.toString(), style = MaterialTheme.typography.titleMedium.copy(fontSize = 17.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, lineHeight = 22.sp))
                     Text("/", style = MaterialTheme.typography.labelSmall.copy(lineHeight = 20.sp))

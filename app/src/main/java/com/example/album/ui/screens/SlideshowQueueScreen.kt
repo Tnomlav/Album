@@ -24,6 +24,7 @@ import androidx.compose.foundation.lazy.staggeredgrid.items as staggeredItems
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -75,6 +76,37 @@ fun SlideshowQueueScreen(
         return
     }
     if (folderMode && openedFolder == null) {
+        if (layout == com.example.album.ui.MediaLayout.List) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = 7.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                listItems(folders.entries.toList(), key = { it.key }) { entry ->
+                    Row(
+                        Modifier.fillMaxWidth().clickable { onOpenFolder(entry.key) }.padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            Modifier.size(56.dp).clip(RoundedCornerShape(7.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            entry.value.firstOrNull()?.let { cover ->
+                                MediaThumbnail(cover, Modifier.fillMaxSize(), showVideoDuration = false)
+                            } ?: Icon(Icons.Outlined.Close, null, tint = MaterialTheme.colorScheme.primary)
+                        }
+                        Column(Modifier.weight(1f)) {
+                            Text(entry.key, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(entry.value.size.toString(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Icon(Icons.Outlined.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+            return
+        }
         LazyVerticalGrid(
             columns = GridCells.Fixed(columns.coerceIn(1, 6)),
             contentPadding = PaddingValues(horizontal = 7.dp, vertical = 8.dp),

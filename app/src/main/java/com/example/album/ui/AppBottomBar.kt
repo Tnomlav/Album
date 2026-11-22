@@ -130,7 +130,7 @@ fun AppBottomBar(
             color = MaterialTheme.colorScheme.surface
         ) {
             Row(
-                Modifier.fillMaxWidth().height(48.dp).padding(horizontal = 8.dp),
+                Modifier.fillMaxWidth().height(44.dp).padding(horizontal = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceEvenly
             ) {
