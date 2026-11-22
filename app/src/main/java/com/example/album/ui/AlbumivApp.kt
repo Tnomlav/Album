@@ -323,6 +323,19 @@ internal fun savePageViewPrefs(preferences: android.content.SharedPreferences, v
     preferences.edit { putString("page_view_prefs", root.toString()) }
 }
 
+private fun selectionMenuItems(isVideo: Boolean, single: Boolean, english: Boolean): List<String> = buildList {
+    add(appText("分享", english))
+    add(appText("加入壁纸队列", english))
+    if (!isVideo) add(appText("加入幻灯片队列", english))
+    if (single) add(appText("设置为壁纸", english))
+    if (!isVideo && single) {
+        add(appText("查看/编辑 Tags", english))
+        add(appText("在 SauceNAO 搜原图", english))
+        add(appText("在 ascii2d 搜原图", english))
+    }
+    if (single) add(appText("信息", english))
+}
+
 private val DEFAULT_TOOLBOX_ORDER = listOf(
     "cleanup",
     "pixiv",
@@ -3058,7 +3071,11 @@ fun AlbumivApp(
                 favoriteActive = favoriteFilter,
                 favoriteVisible = selectedTab != MainTab.Tools,
                 onFavoriteClick = { favoriteFilter = !favoriteFilter },
-                menuItems = when (tab) {
+                menuItems = if (selectionMode || selectionGestureActive) selectionMenuItems(
+                    isVideo = (tab == MainTab.Albums && albumShowsVideos) || (tab == MainTab.Timeline && timelineShowsVideos),
+                    single = selectedItemsForAction.size == 1,
+                    english = english
+                ) else when (tab) {
                     MainTab.Albums -> if (appLanguage == "English") {
                         if (openedFolder == null) listOf("Select", "Sort", "Layout", "Columns", "Add local folder", "Rescan")
                         else listOf("Select", "Sort", "Layout", "Columns", "New folder", "Rescan")
@@ -3087,7 +3104,16 @@ fun AlbumivApp(
                     }
                 },
                 onMenuItemClick = { action ->
-                    when (MainMenuAction.fromLabel(action)) {
+                    when (action) {
+                        appText("分享", english) -> shareMedia(context, selectedItemsForAction, english)
+                        appText("加入壁纸队列", english) -> addToWallpaperQueue(selectedItemsForAction)
+                        appText("加入幻灯片队列", english) -> addToSlideshowQueue(selectedItemsForAction.filterNot { it.isVideo })
+                        appText("设置为壁纸", english) -> selectedItemsForAction.singleOrNull()?.let(::requestWallpaper)
+                        appText("查看/编辑 Tags", english) -> selectedItemsForAction.singleOrNull()?.let { openTagEditor(it) }
+                        appText("在 SauceNAO 搜原图", english) -> selectedItemsForAction.singleOrNull()?.let { openImageSearch(it, ImageSearchSource.SauceNao) }
+                        appText("在 ascii2d 搜原图", english) -> selectedItemsForAction.singleOrNull()?.let { openImageSearch(it, ImageSearchSource.Ascii2d) }
+                        appText("信息", english) -> selectedItemsForAction.singleOrNull()?.let { selectionInfoItem = it }
+                        else -> when (MainMenuAction.fromLabel(action)) {
                         MainMenuAction.Scan -> scope.launch {
                             requestMediaScan(true)
                             if (selectedTab == MainTab.Pixiv) pixivRefreshKey++
@@ -3135,6 +3161,7 @@ fun AlbumivApp(
                             if (english) "This action is unavailable" else "该功能暂不可用",
                             Toast.LENGTH_SHORT
                         ).show()
+                        }
                     }
                 },
                 onBack = when {

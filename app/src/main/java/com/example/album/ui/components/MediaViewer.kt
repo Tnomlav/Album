@@ -75,6 +75,7 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.TextFields
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Label
 import androidx.compose.material.icons.outlined.MoreVert
@@ -785,6 +786,7 @@ fun MediaViewer(
                             onEdit = { onEdit(current) },
                             onDelete = { onDelete(current) },
                             onMove = { onMove(current) },
+                            onCopy = { onCopy(current) },
                             onRename = { renameText = current.name; showRename = true },
                         )
                     }
@@ -965,6 +967,7 @@ private fun ViewerBottomBar(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onMove: () -> Unit,
+    onCopy: () -> Unit,
     onRename: () -> Unit,
 ) {
     val english = LocalAppEnglish.current
@@ -984,7 +987,8 @@ private fun ViewerBottomBar(
             onDelete
         )
         ViewerAction(Icons.AutoMirrored.Outlined.DriveFileMove, appText("移动", english), onMove)
-        ViewerAction(Icons.Outlined.Edit, appText("重命名", english), onRename)
+        ViewerAction(Icons.Outlined.ContentCopy, appText("复制", english), onCopy)
+        ViewerAction(Icons.Outlined.TextFields, appText("重命名", english), onRename)
     }
 }
 

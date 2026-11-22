@@ -26,6 +26,7 @@ import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.TextFields
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Label
@@ -158,7 +159,7 @@ fun SelectionTopBar(
                 }
                 IconButton(onClick = onDelete, enabled = selected > 0, modifier = Modifier.size(48.dp)) { Icon(Icons.Outlined.Delete, appText("删除所选", english)) }
                 IconButton(onClick = onMove, enabled = selected > 0, modifier = Modifier.size(48.dp)) { Icon(Icons.AutoMirrored.Outlined.DriveFileMove, appText("移动", english)) }
-                IconButton(onClick = onRename, enabled = selected == 1 && renameEnabled, modifier = Modifier.size(48.dp)) { Icon(Icons.Outlined.Edit, appText("重命名", english)) }
+                IconButton(onClick = onRename, enabled = selected == 1 && renameEnabled, modifier = Modifier.size(48.dp)) { Icon(Icons.Outlined.TextFields, appText("重命名", english)) }
                 IconButton(onClick = onFavorite, enabled = selected > 0, modifier = Modifier.size(48.dp)) {
                     Icon(
                         if (favoriteSelected) Icons.Filled.Star else Icons.Outlined.StarBorder,
@@ -179,7 +180,7 @@ fun SelectionTopBar(
                     DropdownMenuItem(text = { Text(appText("复制", english)) }, leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) }, onClick = { run(onCopy) })
                     if (searchExpanded) {
                         DropdownMenuItem(text = { Text(appText("移动", english)) }, leadingIcon = { Icon(Icons.AutoMirrored.Outlined.DriveFileMove, null) }, enabled = selected > 0, onClick = { run(onMove) })
-                        DropdownMenuItem(text = { Text(appText("重命名", english)) }, leadingIcon = { Icon(Icons.Outlined.Edit, null) }, enabled = selected == 1 && renameEnabled, onClick = { run(onRename) })
+                        DropdownMenuItem(text = { Text(appText("重命名", english)) }, leadingIcon = { Icon(Icons.Outlined.TextFields, null) }, enabled = selected == 1 && renameEnabled, onClick = { run(onRename) })
                     }
                     onEdit?.let { action -> DropdownMenuItem(text = { Text(appText("编辑", english)) }, leadingIcon = { Icon(Icons.Outlined.Edit, null) }, onClick = { run(action) }) }
                     onEditTags?.let { action -> DropdownMenuItem(text = { Text(if (english) "View/Edit Tags" else "查看/编辑 Tags") }, leadingIcon = { Icon(Icons.Outlined.Label, null) }, onClick = { run(action) }) }
@@ -230,14 +231,14 @@ fun SelectionSubBar(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth().alpha(chromeAlpha),
-        color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 4.dp
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shadowElevation = 2.dp
     ) {
         Box(
-            modifier = Modifier.fillMaxWidth().height(48.dp)
+            modifier = Modifier.fillMaxWidth().height(40.dp)
         ) {
             Layout(
-                modifier = Modifier.fillMaxWidth().height(48.dp).align(Alignment.Center),
+                modifier = Modifier.fillMaxWidth().height(40.dp).align(Alignment.Center),
                 content = {
                     Text(selected.toString(), style = MaterialTheme.typography.labelSmall.copy(lineHeight = 20.sp))
                     Text("/", style = MaterialTheme.typography.labelSmall.copy(lineHeight = 20.sp))

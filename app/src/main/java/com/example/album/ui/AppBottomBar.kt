@@ -115,7 +115,7 @@ fun AppBottomBar(
 
     Column(Modifier.fillMaxWidth()) {
     if (selectionMode) {
-        Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 6.dp) {
+        Surface(color = MaterialTheme.colorScheme.surfaceVariant, shadowElevation = 6.dp) {
             Row(
                 Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
