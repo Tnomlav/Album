@@ -175,7 +175,7 @@ private val APP_ENGLISH = mapOf(
     "添加到壁纸队列" to "Add to wallpaper queue", "添加到幻灯片队列" to "Add to slideshow queue",
     "设为壁纸" to "Set as wallpaper", "查看 Tags" to "View tags",
     "在 SauceNAO 搜索原图" to "Find original on SauceNAO", "在 ascii2d 搜索原图" to "Find original on ascii2d",
-    "详细信息" to "Details",
+    "详细信息" to "Details", "浏览方式" to "Browsing mode",
     "列表" to "List",
     "搜索文件夹" to "Search folders", "回到根目录" to "Back to root",
     "新建文件夹" to "New folder", "文件夹创建失败" to "Unable to create folder", "没有找到相关文件夹" to "No matching folders", "文件重名时" to "If a file exists", "保留原文件的修改日期" to "Preserve original modified date",

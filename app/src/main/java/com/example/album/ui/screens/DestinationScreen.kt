@@ -83,6 +83,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.luminance
@@ -195,11 +196,17 @@ fun DestinationScreen(
     var destinationColumns by rememberSaveable { mutableIntStateOf(3) }
     var destinationSort by rememberSaveable { mutableIntStateOf(2) }
     var destinationSortDescending by rememberSaveable { mutableStateOf(true) }
+    var destinationStructure by rememberSaveable { mutableIntStateOf(1) }
+    var showDestinationStructure by remember { mutableStateOf(false) }
     var showDestinationSort by remember { mutableStateOf(false) }
     var showDestinationLayout by remember { mutableStateOf(false) }
     var showDestinationColumns by remember { mutableStateOf(false) }
-    val visibleFolders = remember(folderEntries, query) {
-        folderEntries.filter { (name, _) -> searchTextMatches(query, name) }
+    val flatFolders = remember(allFolders) {
+        allFolders.map { path -> path.substringAfterLast('/') to path }.distinctBy { it.second }
+    }
+    val visibleFolders = remember(folderEntries, flatFolders, query, destinationStructure) {
+        (if (destinationStructure == 0) flatFolders else folderEntries)
+            .filter { (name, _) -> searchTextMatches(query, name) }
     }
     val orderedFolders = remember(visibleFolders, destinationSort, destinationSortDescending, folderItems, folderCovers) {
         val sorted = when (destinationSort) {
@@ -331,10 +338,17 @@ fun DestinationScreen(
                                 leadingIcon = { Icon(Icons.Outlined.ViewAgenda, null) },
                                 onClick = { showDestinationLayout = true; menuOpen = false }
                             )
+                            if (destinationLayout != MediaLayout.List) {
+                                DropdownMenuItem(
+                                    text = { Text(appText("列数", english)) },
+                                    leadingIcon = { Icon(Icons.Outlined.ViewColumn, null) },
+                                    onClick = { showDestinationColumns = true; menuOpen = false }
+                                )
+                            }
                             DropdownMenuItem(
-                                text = { Text(appText("列数", english)) },
-                                leadingIcon = { Icon(Icons.Outlined.ViewColumn, null) },
-                                onClick = { showDestinationColumns = true; menuOpen = false }
+                                text = { Text(appText("浏览方式", english)) },
+                                leadingIcon = { Icon(Icons.Outlined.Folder, null) },
+                                onClick = { showDestinationStructure = true; menuOpen = false }
                             )
                             if (currentFolder != null) {
                                 DropdownMenuItem(
@@ -382,7 +396,7 @@ fun DestinationScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 12.sp
             )
-            currentFolder?.let { folder ->
+            if (destinationStructure != 0) currentFolder?.let { folder ->
                 Row(
                     modifier = Modifier.fillMaxWidth().clickable {
                         currentFolder = folder.substringBeforeLast('/', "").ifBlank { null }
@@ -418,9 +432,13 @@ fun DestinationScreen(
                                 cover = coverFor(folder),
                                 onToggle = { selectedFolder = if (selectedFolder == folder) null else folder },
                                 onOpen = {
-                                    currentFolder = folder
-                                    selectedFolder = folder
-                                    query = ""
+                                    if (destinationStructure == 0) {
+                                        selectedFolder = folder
+                                    } else {
+                                        currentFolder = folder
+                                        selectedFolder = folder
+                                        query = ""
+                                    }
                                 }
                             )
                         }
@@ -491,6 +509,24 @@ fun DestinationScreen(
             onApply = { label ->
                 destinationColumns = label.substringBefore(' ').toIntOrNull() ?: 3
                 showDestinationColumns = false
+            }
+        )
+    }
+    if (showDestinationStructure) {
+        val options = listOf(
+            if (english) "Browse folders step by step" else "逐级浏览手机目录",
+            if (english) "Flatten all folders" else "平铺全部文件夹"
+        )
+        VaultWheelChoiceSheet(
+            title = appText("浏览方式", english),
+            options = options,
+            selected = options[destinationStructure.coerceIn(0, 1)],
+            onDismiss = { showDestinationStructure = false },
+            onApply = { label ->
+                destinationStructure = if (label == options[1]) 0 else 1
+                currentFolder = null
+                selectedFolder = null
+                showDestinationStructure = false
             }
         )
     }
@@ -710,17 +746,12 @@ private fun DestinationFolderCell(
     onToggle: () -> Unit,
     onOpen: () -> Unit
 ) {
-    val palettes = listOf(
-        listOf(Color(0xFFD8E9EF), Color(0xFF6594B1), Color(0xFF334B59)),
-        listOf(Color(0xFFE9EDC8), Color(0xFF9EBE71), Color(0xFF4E735A)),
-        listOf(Color(0xFFF4DEC8), Color(0xFFD49162), Color(0xFF754938)),
-        listOf(Color(0xFFE7DDF0), Color(0xFF9E80B7), Color(0xFF504663)),
-        listOf(Color(0xFFDCEFED), Color(0xFF75AEB5), Color(0xFF466476))
-    )
+    val darkTheme = MaterialTheme.colorScheme.surfaceVariant.luminance() < .45f
+    val tone = emptyFolderTone(name, darkTheme)
     Column(modifier = Modifier.fillMaxWidth()) {
         Box(
             modifier = Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(8.dp))
-                .background(Brush.linearGradient(palettes[index % palettes.size]))
+                .background(tone.background)
                 .clickable(onClick = onOpen),
             contentAlignment = Alignment.Center
         ) {
@@ -733,7 +764,9 @@ private fun DestinationFolderCell(
                     showVideoDuration = false
                 )
             } else if (isNew) {
-                Text("+", fontSize = 28.sp, color = MaterialTheme.colorScheme.onSurface)
+                Text("+", fontSize = 28.sp, color = tone.icon)
+            } else {
+                Icon(Icons.Outlined.Folder, contentDescription = null, tint = tone.icon, modifier = Modifier.size(30.dp))
             }
             Box(
                 modifier = Modifier.align(Alignment.TopEnd).padding(5.dp).size(19.dp)

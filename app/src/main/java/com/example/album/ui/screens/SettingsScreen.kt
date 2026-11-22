@@ -129,7 +129,9 @@ fun SettingsScreen(
     onShowFavoriteBadgeChange: (Boolean) -> Unit,
     onShowHiddenMediaChange: (Boolean) -> Unit,
     onHideAdultTaggedChange: (Boolean) -> Unit = {},
-    onRenameExtensionChange: (Boolean) -> Unit
+    onRenameExtensionChange: (Boolean) -> Unit,
+    warnSelectAll: Boolean = true,
+    onWarnSelectAllChange: (Boolean) -> Unit = {}
 ) {
     val context = LocalContext.current
     val preferences = remember { context.getSharedPreferences("album_settings", Context.MODE_PRIVATE) }
@@ -360,7 +362,7 @@ fun SettingsScreen(
         contentPadding = androidx.compose.foundation.layout.PaddingValues(
             start = 12.dp,
             end = 12.dp,
-            top = 6.dp,
+            top = 0.dp,
             bottom = 28.dp
         ),
         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -521,6 +523,12 @@ fun SettingsScreen(
                     "普通删除是否二次确认",
                     deleteConfirmation
                 ) { setBoolean("delete_confirmation", it) { deleteConfirmation = it } }
+                SettingsRowDivider()
+                ToggleRow(
+                    "全选操作提醒",
+                    "全选后执行删除、移动或复制时先确认",
+                    warnSelectAll
+                ) { setBoolean("warn_select_all", it) { onWarnSelectAllChange(it) } }
             }
         }
         item {
@@ -1134,10 +1142,10 @@ private fun SettingsPageHeader(
 private fun SettingsSectionHeader(title: String, onBack: () -> Unit) {
     val english = LocalSettingsEnglish.current
     Row(
-        Modifier.fillMaxWidth().height(VaultDimens.HeaderContentHeight).padding(horizontal = 6.dp),
+        Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(onClick = onBack, modifier = Modifier.size(48.dp)) {
+        IconButton(onClick = onBack, modifier = Modifier.size(44.dp)) {
             Icon(
                 Icons.AutoMirrored.Outlined.ArrowBack,
                 contentDescription = settingsText("返回", english),

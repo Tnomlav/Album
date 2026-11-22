@@ -236,9 +236,9 @@ fun SelectionSubBar(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth().alpha(chromeAlpha).drawBehind {
-            val stroke = 2.dp.toPx()
+            val stroke = 3.dp.toPx()
             drawRect(
-                color = Color.Black.copy(alpha = .16f),
+                color = Color.Black.copy(alpha = .22f),
                 topLeft = Offset(0f, size.height - stroke),
                 size = Size(size.width, stroke)
             )
@@ -246,10 +246,10 @@ fun SelectionSubBar(
         color = MaterialTheme.colorScheme.surface
     ) {
         Box(
-            modifier = Modifier.fillMaxWidth().height(44.dp)
+            modifier = Modifier.fillMaxWidth().height(40.dp)
         ) {
             Layout(
-                modifier = Modifier.fillMaxWidth().height(44.dp).align(Alignment.Center),
+                modifier = Modifier.fillMaxWidth().height(40.dp).align(Alignment.Center),
                 content = {
                     Text(selected.toString(), style = MaterialTheme.typography.titleMedium.copy(fontSize = 17.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, lineHeight = 22.sp))
                     Text("/", style = MaterialTheme.typography.labelSmall.copy(lineHeight = 20.sp))

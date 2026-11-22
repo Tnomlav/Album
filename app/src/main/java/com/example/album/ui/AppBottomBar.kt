@@ -120,9 +120,9 @@ fun AppBottomBar(
     if (selectionMode) {
         Surface(
             modifier = Modifier.drawBehind {
-                val stroke = 2.dp.toPx()
+                val stroke = 3.dp.toPx()
                 drawRect(
-                    color = Color.Black.copy(alpha = .16f),
+                    color = Color.Black.copy(alpha = .22f),
                     topLeft = Offset(0f, size.height - stroke),
                     size = Size(size.width, stroke)
                 )
@@ -130,7 +130,7 @@ fun AppBottomBar(
             color = MaterialTheme.colorScheme.surface
         ) {
             Row(
-                Modifier.fillMaxWidth().height(44.dp).padding(horizontal = 8.dp),
+                Modifier.fillMaxWidth().height(40.dp).padding(horizontal = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceEvenly
             ) {

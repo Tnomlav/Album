@@ -703,6 +703,7 @@ fun AlbumivApp(
     var settingsSection by rememberSaveable { mutableStateOf<String?>(null) }
     var settingsReturnTab by remember { mutableStateOf<MainTab?>(null) }
     var viewSettingsGlobal by remember { mutableStateOf(albumSettings.getBoolean("view_settings_global", false)) }
+    var warnSelectAll by remember { mutableStateOf(albumSettings.getBoolean("warn_select_all", true)) }
     var wallpaperShowVideos by rememberSaveable { mutableStateOf(false) }
     var wallpaperQuery by rememberSaveable { mutableStateOf("") }
     var wallpaperSelectionMode by rememberSaveable { mutableStateOf(false) }
@@ -716,6 +717,7 @@ fun AlbumivApp(
     var wallpaperSort by rememberSaveable { mutableStateOf(WallpaperSort.Time) }
     var wallpaperSortDirection by rememberSaveable { mutableStateOf(SortDirection.Descending) }
     var pixivArchiveOpen by rememberSaveable { mutableStateOf(false) }
+    var pixivReturnTab by remember { mutableStateOf<MainTab?>(null) }
     var archiveReturnTab by remember { mutableStateOf<MainTab?>(null) }
     var archiveReturnFolder by remember { mutableStateOf<String?>(null) }
     var archiveReturnQuery by remember { mutableStateOf("") }
@@ -1440,7 +1442,7 @@ fun AlbumivApp(
         }
     }
     fun runBulkSelectionAction(action: () -> Unit) {
-        if (selectionCoversEverything()) pendingAllSelectionAction = action else action()
+        if (warnSelectAll && selectionCoversEverything()) pendingAllSelectionAction = action else action()
     }
     val observerRefreshJob = remember { arrayOfNulls<Job>(1) }
     var suppressObserverRefreshUntil by remember { mutableLongStateOf(0L) }
@@ -1791,6 +1793,8 @@ fun AlbumivApp(
             settingsReturnTab = null
         }
         selectedTab = tab
+        // A manual tab choice supersedes the Tools -> P back target.
+        pixivReturnTab = null
         // The user chose a different page: a pending "back to the archive" no
         // longer applies.
         pixivArchiveReturnPending = false
@@ -1953,6 +1957,12 @@ fun AlbumivApp(
             openedFolder != null -> navigateFolderBack()
             favoriteFilter -> favoriteFilter = false
             timelineJumpDate != null -> timelineJumpDate = null
+            selectedTab == MainTab.Pixiv && pixivReturnTab != null -> {
+                val previous = pixivReturnTab!!
+                pixivReturnTab = null
+                openedFolder = null
+                selectedTab = previous
+            }
             selectedTab != primaryTab -> returnToPrimaryTab()
             else -> handleRootBack()
         }
@@ -2897,7 +2907,7 @@ fun AlbumivApp(
                 contentWindowInsets = WindowInsets(0, 0, 0, 0),
                 topBar = {
             if (slideshowQueueOpen) VaultTopBar(
-                title = appText("幻灯片队列", english),
+                title = "",
                 query = "",
                 searchEnabled = false,
                 onQueryChange = {},
@@ -3774,7 +3784,8 @@ fun AlbumivApp(
                     },
                     onOpenPixiv = {
                         // Open the Pixiv page itself without adding a bottom-bar
-                        // tab for it.
+                        // tab for it, and remember that Back belongs to Tools.
+                        pixivReturnTab = MainTab.Tools
                         selectedTab = MainTab.Pixiv
                     }
                 )
@@ -3845,6 +3856,8 @@ fun AlbumivApp(
                         }
                     },
                     onRenameExtensionChange = { showRenameExtension = it },
+                    warnSelectAll = warnSelectAll,
+                    onWarnSelectAllChange = { warnSelectAll = it },
                     onLanguageChange = onAppLanguageChange
                 )
             }

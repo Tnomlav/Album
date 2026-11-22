@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
@@ -125,7 +126,8 @@ private fun TitleSwitchMark(
         modifier = Modifier
             .clip(RoundedCornerShape(10.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant)
-            .padding(2.dp),
+            .padding(2.dp)
+            .heightIn(min = 42.dp),
         horizontalArrangement = Arrangement.spacedBy(2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -139,7 +141,7 @@ private fun TitleSwitchMark(
                         else androidx.compose.ui.graphics.Color.Transparent
                     )
                     .clickable { onChange(itemIndex) }
-                    .padding(horizontal = 9.dp, vertical = 7.dp),
+                    .padding(horizontal = 12.dp, vertical = 9.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
