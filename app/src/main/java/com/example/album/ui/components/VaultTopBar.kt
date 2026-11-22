@@ -9,8 +9,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
@@ -125,6 +127,7 @@ private fun TitleSwitchMark(
     val index = selected.coerceIn(labels.indices)
     Row(
         modifier = Modifier
+            .then(if (wideSwitch) Modifier.width(100.dp) else Modifier)
             .clip(RoundedCornerShape(10.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .padding(2.dp),
@@ -141,8 +144,8 @@ private fun TitleSwitchMark(
                         else androidx.compose.ui.graphics.Color.Transparent
                     )
                     .clickable { onChange(itemIndex) }
-                    .widthIn(min = if (wideSwitch) 62.dp else 0.dp)
-                    .padding(horizontal = if (wideSwitch) 18.dp else 9.dp, vertical = 7.dp),
+                    .then(if (wideSwitch) Modifier.width(48.dp) else Modifier)
+                    .padding(horizontal = if (wideSwitch) 4.dp else 9.dp, vertical = 7.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -258,7 +261,7 @@ fun VaultTopBar(
                         onQueryChange("")
                         onSearchDismiss?.invoke()
                     },
-                    modifier = Modifier.height(48.dp)
+                    modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
                         Icons.AutoMirrored.Outlined.ArrowBack,
@@ -266,7 +269,7 @@ fun VaultTopBar(
                     )
                 }
             } else if (onBack != null) {
-                IconButton(onClick = onBack, modifier = Modifier.height(48.dp)) {
+                IconButton(onClick = onBack, modifier = Modifier.size(48.dp)) {
                     Icon(
                         Icons.AutoMirrored.Outlined.ArrowBack,
                         contentDescription = backLabel ?: appText("返回", english)
