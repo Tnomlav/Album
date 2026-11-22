@@ -47,7 +47,7 @@ import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.ChevronRight
-import androidx.compose.material.icons.outlined.Sort
+import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.outlined.ViewAgenda
 import androidx.compose.material.icons.outlined.ViewColumn
 import androidx.compose.material.icons.outlined.Search
@@ -330,7 +330,7 @@ fun DestinationScreen(
                         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                             DropdownMenuItem(
                                 text = { Text(appText("排序方式", english)) },
-                                leadingIcon = { Icon(Icons.Outlined.Sort, null) },
+                                leadingIcon = { Icon(Icons.AutoMirrored.Outlined.Sort, null) },
                                 onClick = { showDestinationSort = true; menuOpen = false }
                             )
                             DropdownMenuItem(

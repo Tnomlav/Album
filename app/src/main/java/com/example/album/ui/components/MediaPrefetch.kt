@@ -1,3 +1,5 @@
+@file:OptIn(kotlinx.coroutines.FlowPreview::class)
+
 package com.example.album.ui.components
 
 import androidx.compose.foundation.lazy.grid.LazyGridState

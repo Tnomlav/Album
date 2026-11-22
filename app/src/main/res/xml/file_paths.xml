@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
-    <cache-path name="wallpaper_cache" path="." />
+    <!-- Only the two directories that are actually shared through the
+         provider. Keeping the whole cacheDir exposed was unnecessary. -->
+    <cache-path name="external_media" path="external_media/" />
+    <cache-path name="image_search" path="image_search/" />
 </paths>

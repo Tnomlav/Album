@@ -25,11 +25,11 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Slideshow
-import androidx.compose.material.icons.outlined.Label
+import androidx.compose.material.icons.automirrored.outlined.Label
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material.icons.outlined.CheckCircle
-import androidx.compose.material.icons.outlined.Sort
+import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.outlined.ViewAgenda
 import androidx.compose.material.icons.outlined.ViewColumn
 import androidx.compose.material.icons.outlined.CalendarMonth
@@ -91,7 +91,7 @@ private fun menuGroup(item: String): Int = when (MainMenuAction.fromLabel(item))
 
 private fun menuIcon(item: String): ImageVector? = when (MainMenuAction.fromLabel(item)) {
     MainMenuAction.Select -> Icons.Outlined.CheckCircle
-    MainMenuAction.Sort -> Icons.Outlined.Sort
+    MainMenuAction.Sort -> Icons.AutoMirrored.Outlined.Sort
     MainMenuAction.Layout -> Icons.Outlined.ViewAgenda
     MainMenuAction.Columns -> Icons.Outlined.ViewColumn
     MainMenuAction.JumpToDate -> Icons.Outlined.CalendarMonth
@@ -106,7 +106,7 @@ private fun menuIcon(item: String): ImageVector? = when (MainMenuAction.fromLabe
         "添加到壁纸队列", "Add to wallpaper queue" -> Icons.Outlined.Wallpaper
         "添加到幻灯片队列", "Add to slideshow queue" -> Icons.Outlined.Slideshow
         "设为壁纸", "Set as wallpaper", "设置为壁纸" -> Icons.Outlined.Wallpaper
-        "查看 Tags", "View tags", "查看/编辑 Tags", "View/Edit Tags" -> Icons.Outlined.Label
+        "查看 Tags", "View tags", "查看/编辑 Tags", "View/Edit Tags" -> Icons.AutoMirrored.Outlined.Label
         "在 SauceNAO 搜索原图", "Find original on SauceNAO", "在 SauceNAO 搜原图" -> Icons.Outlined.Search
         "在 ascii2d 搜索原图", "Find original on ascii2d", "在 ascii2d 搜原图" -> Icons.Outlined.Search
         "详细信息", "Details", "信息", "Info" -> Icons.Outlined.Info

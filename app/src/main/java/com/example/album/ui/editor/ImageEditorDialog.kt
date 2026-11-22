@@ -149,6 +149,11 @@ private data class EditorHistorySnapshot(
 )
 
 @Composable
+// The editor tints the system bars directly so its white canvas is not
+// preceded by a themed bar. These window properties are deprecated on API 35
+// (edge-to-edge is enforced there) but still apply on the supported older
+// versions, so the suppression is intentional.
+@Suppress("DEPRECATION")
 fun ImageEditorDialog(
     item: MediaItem,
     enterFromViewer: Boolean = false,
@@ -548,7 +553,6 @@ fun ImageEditorDialog(
                     EditorPanel.Text -> if (textSubtab == 1) 180.dp else 264.dp
                     EditorPanel.Compose -> 188.dp
                     EditorPanel.Adjust -> 188.dp
-                    else -> 172.dp
                 }
                 Surface(color = Color.White, modifier = Modifier.fillMaxWidth().height(controlsHeight).zIndex(100f)) {
                     when (panel) {

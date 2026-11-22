@@ -240,6 +240,12 @@ class MediaRepository(private val context: Context) {
     }
 
     fun delete(item: MediaItem): Int {
+        val affected = deleteInternal(item)
+        FileOperationLog.record(FileOperationLog.Kind.Delete, affected > 0, "affected=$affected")
+        return affected
+    }
+
+    private fun deleteInternal(item: MediaItem): Int {
         if (item.isDocument) {
             // Some SAF providers reject DocumentFile.delete() even though
             // their resolver supports deleting the same document URI. Try
@@ -257,7 +263,13 @@ class MediaRepository(private val context: Context) {
         return context.contentResolver.delete(item.uri, null, null)
     }
 
-    fun rename(item: MediaItem, newName: String): MediaItem? = runCatching {
+    fun rename(item: MediaItem, newName: String): MediaItem? {
+        val renamed = renameInternal(item, newName)
+        FileOperationLog.record(FileOperationLog.Kind.Rename, renamed != null)
+        return renamed
+    }
+
+    private fun renameInternal(item: MediaItem, newName: String): MediaItem? = runCatching {
         if (!item.isVideo && needsImageConversion(item, newName)) {
             if (item.isDocument) return@runCatching convertDocumentImageIfNeeded(item, newName)
             return@runCatching convertImageIfNeeded(item, newName)
@@ -426,7 +438,17 @@ class MediaRepository(private val context: Context) {
         createFolderAtPath(relative, normalized, parent.isVideo)
     }
 
-    suspend fun createFolderAtPath(path: String, name: String, isVideo: Boolean): Boolean = withContext(Dispatchers.IO) {
+    suspend fun createFolderAtPath(path: String, name: String, isVideo: Boolean): Boolean {
+        val created = createFolderAtPathInternal(path, name, isVideo)
+        FileOperationLog.record(
+            FileOperationLog.Kind.CreateFolder,
+            created,
+            if (isVideo) "video" else "image"
+        )
+        return created
+    }
+
+    private suspend fun createFolderAtPathInternal(path: String, name: String, isVideo: Boolean): Boolean = withContext(Dispatchers.IO) {
         val normalizedPath = path.trim('/').replace("\\", "/")
         val normalizedName = name.trim().trim('/')
         if (normalizedPath.isBlank() || normalizedName.isBlank() || normalizedName.any { it in "\\/:*?\"<>|" }) {
@@ -579,6 +601,24 @@ class MediaRepository(private val context: Context) {
         preserveModifiedDate: Boolean,
         mode: TransferMode = TransferMode.Copy,
         onProgress: ((Long) -> Unit)? = null
+    ): TransferResult {
+        val result = transferInternal(item, destinationFolder, conflictPolicy, preserveModifiedDate, mode, onProgress)
+        val detail = when {
+            result.skipped -> "skipped, conflict=${conflictPolicy.name.lowercase()}"
+            result.failure != null -> "failure=${result.failure.name}, mode=${mode.name.lowercase()}, conflict=${conflictPolicy.name.lowercase()}"
+            else -> "mode=${mode.name.lowercase()}, conflict=${conflictPolicy.name.lowercase()}, direct=${result.movedDirectly}"
+        }
+        FileOperationLog.record(FileOperationLog.Kind.Transfer, result.success, detail)
+        return result
+    }
+
+    private suspend fun transferInternal(
+        item: MediaItem,
+        destinationFolder: String,
+        conflictPolicy: ConflictPolicy,
+        preserveModifiedDate: Boolean,
+        mode: TransferMode,
+        onProgress: ((Long) -> Unit)?
     ): TransferResult = withContext(Dispatchers.IO) {
         try {
         // Prefer a provider-side MediaStore move before consulting SAF. A

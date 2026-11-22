@@ -1,5 +1,15 @@
 # Albumiv Changelog
 
+## v1.4.7 - 2026-11-23（全章收口：登录清理、诊断与警告）
+
+- Pixiv 退出/更换账号时，由 `:pixiv_login` 进程清理自己的 Cookie、WebStorage 与缓存；此前只清了主进程。
+- FileProvider 从整个 `cacheDir` 收窄到实际共享的 `external_media/` 与 `image_search/`。
+- 诊断导出新增最近 20 条文件操作（只记类型/结果/原因，不记文件名与 URI）。
+- 编译警告 36 → 0：AutoMirrored 图标、FlowPreview opt-in、废弃 API 定点 suppress、两处死代码。
+- 修复空文件夹磁贴取封面可能崩溃的问题。
+- 新增 `scripts/perf-measure.sh`，一条命令采样冷启动、jank、内存与扫描日志。
+- 版本 1.4.7 / VERSION_CODE 363。
+
 ## v1.4.6 - 2026-11-23（壁纸切换外框加宽）
 
 - 壁纸静态/动态切换外框 100dp、两段滑块各 48dp，返回键固定 48dp；相册/时间轴不变。

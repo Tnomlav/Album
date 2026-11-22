@@ -101,6 +101,12 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+        <!-- Clears the login process's own WebView profile on logout/account
+             switch; the activity process is separate from the main process. -->
+        <service
+            android:name=".PixivSessionCleanupService"
+            android:exported="false"
+            android:process=":pixiv_login" />
         <activity
             android:name=".PixivWebActivity"
             android:exported="false"

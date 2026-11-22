@@ -321,6 +321,7 @@ object ThumbnailRepository {
     } catch (cancelled: CancellationException) {
         throw cancelled
     } catch (_: OutOfMemoryError) {
+        @Suppress("DEPRECATION") // Still the only "critical" level constant on minSdk 24.
         trimMemory(android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL)
         null
     } catch (_: Exception) {

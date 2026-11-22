@@ -12,6 +12,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.documentfile.provider.DocumentFile
 import androidx.exifinterface.media.ExifInterface
+import com.example.album.PixivLoginSessionCleaner
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
 import java.io.ByteArrayInputStream
@@ -199,6 +200,10 @@ class PixivArchiveRepository(private val context: Context) {
     fun clearAuthenticatedSession() {
         CookieManager.getInstance().removeAllCookies(null)
         CookieManager.getInstance().flush()
+        // The login WebView lives in :pixiv_login with its own data
+        // directory; clearing the main process's CookieManager does not
+        // remove that profile's cookies.
+        PixivLoginSessionCleaner.requestCleanup(context)
         context.getSharedPreferences("pixiv_archive", Context.MODE_PRIVATE)
             .edit()
             .putBoolean(VERIFIED_SESSION_KEY, false)

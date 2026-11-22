@@ -65,13 +65,13 @@ class PixivWebActivity : ComponentActivity() {
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && !webViewDataDirectoryConfigured) {
-            // Keep login rendering and cookies away from scan fallback WebViews.
-            // The versioned suffix also avoids reusing a previously corrupted profile.
-            WebView.setDataDirectorySuffix("pixiv_login_v2")
-            webViewDataDirectoryConfigured = true
-        }
+        PixivLoginSessionCleaner.ensureDataDirectorySuffix()
         super.onCreate(savedInstanceState)
+        if (intent.getBooleanExtra(EXTRA_CLEAR_SESSION, false)) {
+            // The account-switch flow asks for a clean profile before the login
+            // page loads, so an old session cannot flash in the WebView.
+            PixivLoginSessionCleaner.clearInCurrentProcess()
+        }
         rendererRecoveryAttempted = intent.getBooleanExtra(EXTRA_RENDERER_RECOVERED, false)
         webView = WebView(this).apply {
             isFocusable = true
@@ -191,6 +191,7 @@ class PixivWebActivity : ComponentActivity() {
                 }
             }
         }
+        @Suppress("DEPRECATION") // adjustResize still applies below API 30; edge-to-edge handles newer.
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
 
         val settingsPreferences = getSharedPreferences("album_settings", MODE_PRIVATE)
@@ -320,8 +321,8 @@ class PixivWebActivity : ComponentActivity() {
         const val EXTRA_PIXIV_COOKIES = "pixiv_cookies"
         const val EXTRA_ACCOUNT_COOKIES = "pixiv_account_cookies"
         private const val EXTRA_RENDERER_RECOVERED = "pixiv_renderer_recovered"
+        const val EXTRA_CLEAR_SESSION = "pixiv_clear_session"
         const val LOGIN_URL = "https://accounts.pixiv.net/login?lang=zh&source=pc&view_type=page"
-        @Volatile private var webViewDataDirectoryConfigured = false
 
         /**
          * Pixiv's login page leads with third-party providers. This script

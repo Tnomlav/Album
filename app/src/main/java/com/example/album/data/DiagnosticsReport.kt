@@ -44,6 +44,14 @@ object DiagnosticsReport {
         appendLine("  freeBytes=${context.filesDir.usableSpace}")
         appendLine()
         appendLine("settings keys: ${context.getSharedPreferences("album_settings", Context.MODE_PRIVATE).all.keys.sorted().joinToString(",")}")
+        appendLine()
+        appendLine("recent file operations (newest last, names and paths omitted):")
+        val operations = FileOperationLog.snapshot()
+        if (operations.isEmpty()) {
+            appendLine("  none this session")
+        } else {
+            operations.forEach { appendLine("  " + FileOperationLog.format(it)) }
+        }
     }
 
     private fun granted(context: Context, permission: String): Boolean =

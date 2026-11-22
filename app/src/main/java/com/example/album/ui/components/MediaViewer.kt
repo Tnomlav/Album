@@ -77,7 +77,7 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.TextFields
 import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.Label
+import androidx.compose.material.icons.automirrored.outlined.Label
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.Share
@@ -929,7 +929,7 @@ private fun ViewerTopBar(
                     DropdownMenuItem(text = { Text(appText("设置为壁纸", english), color = menuForeground, fontSize = 14.sp) }, leadingIcon = { Icon(Icons.Outlined.Wallpaper, null, tint = menuForeground) }, modifier = Modifier.height(52.dp), onClick = { onMenuExpanded(false); action() })
                 }
                 onEditTags?.let { action ->
-                    DropdownMenuItem(text = { Text(if (english) "View/Edit Tags" else "查看/编辑 Tags", color = menuForeground, fontSize = 14.sp) }, leadingIcon = { Icon(Icons.Outlined.Label, null, tint = menuForeground) }, modifier = Modifier.height(52.dp), onClick = { onMenuExpanded(false); action() })
+                    DropdownMenuItem(text = { Text(if (english) "View/Edit Tags" else "查看/编辑 Tags", color = menuForeground, fontSize = 14.sp) }, leadingIcon = { Icon(Icons.AutoMirrored.Outlined.Label, null, tint = menuForeground) }, modifier = Modifier.height(52.dp), onClick = { onMenuExpanded(false); action() })
                 }
                 if (!item.isVideo) {
                     onImageSearch?.let { action ->

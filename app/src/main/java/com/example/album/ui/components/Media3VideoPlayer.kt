@@ -967,6 +967,7 @@ internal fun Media3VideoPlayer(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             audioManager?.requestAudioFocus(audioFocusRequest!!)
         } else {
+            @Suppress("DEPRECATION") // API < 26 fallback; AudioFocusRequest is used above.
             audioManager?.requestAudioFocus(
                 audioFocusListener,
                 AudioManager.STREAM_MUSIC,
@@ -1036,6 +1037,7 @@ internal fun Media3VideoPlayer(
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 audioFocusRequest?.let { audioManager?.abandonAudioFocusRequest(it) }
             } else {
+                @Suppress("DEPRECATION") // API < 26 fallback; abandonAudioFocusRequest is used above.
                 audioManager?.abandonAudioFocus(audioFocusListener)
             }
             player.release()

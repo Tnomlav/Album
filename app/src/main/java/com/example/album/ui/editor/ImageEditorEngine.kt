@@ -237,6 +237,7 @@ suspend fun loadEditorBitmap(context: Context, item: MediaItem): Bitmap? = withC
         openMediaInputStream(context, item.uri)?.use { BitmapFactory.decodeStream(it, null, options) }
     }.getOrElse {
         if (it is OutOfMemoryError) {
+            @Suppress("DEPRECATION") // minSdk 24; no replacement constant exists.
             com.example.album.data.ThumbnailRepository.trimMemory(android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL)
         }
         null
@@ -261,6 +262,7 @@ suspend fun loadWallpaperBitmap(context: Context, item: MediaItem): Bitmap? = wi
         openMediaInputStream(context, item.uri)?.use { BitmapFactory.decodeStream(it, null, options) }
     }.getOrElse {
         if (it is OutOfMemoryError) {
+            @Suppress("DEPRECATION") // minSdk 24; no replacement constant exists.
             com.example.album.data.ThumbnailRepository.trimMemory(android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL)
         }
         null

@@ -21,8 +21,8 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.RotateLeft
-import androidx.compose.material.icons.outlined.RotateRight
+import androidx.compose.material.icons.automirrored.outlined.RotateLeft
+import androidx.compose.material.icons.automirrored.outlined.RotateRight
 import androidx.compose.material.icons.outlined.Restore
 import androidx.compose.material.icons.outlined.ViewWeek
 import androidx.compose.material3.CircularProgressIndicator
@@ -140,7 +140,7 @@ fun WallpaperCropScreen(
                 editState = editState.copy(rotation = (rotation + 270) % 360)
                 requestedFrame = null
             }) {
-                Icon(Icons.Outlined.RotateLeft, appText("左转", english), tint = Color.White)
+                Icon(Icons.AutoMirrored.Outlined.RotateLeft, appText("左转", english), tint = Color.White)
             }
             IconButton(onClick = {
                 multiScreen = !multiScreen
@@ -152,7 +152,7 @@ fun WallpaperCropScreen(
                 editState = editState.copy(rotation = (rotation + 90) % 360)
                 requestedFrame = null
             }) {
-                Icon(Icons.Outlined.RotateRight, appText("右转", english), tint = Color.White)
+                Icon(Icons.AutoMirrored.Outlined.RotateRight, appText("右转", english), tint = Color.White)
             }
             IconButton(onClick = {
                 val source = bitmap ?: return@IconButton

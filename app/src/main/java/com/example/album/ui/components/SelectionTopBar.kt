@@ -29,8 +29,8 @@ import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.TextFields
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.Label
-import androidx.compose.material.icons.outlined.OpenInNew
+import androidx.compose.material.icons.automirrored.outlined.Label
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.AddPhotoAlternate
 import androidx.compose.material.icons.outlined.Search
@@ -189,7 +189,7 @@ fun SelectionTopBar(
                         DropdownMenuItem(text = { Text(appText("重命名", english)) }, leadingIcon = { Icon(Icons.Outlined.TextFields, null) }, enabled = selected == 1 && renameEnabled, onClick = { run(onRename) })
                     }
                     onEdit?.let { action -> DropdownMenuItem(text = { Text(appText("编辑", english)) }, leadingIcon = { Icon(Icons.Outlined.Edit, null) }, onClick = { run(action) }) }
-                    onEditTags?.let { action -> DropdownMenuItem(text = { Text(if (english) "View/Edit Tags" else "查看/编辑 Tags") }, leadingIcon = { Icon(Icons.Outlined.Label, null) }, onClick = { run(action) }) }
+                    onEditTags?.let { action -> DropdownMenuItem(text = { Text(if (english) "View/Edit Tags" else "查看/编辑 Tags") }, leadingIcon = { Icon(Icons.AutoMirrored.Outlined.Label, null) }, onClick = { run(action) }) }
                     if (searchExpanded) {
                         DropdownMenuItem(
                             text = { Text(if (favoriteSelected) appText("取消收藏所选", english) else appText("收藏所选", english)) },
@@ -198,7 +198,7 @@ fun SelectionTopBar(
                             onClick = { run(onFavorite) }
                         )
                     }
-                    onOpenWith?.let { action -> DropdownMenuItem(text = { Text(appText("打开方式", english)) }, leadingIcon = { Icon(Icons.Outlined.OpenInNew, null) }, onClick = { run(action) }) }
+                    onOpenWith?.let { action -> DropdownMenuItem(text = { Text(appText("打开方式", english)) }, leadingIcon = { Icon(Icons.AutoMirrored.Outlined.OpenInNew, null) }, onClick = { run(action) }) }
                     onInfo?.let { action -> DropdownMenuItem(text = { Text(appText("信息", english)) }, leadingIcon = { Icon(Icons.Outlined.Info, null) }, onClick = { run(action) }) }
                     onSlideshow?.let { action -> DropdownMenuItem(text = { Text(appText("幻灯片", english)) }, leadingIcon = { Icon(Icons.Outlined.PhotoLibrary, null) }, onClick = { run(action) }) }
                     onAddToSlideshowQueue?.let { action -> DropdownMenuItem(text = { Text(appText("加入幻灯片队列", english)) }, leadingIcon = { Icon(Icons.Outlined.AddPhotoAlternate, null) }, onClick = { run(action) }) }

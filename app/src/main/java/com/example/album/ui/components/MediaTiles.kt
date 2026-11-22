@@ -489,7 +489,9 @@ fun AlbumListRow(
             Modifier.size(54.dp).clip(RoundedCornerShape(7.dp)),
             contentAlignment = Alignment.Center
         ) {
-            if (album.cover != null) {
+            // An empty folder has no media to derive a cover from, so check the
+            // items first instead of evaluating the non-null `cover` getter.
+            if (album.items.isNotEmpty()) {
                 MediaThumbnail(album.cover, Modifier.fillMaxSize(), showVideoDuration = false)
             } else {
                 Icon(Icons.Outlined.Folder, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))

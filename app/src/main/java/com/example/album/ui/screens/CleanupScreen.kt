@@ -55,7 +55,7 @@ import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.DeleteForever
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
-import androidx.compose.material.icons.outlined.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Restore
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -1836,9 +1836,11 @@ private fun ArchiveContent(
         }
     }
 
-    fun launchPixiv(url: String) {
+    fun launchPixiv(url: String, clearSession: Boolean = false) {
         pixivLauncher.launch(
-            Intent(context, PixivWebActivity::class.java).putExtra(PixivWebActivity.EXTRA_URL, url)
+            Intent(context, PixivWebActivity::class.java)
+                .putExtra(PixivWebActivity.EXTRA_URL, url)
+                .putExtra(PixivWebActivity.EXTRA_CLEAR_SESSION, clearSession)
         )
     }
 
@@ -2209,7 +2211,7 @@ private fun ArchiveContent(
                     modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
-                         if (resultGrid) Icons.Outlined.KeyboardArrowRight else Icons.Outlined.KeyboardArrowDown,
+                         if (resultGrid) Icons.AutoMirrored.Outlined.KeyboardArrowRight else Icons.Outlined.KeyboardArrowDown,
                         if (resultGrid) appText("列表显示", english) else appText("网格显示", english),
                         modifier = Modifier.size(19.dp)
                     )
@@ -2436,7 +2438,7 @@ private fun ArchiveContent(
                     appText("更换 Pixiv 账号", english) -> {
                         repository.clearAuthenticatedSession()
                         pixivSessionConnected = false
-                        launchPixiv(PixivWebActivity.LOGIN_URL)
+                        launchPixiv(PixivWebActivity.LOGIN_URL, clearSession = true)
                     }
                 }
             }

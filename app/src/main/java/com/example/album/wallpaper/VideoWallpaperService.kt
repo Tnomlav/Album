@@ -103,6 +103,7 @@ class VideoWallpaperService : WallpaperService() {
             super.onSurfaceDestroyed(holder)
         }
 
+        @Suppress("DEPRECATION") // minSdk 24 fallback; AudioFocusRequest needs API 26.
         override fun onDestroy() {
             volumeHandler.removeCallbacks(volumeUpdater)
             audioManager.abandonAudioFocus(audioFocusListener)
@@ -250,6 +251,7 @@ class VideoWallpaperService : WallpaperService() {
         }
 
         /** Only touches audio focus when the selected sound mode actually changes. */
+        @Suppress("DEPRECATION") // minSdk 24 fallback; AudioFocusRequest needs API 26.
         private fun syncAudioFocus(mode: String) {
             if (mode == appliedSoundMode) return
             appliedSoundMode = mode
