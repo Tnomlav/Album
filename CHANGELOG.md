@@ -1,5 +1,10 @@
 # Albumiv Changelog
 
+## v1.3.86 - 2026-11-22（磁贴选中态语义）
+
+- 文件夹/媒体磁贴补 `stateDescription`（已选中/未选中），配合上一版 `Role.Button`，TalkBack 能读到选择状态。
+- 版本 1.3.86 / VERSION_CODE 339。
+
 ## v1.3.85 - 2026-11-22（相册/媒体磁贴 TalkBack 语义）
 
 - 文件夹与媒体磁贴补 `Role.Button` 与可读名称/数量描述，TalkBack 不再只读“按钮”。

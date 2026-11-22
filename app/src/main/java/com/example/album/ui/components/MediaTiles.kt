@@ -68,6 +68,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.viewinterop.AndroidView
 import com.example.album.data.MediaAlbum
@@ -116,6 +117,11 @@ fun AlbumTile(
             .semantics {
                 role = Role.Button
                 contentDescription = if (english) "${album.name}, ${album.items.size} items" else "${album.name}，${album.items.size} 项"
+                stateDescription = when (selected) {
+                    true -> if (english) "Selected" else "已选中"
+                    false -> if (english) "Not selected" else "未选中"
+                    null -> ""
+                }
             }
     ) {
         Box(
@@ -199,6 +205,11 @@ fun PressableMediaThumbnail(
             .semantics {
                 role = Role.Button
                 contentDescription = item.name
+                stateDescription = when (selected) {
+                    true -> "已选中"
+                    false -> "未选中"
+                    null -> ""
+                }
             }
             .let { if (sharedElementEnabled) it.mediaSharedElement(item) else it }
     ) {
