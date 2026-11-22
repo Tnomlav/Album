@@ -231,8 +231,8 @@ fun SelectionSubBar(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth().alpha(chromeAlpha),
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        shadowElevation = 2.dp
+        color = MaterialTheme.colorScheme.primary.copy(alpha = .08f),
+        shadowElevation = 0.dp
     ) {
         Box(
             modifier = Modifier.fillMaxWidth().height(40.dp)

@@ -21,6 +21,9 @@ import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.outlined.Slideshow
+import androidx.compose.material.icons.outlined.Label
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material.icons.outlined.CheckCircle
@@ -93,7 +96,17 @@ private fun menuIcon(item: String): ImageVector? = when (MainMenuAction.fromLabe
     MainMenuAction.Scan -> Icons.Outlined.Refresh
     MainMenuAction.WallpaperManager -> Icons.Outlined.Wallpaper
     MainMenuAction.PixivArchiveInfo -> Icons.Outlined.Info
-    null -> null
+    null -> when (item) {
+        "分享", "Share" -> Icons.Outlined.Share
+        "添加到壁纸队列", "Add to wallpaper queue" -> Icons.Outlined.Wallpaper
+        "添加到幻灯片队列", "Add to slideshow queue" -> Icons.Outlined.Slideshow
+        "设为壁纸", "Set as wallpaper", "设置为壁纸" -> Icons.Outlined.Wallpaper
+        "查看 Tags", "View tags", "查看/编辑 Tags", "View/Edit Tags" -> Icons.Outlined.Label
+        "在 SauceNAO 搜索原图", "Find original on SauceNAO", "在 SauceNAO 搜原图" -> Icons.Outlined.Search
+        "在 ascii2d 搜索原图", "Find original on ascii2d", "在 ascii2d 搜原图" -> Icons.Outlined.Search
+        "详细信息", "Details", "信息", "Info" -> Icons.Outlined.Info
+        else -> null
+    }
 }
 
 /** Prominent page-type switch: a switch mark plus the current state. */
@@ -208,7 +221,7 @@ fun VaultTopBar(
         }
     }
 
-    Surface(modifier = Modifier.alpha(chromeAlpha), color = MaterialTheme.colorScheme.surface) {
+    Surface(modifier = Modifier.alpha(chromeAlpha), color = MaterialTheme.colorScheme.surface, shadowElevation = 2.dp) {
         Column {
         Row(
             modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)

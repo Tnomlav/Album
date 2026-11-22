@@ -16,7 +16,7 @@ object VaultDimens {
     // Roomy enough that labels and their notes are not cramped.
     val SettingsRowMinHeight = 66.dp
     val CleanupEntryMinHeight = 82.dp
-    val SelectionMarkSize = 23.dp
+    val SelectionMarkSize = 19.dp
 
     val SearchText = 13.sp
     val AlbumName = 13.sp

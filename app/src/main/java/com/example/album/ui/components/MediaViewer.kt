@@ -925,29 +925,20 @@ private fun ViewerTopBar(
             ) {
                 DropdownMenuItem(text = { Text(appText("分享", english), color = menuForeground, fontSize = 14.sp) }, leadingIcon = { Icon(Icons.Outlined.Share, null, tint = menuForeground) }, modifier = Modifier.height(52.dp), onClick = { onMenuExpanded(false); onShare() })
                 DropdownMenuItem(text = { Text(appText("复制", english), color = menuForeground, fontSize = 14.sp) }, leadingIcon = { Icon(Icons.Outlined.ContentCopy, null, tint = menuForeground) }, modifier = Modifier.height(52.dp), onClick = { onMenuExpanded(false); onCopy() })
-                onSettings?.let { action ->
-                    DropdownMenuItem(text = { Text(appText("设置", english), color = menuForeground, fontSize = 14.sp) }, leadingIcon = { Icon(Icons.Outlined.SettingsIcon, null, tint = menuForeground) }, modifier = Modifier.height(52.dp), onClick = { onMenuExpanded(false); action() })
+                onWallpaper?.let { action ->
+                    DropdownMenuItem(text = { Text(appText("设置为壁纸", english), color = menuForeground, fontSize = 14.sp) }, leadingIcon = { Icon(Icons.Outlined.Wallpaper, null, tint = menuForeground) }, modifier = Modifier.height(52.dp), onClick = { onMenuExpanded(false); action() })
                 }
                 onEditTags?.let { action ->
                     DropdownMenuItem(text = { Text(if (english) "View/Edit Tags" else "查看/编辑 Tags", color = menuForeground, fontSize = 14.sp) }, leadingIcon = { Icon(Icons.Outlined.Label, null, tint = menuForeground) }, modifier = Modifier.height(52.dp), onClick = { onMenuExpanded(false); action() })
-                }
-                onWallpaper?.let { action ->
-                    DropdownMenuItem(text = { Text(appText("设置为壁纸", english), color = menuForeground, fontSize = 14.sp) }, leadingIcon = { Icon(Icons.Outlined.Wallpaper, null, tint = menuForeground) }, modifier = Modifier.height(52.dp), onClick = { onMenuExpanded(false); action() })
                 }
                 if (!item.isVideo) {
                     onImageSearch?.let { action ->
                         listOf(ImageSearchSource.SauceNao, ImageSearchSource.Ascii2d).forEach { source ->
                             DropdownMenuItem(
                                 text = {
-                                    Text(
-                                        imageSearchActionText(source, english),
-                                        color = menuForeground,
-                                        fontSize = 14.sp
-                                    )
+                                    Text(imageSearchActionText(source, english), color = menuForeground, fontSize = 14.sp)
                                 },
-                                leadingIcon = {
-                                    Icon(Icons.Outlined.Search, null, tint = menuForeground)
-                                },
+                                leadingIcon = { Icon(Icons.Outlined.Search, null, tint = menuForeground) },
                                 modifier = Modifier.heightIn(min = 52.dp),
                                 onClick = { onMenuExpanded(false); action(source) }
                             )
@@ -955,6 +946,9 @@ private fun ViewerTopBar(
                     }
                 }
                 DropdownMenuItem(text = { Text(appText("信息", english), color = menuForeground, fontSize = 14.sp) }, leadingIcon = { Icon(Icons.Outlined.Info, null, tint = menuForeground) }, modifier = Modifier.height(52.dp), onClick = { onMenuExpanded(false); onInfo() })
+                onSettings?.let { action ->
+                    DropdownMenuItem(text = { Text(appText("设置", english), color = menuForeground, fontSize = 14.sp) }, leadingIcon = { Icon(Icons.Outlined.SettingsIcon, null, tint = menuForeground) }, modifier = Modifier.height(52.dp), onClick = { onMenuExpanded(false); action() })
+                }
             }
         }
     }

@@ -227,10 +227,10 @@ private fun SelectionMark(selected: Boolean, modifier: Modifier = Modifier) {
         modifier = modifier,
         shape = CircleShape,
         color = if (selected) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = .75f),
-        border = androidx.compose.foundation.BorderStroke(2.dp, Color.White)
+        border = androidx.compose.foundation.BorderStroke(1.5.dp, Color.White)
     ) {
         Box(Modifier.size(VaultDimens.SelectionMarkSize), contentAlignment = Alignment.Center) {
-            if (selected) Icon(Icons.Filled.Check, null, tint = Color.White, modifier = Modifier.size(14.dp))
+            if (selected) Icon(Icons.Filled.Check, null, tint = Color.White, modifier = Modifier.size(12.dp))
         }
     }
 }

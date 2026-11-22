@@ -325,15 +325,15 @@ internal fun savePageViewPrefs(preferences: android.content.SharedPreferences, v
 
 private fun selectionMenuItems(isVideo: Boolean, single: Boolean, english: Boolean): List<String> = buildList {
     add(appText("分享", english))
-    add(appText("加入壁纸队列", english))
-    if (!isVideo) add(appText("加入幻灯片队列", english))
-    if (single) add(appText("设置为壁纸", english))
+    add(appText("添加到壁纸队列", english))
+    if (!isVideo) add(appText("添加到幻灯片队列", english))
+    if (single) add(appText("设为壁纸", english))
     if (!isVideo && single) {
-        add(appText("查看/编辑 Tags", english))
-        add(appText("在 SauceNAO 搜原图", english))
-        add(appText("在 ascii2d 搜原图", english))
+        add(appText("查看 Tags", english))
+        add(appText("在 SauceNAO 搜索原图", english))
+        add(appText("在 ascii2d 搜索原图", english))
     }
-    if (single) add(appText("信息", english))
+    if (single || isVideo) add(appText("详细信息", english))
 }
 
 private val DEFAULT_TOOLBOX_ORDER = listOf(
@@ -3106,13 +3106,13 @@ fun AlbumivApp(
                 onMenuItemClick = { action ->
                     when (action) {
                         appText("分享", english) -> shareMedia(context, selectedItemsForAction, english)
-                        appText("加入壁纸队列", english) -> addToWallpaperQueue(selectedItemsForAction)
-                        appText("加入幻灯片队列", english) -> addToSlideshowQueue(selectedItemsForAction.filterNot { it.isVideo })
-                        appText("设置为壁纸", english) -> selectedItemsForAction.singleOrNull()?.let(::requestWallpaper)
-                        appText("查看/编辑 Tags", english) -> selectedItemsForAction.singleOrNull()?.let { openTagEditor(it) }
-                        appText("在 SauceNAO 搜原图", english) -> selectedItemsForAction.singleOrNull()?.let { openImageSearch(it, ImageSearchSource.SauceNao) }
-                        appText("在 ascii2d 搜原图", english) -> selectedItemsForAction.singleOrNull()?.let { openImageSearch(it, ImageSearchSource.Ascii2d) }
-                        appText("信息", english) -> selectedItemsForAction.singleOrNull()?.let { selectionInfoItem = it }
+                        appText("添加到壁纸队列", english) -> addToWallpaperQueue(selectedItemsForAction)
+                        appText("添加到幻灯片队列", english) -> addToSlideshowQueue(selectedItemsForAction.filterNot { it.isVideo })
+                        appText("设为壁纸", english) -> selectedItemsForAction.singleOrNull()?.let(::requestWallpaper)
+                        appText("查看 Tags", english) -> selectedItemsForAction.singleOrNull()?.let { openTagEditor(it) }
+                        appText("在 SauceNAO 搜索原图", english) -> selectedItemsForAction.singleOrNull()?.let { openImageSearch(it, ImageSearchSource.SauceNao) }
+                        appText("在 ascii2d 搜索原图", english) -> selectedItemsForAction.singleOrNull()?.let { openImageSearch(it, ImageSearchSource.Ascii2d) }
+                        appText("详细信息", english) -> selectedItemsForAction.singleOrNull()?.let { selectionInfoItem = it }
                         else -> when (MainMenuAction.fromLabel(action)) {
                         MainMenuAction.Scan -> scope.launch {
                             requestMediaScan(true)
@@ -3164,7 +3164,9 @@ fun AlbumivApp(
                         }
                     }
                 },
-                onBack = when {
+                onBack = if (selectionMode || selectionGestureActive) {
+                    { clearSelection() }
+                } else when {
                     openedFolder != null && tab != MainTab.Timeline -> ::navigateFolderBack
                     searchOpen && query.isNotBlank() -> ::suspendSearch
                     else -> null
@@ -3193,6 +3195,9 @@ fun AlbumivApp(
                     else -> 0
                 },
                 titleSwitch = when {
+                    // While selecting, the leading slot is a back action that
+                    // leaves selection mode.
+                    selectionMode || selectionGestureActive -> null
                     // The photo/video switch belongs to the library home page;
                     // inside a folder the bar shows the folder name instead.
                     openedFolder != null -> null
