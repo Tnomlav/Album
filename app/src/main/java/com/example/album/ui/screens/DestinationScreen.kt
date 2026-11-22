@@ -27,6 +27,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -66,6 +68,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -95,6 +98,7 @@ import com.example.album.ui.LocalAppEnglish
 import com.example.album.ui.appText
 import com.example.album.ui.components.MediaThumbnail
 import com.example.album.ui.components.emptyFolderTone
+import com.example.album.ui.MediaLayout
 import com.example.album.data.openMediaInputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -182,8 +186,21 @@ fun DestinationScreen(
                 .toList()
         }
     }
+    var destinationLayout by rememberSaveable { mutableStateOf(MediaLayout.List) }
+    var destinationColumns by rememberSaveable { mutableIntStateOf(3) }
+    var destinationSort by rememberSaveable { mutableIntStateOf(0) }
+    var showDestinationSort by remember { mutableStateOf(false) }
+    var showDestinationLayout by remember { mutableStateOf(false) }
+    var showDestinationColumns by remember { mutableStateOf(false) }
     val visibleFolders = remember(folderEntries, query) {
         folderEntries.filter { (name, _) -> searchTextMatches(query, name) }
+    }
+    val orderedFolders = remember(visibleFolders, destinationSort) {
+        when (destinationSort) {
+            1 -> visibleFolders.sortedByDescending { (_, path) -> path.count { it == '/' } }
+            2 -> visibleFolders.sortedBy { (_, path) -> path.lowercase() }
+            else -> visibleFolders.sortedBy { (name, _) -> name.lowercase() }
+        }
     }
     val indexedChildNames = remember(folderChildren) {
         folderChildren.values.flatten().toSet()
@@ -296,6 +313,18 @@ fun DestinationScreen(
                             Icon(Icons.Outlined.MoreVert, contentDescription = appText("更多操作", english))
                         }
                         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                            DropdownMenuItem(
+                                text = { Text(appText("排序方式", english)) },
+                                onClick = { showDestinationSort = true; menuOpen = false }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(appText("排布方式", english)) },
+                                onClick = { showDestinationLayout = true; menuOpen = false }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(appText("列数", english)) },
+                                onClick = { showDestinationColumns = true; menuOpen = false }
+                            )
                             if (currentFolder != null) {
                                 DropdownMenuItem(
                                     text = { Text(appText("回到根目录", english)) },
@@ -364,28 +393,112 @@ fun DestinationScreen(
                     Text(appText("没有找到相关文件夹", english), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxWidth().weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                    contentPadding = PaddingValues(bottom = 16.dp)
-                ) {
-                    items(visibleFolders, key = { entry -> "folder:${entry.second}" }) { (name, folder) ->
-                        DestinationFolderRow(
-                            name = name,
-                            path = folder,
-                            selected = folder == selectedFolder,
-                            cover = coverFor(folder),
-                            onToggle = { selectedFolder = if (selectedFolder == folder) null else folder },
-                            onOpen = {
-                                currentFolder = folder
-                                selectedFolder = folder
-                                query = ""
-                            }
-                        )
+                if (destinationLayout == MediaLayout.List) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxWidth().weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                        contentPadding = PaddingValues(bottom = 16.dp)
+                    ) {
+                        items(orderedFolders, key = { entry -> "folder:${entry.second}" }) { (name, folder) ->
+                            DestinationFolderRow(
+                                name = name,
+                                path = folder,
+                                selected = folder == selectedFolder,
+                                cover = coverFor(folder),
+                                onToggle = { selectedFolder = if (selectedFolder == folder) null else folder },
+                                onOpen = {
+                                    currentFolder = folder
+                                    selectedFolder = folder
+                                    query = ""
+                                }
+                            )
+                        }
+                    }
+                } else {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(destinationColumns.coerceIn(1, 6)),
+                        modifier = Modifier.fillMaxWidth().weight(1f),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(18.dp)
+                    ) {
+                        gridItemsIndexed(orderedFolders, key = { _, entry -> "folder:${entry.second}" }) { index, (name, folder) ->
+                            DestinationFolderCell(
+                                name = name,
+                                selected = folder == selectedFolder,
+                                index = index,
+                                cover = coverFor(folder),
+                                onToggle = { selectedFolder = if (selectedFolder == folder) null else folder },
+                                onOpen = {
+                                    currentFolder = folder
+                                    selectedFolder = folder
+                                    query = ""
+                                }
+                            )
+                        }
                     }
                 }
             }
         }
+    }
+    if (showDestinationSort) {
+        AlertDialog(
+            onDismissRequest = { showDestinationSort = false },
+            title = { Text(appText("排序方式", english)) },
+            text = {
+                Column {
+                    listOf(0, 1, 2).forEach { option ->
+                        TextButton(onClick = { destinationSort = option; showDestinationSort = false }) {
+                            Text(
+                                when (option) {
+                                    1 -> if (english) "Folder depth" else "文件夹层级"
+                                    2 -> if (english) "Full path" else "完整路径"
+                                    else -> if (english) "Name" else "名称"
+                                }
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDestinationSort = false }) { Text(appText("取消", english)) }
+            }
+        )
+    }
+    if (showDestinationLayout) {
+        AlertDialog(
+            onDismissRequest = { showDestinationLayout = false },
+            title = { Text(appText("排布方式", english)) },
+            text = {
+                Column {
+                    listOf(MediaLayout.List, MediaLayout.Grid).forEach { option ->
+                        TextButton(onClick = { destinationLayout = option; showDestinationLayout = false }) {
+                            Text(appText(option.label, english))
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDestinationLayout = false }) { Text(appText("取消", english)) }
+            }
+        )
+    }
+    if (showDestinationColumns) {
+        AlertDialog(
+            onDismissRequest = { showDestinationColumns = false },
+            title = { Text(appText("列数", english)) },
+            text = {
+                Column {
+                    (2..5).forEach { option ->
+                        TextButton(onClick = { destinationColumns = option; showDestinationColumns = false }) {
+                            Text(if (english) "$option columns" else "$option 列")
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDestinationColumns = false }) { Text(appText("取消", english)) }
+            }
+        )
     }
     if (showCreateFolderDialog) {
         AlertDialog(
