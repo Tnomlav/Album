@@ -49,7 +49,10 @@ jobs:
       # packaging task no longer advances it, so this catches a mismatch before
       # an APK with the wrong version reaches a release.
       - name: Check APK versions match version.properties
-        run: python3 scripts/check_apk_version.py --all
+        run: |
+          cat version.properties
+          ls -l app/build/outputs/apk/release || true
+          python3 scripts/check_apk_version.py --all
 
       - name: Upload lint and test reports
         if: always()
@@ -110,7 +113,7 @@ jobs:
           arch: x86_64
           disable-animations: true
           emulator-boot-timeout: 900
-          script: ./gradlew connectedDebugAndroidTest --stacktrace
+          script: ./gradlew :app:connectedDebugAndroidTest --stacktrace
 
       - name: Upload instrumented test reports
         if: always()
