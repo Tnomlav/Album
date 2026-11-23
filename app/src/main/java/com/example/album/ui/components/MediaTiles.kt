@@ -16,6 +16,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -311,7 +312,10 @@ fun MediaThumbnail(
         videoPlaceholder -> modifier.background(tone.background)
         else -> modifier.background(placeholder)
     }
-    Box(modifier = backgroundModifier) {
+    BoxWithConstraints(modifier = backgroundModifier) {
+        // Badges follow the tile size: 54dp list rows get a small mark, 120dp
+        // grid tiles a proportional one, and large folder covers stop at 1.5x.
+        val badgeScale = (maxWidth / 120.dp).coerceIn(0.6f, 1.5f)
         LaunchedEffect(loaded) {
             if (loaded) onLoaded?.invoke()
         }
@@ -350,20 +354,25 @@ fun MediaThumbnail(
             Surface(
                 modifier = Modifier.align(Alignment.Center),
                 color = Color.Black.copy(alpha = .55f),
-                shape = RoundedCornerShape(24.dp)
+                shape = RoundedCornerShape(24.dp * badgeScale)
             ) {
-                Icon(Icons.Filled.PlayArrow, contentDescription = appText("视频", english), tint = Color.White, modifier = Modifier.padding(7.dp))
+                Icon(
+                    Icons.Filled.PlayArrow,
+                    contentDescription = appText("视频", english),
+                    tint = Color.White,
+                    modifier = Modifier.padding(7.dp * badgeScale).size(24.dp * badgeScale)
+                )
             }
         }
         if (showVideoDuration && item.isVideo && item.duration > 0L) {
             Surface(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(end = 2.dp, bottom = 2.dp)
-                    .height(17.dp)
+                    .padding(end = 2.dp * badgeScale, bottom = 2.dp * badgeScale)
+                    .height(17.dp * badgeScale)
                     .wrapContentWidth(),
                 color = Color.Black.copy(alpha = .72f),
-                shape = RoundedCornerShape(8.5.dp)
+                shape = RoundedCornerShape(8.5.dp * badgeScale)
             ) {
                 Box(
                     modifier = Modifier
@@ -374,11 +383,11 @@ fun MediaThumbnail(
                     Text(
                         formatVideoDuration(item.duration),
                         color = Color.White,
-                        fontSize = 9.sp,
+                        fontSize = 9.sp * badgeScale,
                         modifier = Modifier
-                            .offset(y = (-0.6f).dp)
-                            .padding(horizontal = 5.dp),
-                        lineHeight = 9.sp,
+                            .offset(y = (-0.6f * badgeScale).dp)
+                            .padding(horizontal = 5.dp * badgeScale),
+                        lineHeight = 9.sp * badgeScale,
                         maxLines = 1
                     )
                 }
@@ -498,14 +507,37 @@ fun AlbumListRow(
             }
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text(album.name, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 14.sp)
-            Text(
-                if (showPath) album.key else "${album.items.size} 项",
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 11.sp
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    album.name,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    fontSize = 14.sp,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                if (showPath) {
+                    Text(
+                        album.key,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 11.sp,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+            if (!showPath) {
+                Text(
+                    "${album.items.size} 项",
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 11.sp
+                )
+            }
         }
         if (selected != null) {
             Icon(

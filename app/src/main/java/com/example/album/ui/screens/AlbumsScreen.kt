@@ -403,7 +403,7 @@ private fun AlbumGrid(albums: List<MediaAlbum>, columns: Int, refreshing: Boolea
         initialFirstVisibleItemScrollOffset = initialFirstVisibleOffset.coerceAtLeast(0)
     )
     LaunchedEffect(scrollToTopToken) {
-        if (scrollToTopToken > 0L) gridState.scrollToItem(0)
+        if (scrollToTopToken > 0L) gridState.animateScrollToItem(0)
     }
     LaunchedEffect(scrollRequest) {
         if (scrollRequest != null && scrollRequest.token > 0L) {
@@ -495,7 +495,9 @@ private fun AlbumGrid(albums: List<MediaAlbum>, columns: Int, refreshing: Boolea
                         sharedElementEnabled = sharedElementEnabled,
                         selected = if (selectionPreview) album.key in selectedFolders else null,
                         showPixivMark = pixivFolder,
-                        showPath = album.name in duplicateNames
+                        // Grid/adaptive tiles stay compact: duplicate folder
+                        // paths are only shown in the list layout.
+                        showPath = false
                     ) { onOpenAlbum(album.key) }
                 }
             }
@@ -581,7 +583,7 @@ private fun FolderGrid(
         initialFirstVisibleItemScrollOffset = initialFirstVisibleOffset.coerceAtLeast(0)
     )
     LaunchedEffect(scrollToTopToken) {
-        if (scrollToTopToken > 0L) gridState.scrollToItem(0)
+        if (scrollToTopToken > 0L) gridState.animateScrollToItem(0)
     }
     LaunchedEffect(scrollRequest) {
         if (scrollRequest != null && scrollRequest.token > 0L) {
@@ -729,7 +731,7 @@ private fun AdaptiveFolderGrid(
         initialFirstVisibleItemScrollOffset = initialFirstVisibleOffset.coerceAtLeast(0)
     )
     LaunchedEffect(scrollToTopToken) {
-        if (scrollToTopToken > 0L) state.scrollToItem(0)
+        if (scrollToTopToken > 0L) state.animateScrollToItem(0)
     }
     LaunchedEffect(scrollRequest) {
         if (scrollRequest != null && scrollRequest.token > 0L) {

@@ -318,7 +318,7 @@ private fun OptimizedTimelineGrid(
         }
     }
     LaunchedEffect(scrollToTopToken) {
-        if (scrollToTopToken > 0L) state.scrollToItem(0)
+        if (scrollToTopToken > 0L) state.animateScrollToItem(0)
     }
     // Same lookup as the album grids: build the key set once per date grouping
     // instead of scanning every group and every photo on every scroll sample.
@@ -485,7 +485,7 @@ private fun AdaptiveTimeline(
         initialFirstVisibleItemScrollOffset = initialFirstVisibleOffset.coerceAtLeast(0)
     )
     LaunchedEffect(scrollToTopToken) {
-        if (scrollToTopToken > 0L) state.scrollToItem(0)
+        if (scrollToTopToken > 0L) state.animateScrollToItem(0)
     }
     LaunchedEffect(scrollRequest) {
         if (scrollRequest != null && scrollRequest.token > 0L) {

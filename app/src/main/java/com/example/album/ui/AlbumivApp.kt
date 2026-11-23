@@ -970,8 +970,13 @@ fun AlbumivApp(
     val activeViewKey = if (viewSettingsGlobal) {
         "global"
     } else when (selectedTab) {
-        MainTab.Albums -> openedFolder?.let { "albums:${if (albumShowsVideos) "video" else "image"}:$it" } ?: "albums:root"
-        MainTab.Timeline -> "timeline"
+        // Image and video are separate view spaces on both pages: switching
+        // the type switch must not overwrite the other type's sort/layout/columns.
+        MainTab.Albums -> {
+            val mode = if (albumShowsVideos) "video" else "image"
+            openedFolder?.let { "albums:$mode:$it" } ?: "albums:$mode:root"
+        }
+        MainTab.Timeline -> "timeline:${if (timelineShowsVideos) "video" else "image"}"
         MainTab.Pixiv -> openedFolder?.let { "pixiv:folder:$it" } ?: "pixiv:root"
         else -> "other"
     }
@@ -3012,7 +3017,6 @@ fun AlbumivApp(
                 // pages now that the search field is gone.
                 searchModeLabels = emptyList(),
                 selectedSearchMode = if (wallpaperShowVideos) 1 else 0,
-                wideSwitch = true,
                 // Inside a queue folder the bar shows the folder name instead.
                 titleSwitch = if (wallpaperOpenedFolder == null) {
                     listOf(

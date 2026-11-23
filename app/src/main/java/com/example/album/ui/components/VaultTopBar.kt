@@ -1,6 +1,10 @@
 package com.example.album.ui.components
 
 import com.example.album.ui.theme.VaultShape
+import com.example.album.ui.theme.VaultMotion
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.offset
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -70,6 +74,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
@@ -116,46 +121,62 @@ private fun menuIcon(item: String): ImageVector? = when (MainMenuAction.fromLabe
     }
 }
 
-/** Prominent page-type switch: a switch mark plus the current state. */
+/** One segment of the page-type switch; the action capsules reuse its size. */
+private val SwitchSegmentWidth = 52.dp
+private val SwitchSegmentHeight = 32.dp
+private val SwitchGap = 2.dp
+private val SwitchInset = 2.dp
+
+/**
+ * Prominent page-type switch: a moving pill behind the selected label.
+ *
+ * Both the album/timeline image-video switch and the wallpaper static/live
+ * switch use exactly this size, so the two pages cannot drift apart again.
+ */
 @Composable
 private fun TitleSwitchMark(
     labels: List<String>,
     selected: Int,
     onChange: (Int) -> Unit,
-    english: Boolean,
-    wideSwitch: Boolean = false
+    english: Boolean
 ) {
     val index = selected.coerceIn(labels.indices)
-    Row(
+    val thumbOffset by animateDpAsState(
+        targetValue = (SwitchSegmentWidth + SwitchGap) * index,
+        animationSpec = tween(VaultMotion.Fast),
+        label = "switch-thumb"
+    )
+    Box(
         modifier = Modifier
-            .then(if (wideSwitch) Modifier.width(100.dp) else Modifier)
             .clip(RoundedCornerShape(10.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant)
-            .padding(2.dp),
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(SwitchInset)
     ) {
-        labels.forEachIndexed { itemIndex, label ->
-            val active = itemIndex == index
-            Box(
-                modifier = Modifier
-                    .clip(VaultShape.Medium)
-                    .background(
-                        if (active) MaterialTheme.colorScheme.primary.copy(alpha = .14f)
-                        else androidx.compose.ui.graphics.Color.Transparent
+        Box(
+            Modifier
+                .offset { IntOffset(thumbOffset.roundToPx(), 0) }
+                .size(SwitchSegmentWidth, SwitchSegmentHeight)
+                .clip(RoundedCornerShape(8.dp))
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = .14f))
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(SwitchGap)) {
+            labels.forEachIndexed { itemIndex, label ->
+                val active = itemIndex == index
+                Box(
+                    modifier = Modifier
+                        .size(SwitchSegmentWidth, SwitchSegmentHeight)
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { onChange(itemIndex) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        label,
+                        style = VaultText.TopBarSwitch,
+                        color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        softWrap = false
                     )
-                    .clickable { onChange(itemIndex) }
-                    .then(if (wideSwitch) Modifier.width(48.dp) else Modifier)
-                    .padding(horizontal = if (wideSwitch) 4.dp else 9.dp, vertical = 7.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    label,
-                    style = VaultText.TopBarSwitch,
-                    color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    softWrap = false
-                )
+                }
             }
         }
     }
@@ -188,7 +209,6 @@ fun VaultTopBar(
     onActionClick: (() -> Unit)? = null,
     actionEnabled: Boolean = true,
     actionCapsule: Boolean = false,
-    wideSwitch: Boolean = false,
     actionStartPadding: Dp = 0.dp,
     /** Paints the action in the destructive colour; defaults to the old name. */
     actionDestructive: Boolean? = null,
@@ -282,7 +302,7 @@ fun VaultTopBar(
                     // pages fall back to the title text.
                     Box(Modifier.weight(1f)) {
                         if (titleSwitch != null && titleSwitch.isNotEmpty()) {
-                            TitleSwitchMark(titleSwitch, selectedSearchMode, onTitleSwitchChange, english, wideSwitch)
+                            TitleSwitchMark(titleSwitch, selectedSearchMode, onTitleSwitchChange, english)
                         } else {
                             Text(title, style = VaultText.TopBarTitle, maxLines = 1)
                         }
@@ -296,14 +316,14 @@ fun VaultTopBar(
                     // switch disappeared as soon as a tag query was typed and
                     // the mode could not be changed back.
                     Box(Modifier.padding(start = 4.dp)) {
-                        TitleSwitchMark(titleSwitch, selectedSearchMode, onTitleSwitchChange, english, wideSwitch)
+                        TitleSwitchMark(titleSwitch, selectedSearchMode, onTitleSwitchChange, english)
                     }
                 }
             } else if (titleSwitch != null && titleSwitch.isNotEmpty() && !titleSwitchAtEnd) {
-                TitleSwitchMark(titleSwitch, selectedSearchMode, onTitleSwitchChange, english, wideSwitch)
+                TitleSwitchMark(titleSwitch, selectedSearchMode, onTitleSwitchChange, english)
             } else {
                 Row(
-                    modifier = Modifier.widthIn(min = 48.dp).then(
+                    modifier = Modifier.widthIn(min = SwitchSegmentWidth).then(
                         if (onTitleClick != null) Modifier.clickable(onClick = onTitleClick) else Modifier
                     ).height(48.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -331,15 +351,15 @@ fun VaultTopBar(
                         Box(
                             modifier = Modifier
                                 .padding(start = actionStartPadding)
-                                .height(38.dp)
-                                .widthIn(min = 48.dp)
+                                .height(SwitchSegmentHeight)
+                                .widthIn(min = SwitchSegmentWidth)
                                 .clip(RoundedCornerShape(9.dp))
                                 .background(
                                     if (actionEnabled) actionColor.copy(alpha = if (destructiveAction) .14f else .12f)
                                     else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .55f)
                                 )
                                 .clickable(enabled = actionEnabled, onClick = onActionClick)
-                                .padding(horizontal = 10.dp),
+                                .padding(horizontal = 8.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
@@ -466,7 +486,7 @@ fun VaultTopBar(
                 }
                 if (titleSwitch != null && titleSwitch.isNotEmpty() && titleSwitchAtEnd) {
                     Box(Modifier.padding(end = 6.dp)) {
-                        TitleSwitchMark(titleSwitch, selectedSearchMode, onTitleSwitchChange, english, wideSwitch)
+                        TitleSwitchMark(titleSwitch, selectedSearchMode, onTitleSwitchChange, english)
                     }
                 }
                 actionContent()
