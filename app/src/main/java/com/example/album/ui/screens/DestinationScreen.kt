@@ -1,5 +1,7 @@
 package com.example.album.ui.screens
 
+import com.example.album.ui.theme.VaultShape
+
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import androidx.activity.compose.BackHandler
@@ -286,7 +288,7 @@ fun DestinationScreen(
                     }
                     Row(
                         modifier = Modifier.weight(1f).height(48.dp)
-                            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(16.dp))
+                            .background(MaterialTheme.colorScheme.surface, VaultShape.XLarge)
                             .padding(horizontal = 13.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(9.dp)
@@ -602,7 +604,7 @@ private fun DestinationFolderRow(
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Box(
-            Modifier.size(56.dp).clip(RoundedCornerShape(8.dp)).background(tone.background),
+            Modifier.size(56.dp).clip(VaultShape.Medium).background(tone.background),
             contentAlignment = Alignment.Center
         ) {
             if (cover != null) {
@@ -715,7 +717,7 @@ private fun RecentFolderCell(name: String, selected: Boolean, onOpen: () -> Unit
                 .background(
                     if (selected) MaterialTheme.colorScheme.primary.copy(alpha = .14f)
                     else MaterialTheme.colorScheme.surfaceVariant,
-                    RoundedCornerShape(12.dp)
+                    VaultShape.Large
                 ),
             contentAlignment = Alignment.Center
         ) {
@@ -750,7 +752,7 @@ private fun DestinationFolderCell(
     val tone = emptyFolderTone(name, darkTheme)
     Column(modifier = Modifier.fillMaxWidth()) {
         Box(
-            modifier = Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(8.dp))
+            modifier = Modifier.fillMaxWidth().aspectRatio(1f).clip(VaultShape.Medium)
                 .background(tone.background)
                 .clickable(onClick = onOpen),
             contentAlignment = Alignment.Center

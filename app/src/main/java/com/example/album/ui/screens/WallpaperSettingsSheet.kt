@@ -1,5 +1,7 @@
 package com.example.album.ui.screens
 
+import com.example.album.ui.theme.VaultShape
+
 import android.content.SharedPreferences
 import android.os.PowerManager
 import androidx.compose.ui.platform.LocalContext
@@ -133,7 +135,7 @@ fun WallpaperSettingsSheet(
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
                 Row(
-                    Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                    Modifier.fillMaxWidth().clip(VaultShape.Medium)
                         .background(androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant)
                         .padding(3.dp),
                     horizontalArrangement = Arrangement.spacedBy(3.dp)

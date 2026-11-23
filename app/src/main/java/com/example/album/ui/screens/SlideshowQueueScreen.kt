@@ -1,5 +1,7 @@
 package com.example.album.ui.screens
 
+import com.example.album.ui.theme.VaultShape
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -126,7 +128,7 @@ fun SlideshowQueueScreen(
             items(folders.entries.toList(), key = { it.key }) { entry ->
                 Column(Modifier.fillMaxWidth()) {
                     Box(
-                        Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(4.dp))
+                        Modifier.fillMaxWidth().aspectRatio(1f).clip(VaultShape.Small)
                             .clickable { onOpenFolder(entry.key) }
                     ) {
                         entry.value.firstOrNull()?.let { cover ->
@@ -247,7 +249,7 @@ private fun SlideshowQueueTile(
     }
     Column(Modifier.fillMaxWidth()) {
         Box(
-            Modifier.fillMaxWidth().aspectRatio(aspect).clip(RoundedCornerShape(4.dp))
+            Modifier.fillMaxWidth().aspectRatio(aspect).clip(VaultShape.Small)
                 .clickable { onOpenMedia(item) }
         ) {
             MediaThumbnail(item, Modifier.fillMaxSize(), showVideoDuration = false, contentScale = ContentScale.Crop)

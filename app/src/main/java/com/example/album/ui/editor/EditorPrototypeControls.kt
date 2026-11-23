@@ -39,12 +39,36 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import com.example.album.ui.theme.VaultChrome
+import com.example.album.ui.theme.isDarkUi
 
 internal val EditorAccent: Color
     @Composable get() = MaterialTheme.colorScheme.primary
-internal val EditorInk = Color(0xFF232725)
-internal val EditorMuted = Color(0xFF777B79)
-internal val EditorTile = Color(0xFFF0F0EE)
+internal val EditorInk: Color
+    @Composable get() = if (isDarkUi()) VaultChrome.DarkContent else VaultChrome.LightContent
+internal val EditorMuted: Color
+    @Composable get() = if (isDarkUi()) VaultChrome.DarkMuted else VaultChrome.LightMuted
+internal val EditorTile: Color
+    @Composable get() = if (isDarkUi()) VaultChrome.DarkRaised else Color(0xFFF0F0EE)
+internal val EditorLine: Color
+    @Composable get() = if (isDarkUi()) VaultChrome.DarkLine else VaultChrome.LightLine
+
+/** Full-screen editor surfaces; see VaultChrome for the dark layering. */
+@Composable
+internal fun editorChrome(): Color = if (isDarkUi()) VaultChrome.DarkBar else VaultChrome.LightBar
+
+@Composable
+internal fun editorPanel(): Color = if (isDarkUi()) VaultChrome.DarkPanel else VaultChrome.LightPanel
+
+@Composable
+internal fun editorRaised(): Color = if (isDarkUi()) VaultChrome.DarkRaised else VaultChrome.LightRaised
+
+@Composable
+internal fun editorCanvas(): Color = if (isDarkUi()) VaultChrome.DarkCanvas else VaultChrome.LightCanvas
+
+/** Selected option chip: a faint accent tint in light mode, a raised black in dark. */
+@Composable
+internal fun editorSelectedTile(): Color = if (isDarkUi()) VaultChrome.DarkRaised else Color(0xFFF7FFF9)
 
 @Composable
 internal fun EditorRuler(
@@ -67,6 +91,7 @@ internal fun EditorRuler(
     val latestOnStarted by rememberUpdatedState(onValueChangeStarted)
     val latestOnFinished by rememberUpdatedState(onValueChangeFinished)
     val accent = MaterialTheme.colorScheme.primary
+    val ink = EditorInk
     Box(
         modifier.pointerInput(valueRange, tickStep, tickSpacing, edgeInset) {
             val inset = edgeInset.toPx().coerceAtMost(size.width / 4f)
@@ -110,7 +135,7 @@ internal fun EditorRuler(
                 val tickHeight = size.height * (minHeight + (maxHeight - minHeight) * centerWeight)
                 val tickCenter = size.height / 2f
                 drawLine(
-                    color = if (major) EditorInk else Color(0xFFAAAAA8),
+                    color = if (major) ink else Color(0xFFAAAAA8),
                     start = Offset(x, tickCenter - tickHeight / 2f),
                     end = Offset(x, tickCenter + tickHeight / 2f),
                     strokeWidth = if (major) 2.dp.toPx() else 1.dp.toPx(),

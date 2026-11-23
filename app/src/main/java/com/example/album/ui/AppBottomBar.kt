@@ -1,5 +1,9 @@
 package com.example.album.ui
 
+import com.example.album.ui.theme.VaultMotion
+
+import com.example.album.ui.theme.VaultShape
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.ExitTransition
@@ -144,7 +148,7 @@ fun AppBottomBar(
     }
     AnimatedVisibility(
         visible = barVisible,
-        enter = slideInVertically(tween(170, easing = CubicBezierEasing(.22f, .8f, .28f, 1f))) { it } + fadeIn(tween(120)),
+        enter = slideInVertically(tween(170, easing = CubicBezierEasing(.22f, .8f, .28f, 1f))) { it } + fadeIn(tween(VaultMotion.Fast)),
         // Leaving the page hides the bar at once: the slide-out used to
         // still be running while the folder page was already visible.
         exit = ExitTransition.None
@@ -172,7 +176,7 @@ fun AppBottomBar(
             )
             val sourceAlpha by animateFloatAsState(
                 targetValue = if (draggedNavTab == tab) .25f else 1f,
-                animationSpec = tween(120),
+                animationSpec = tween(VaultMotion.Fast),
                 label = "nav-drag-alpha-${tab.name}"
             )
             val navTint by animateColorAsState(
@@ -306,7 +310,7 @@ fun AppBottomBar(
                         scaleY = 1.08f
                     }
                     .zIndex(10f),
-                shape = RoundedCornerShape(8.dp),
+                shape = VaultShape.Medium,
                 color = androidx.compose.material3.MaterialTheme.colorScheme.surface.copy(alpha = .94f),
                 shadowElevation = 6.dp
             ) {

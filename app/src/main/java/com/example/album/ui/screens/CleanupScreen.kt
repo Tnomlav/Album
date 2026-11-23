@@ -1,5 +1,7 @@
 package com.example.album.ui.screens
 
+import com.example.album.ui.theme.VaultShape
+
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
@@ -738,7 +740,7 @@ private fun CleanupToolbar(
             Modifier
                 .weight(1f)
                 .height(48.dp)
-                .clip(RoundedCornerShape(8.dp))
+                .clip(VaultShape.Medium)
                 .background(MaterialTheme.colorScheme.surfaceVariant)
                 .padding(3.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -1073,7 +1075,7 @@ private fun CleanupCommand(
     onClick: () -> Unit
 ) {
     val english = LocalAppEnglish.current
-    val shape = RoundedCornerShape(12.dp)
+    val shape = VaultShape.Large
     Box(
         Modifier
             .height(40.dp)
@@ -2501,7 +2503,7 @@ private fun ArchiveStageGrid(phase: PixivArchivePhase) {
                     }
                     Box(
                         Modifier.weight(1f).heightIn(min = 28.dp)
-                            .clip(RoundedCornerShape(4.dp))
+                            .clip(VaultShape.Small)
                             .background(color.copy(alpha = if (done) .12f else .07f)),
                         contentAlignment = Alignment.Center
                     ) {

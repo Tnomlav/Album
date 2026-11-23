@@ -1,5 +1,7 @@
 package com.example.album.ui.components
 
+import com.example.album.ui.theme.VaultShape
+
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -59,7 +61,7 @@ internal fun LibrarySkeleton(
                         Modifier
                             .weight(1f)
                             .aspectRatio(1f)
-                            .clip(RoundedCornerShape(8.dp))
+                            .clip(VaultShape.Medium)
                             .background(MaterialTheme.colorScheme.onSurface.copy(alpha = pulse))
                     )
                 }

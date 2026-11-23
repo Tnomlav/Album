@@ -10,6 +10,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 
 private fun darkScheme(accent: Color, background: Color, surface: Color, onSurface: Color, onSurfaceVariant: Color) = darkColorScheme(
     primary = accent,
@@ -64,3 +65,11 @@ fun AlbumivTheme(
         CompositionLocalProvider(LocalRippleConfiguration provides null, content = content)
     }
 }
+
+/**
+ * True when the app is rendering its dark theme. Full-screen surfaces use this
+ * instead of isSystemInDarkTheme() because the in-app theme can be forced
+ * independently of the system setting.
+ */
+@Composable
+fun isDarkUi(): Boolean = MaterialTheme.colorScheme.background.luminance() < 0.5f

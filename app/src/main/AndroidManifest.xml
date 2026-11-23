@@ -56,6 +56,9 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Albumiv">
+        <!-- Allows Macrobenchmark to profile release builds without making the
+             app debuggable. Ignored below API 29. -->
+        <profileable android:shell="true" tools:targetApi="29" />
         <service
             android:name=".playback.MediaPlaybackService"
             android:exported="false"

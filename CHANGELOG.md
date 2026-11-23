@@ -1,7 +1,10 @@
 # Albumiv Changelog
 
-## v1.4.7 - 2026-11-23（全章收口：登录清理、诊断与警告）
+## v1.4.7 - 2026-11-23（全章收口：深色分层、登录清理、诊断与基准）
 
+- 深色主题下查看器/编辑器改用黑阶分层：画布纯黑、背景/顶底栏/面板逐级提亮，不再出现白色 chrome；系统栏图标跟随主题。
+- 新增 `VaultShape`/`VaultMotion`/`VaultSpacing` token，等值圆角与动效已迁移（像素不变）。
+- 新增 `benchmark` 模块（Macrobenchmark，冷启动 5 次），真机可回归启动耗时。
 - Pixiv 退出/更换账号时，由 `:pixiv_login` 进程清理自己的 Cookie、WebStorage 与缓存；此前只清了主进程。
 - FileProvider 从整个 `cacheDir` 收窄到实际共享的 `external_media/` 与 `image_search/`。
 - 诊断导出新增最近 20 条文件操作（只记类型/结果/原因，不记文件名与 URI）。

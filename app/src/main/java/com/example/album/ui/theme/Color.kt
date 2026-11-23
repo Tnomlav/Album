@@ -19,6 +19,34 @@ val VaultDarkBackground = Color(0xFF121715)
 val VaultDarkSurface = Color(0xFF1B211E)
 
 /**
+ * Neutral chrome for full-screen surfaces (viewer, editor).
+ *
+ * In the light theme the chrome is white. In the dark theme white would glare,
+ * so regions are separated by depth instead: canvas is pure black, the bars one
+ * step up, and controls/panels one more. Image overlays (crop handles, swatch
+ * checks) deliberately keep their own white/black contrast and do not use this
+ * palette.
+ */
+object VaultChrome {
+    val LightCanvas = Color(0xFFFFFFFF)
+    val LightBar = Color(0xFFFFFFFF)
+    val LightPanel = Color(0xFFFFFFFF)
+    val LightRaised = Color(0xFFF4F4F2)
+    val LightContent = Color(0xFF232725)
+    val LightMuted = Color(0xFF777B79)
+    val LightLine = Color(0xFFD8DAD7)
+
+    val DarkCanvas = Color(0xFF000000)
+    val DarkBackdrop = Color(0xFF0B0D0C)
+    val DarkBar = Color(0xFF0E100F)
+    val DarkPanel = Color(0xFF161A18)
+    val DarkRaised = Color(0xFF202522)
+    val DarkContent = Color(0xFFEDEFED)
+    val DarkMuted = Color(0xFF9AA39E)
+    val DarkLine = Color(0xFF2C332F)
+}
+
+/**
  * Darkens a theme accent until white text on it reaches WCAG AA (4.5:1).
  *
  * The light theme uses these variants for primary text and filled buttons;

@@ -1,5 +1,7 @@
 package com.example.album.ui.components
 
+import com.example.album.ui.theme.VaultShape
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -116,7 +118,7 @@ private fun VaultLicenseTextSheet(
     VaultBottomSheet(document.title, onDismiss) {
         LazyColumn(
             Modifier.fillMaxWidth().heightIn(max = 560.dp)
-                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.surface, VaultShape.Large)
         ) {
             items(lines) { line ->
                 Text(

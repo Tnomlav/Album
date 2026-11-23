@@ -1,5 +1,7 @@
 package com.example.album.ui.screens
 
+import com.example.album.ui.theme.VaultShape
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -426,7 +428,7 @@ private fun WallpaperMediaCell(
 ) {
     Column(Modifier.fillMaxWidth()) {
         Box(
-            Modifier.fillMaxWidth().aspectRatio(aspectRatio.coerceIn(.45f, 2.4f)).clip(RoundedCornerShape(4.dp))
+            Modifier.fillMaxWidth().aspectRatio(aspectRatio.coerceIn(.45f, 2.4f)).clip(VaultShape.Small)
                 .combinedClickable(
                     onClick = { if (selectionMode) onToggleSelection(item) else onOpenMedia(item) },
                     onLongClick = { onEnterSelectionMode(item, visibleMedia) }

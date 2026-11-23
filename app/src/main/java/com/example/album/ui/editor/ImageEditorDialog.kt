@@ -1,5 +1,9 @@
 package com.example.album.ui.editor
 
+import com.example.album.ui.theme.VaultMotion
+
+import com.example.album.ui.theme.VaultShape
+
 import android.app.Activity
 import android.graphics.Bitmap
 import android.os.Build
@@ -85,6 +89,7 @@ import androidx.compose.ui.zIndex
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import com.example.album.ui.theme.isDarkUi
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.CompositingStrategy
@@ -218,7 +223,7 @@ fun ImageEditorDialog(
         if (editorClosing) return
         editorClosing = true
         scope.launch {
-            editorAlpha.animateTo(0f, tween(120))
+            editorAlpha.animateTo(0f, tween(VaultMotion.Fast))
             after()
         }
     }
@@ -329,6 +334,7 @@ fun ImageEditorDialog(
     // later than the regular page transitions.
     BackHandler(enabled = !saving) { requestExit() }
     val activity = context as? Activity
+    val darkChrome = isDarkUi()
     DisposableEffect(activity) {
             val window = activity?.window
             val oldStatus = window?.statusBarColor
@@ -336,15 +342,16 @@ fun ImageEditorDialog(
             val oldNavigationDivider = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 window?.navigationBarDividerColor
             } else null
-            window?.statusBarColor = android.graphics.Color.WHITE
-            window?.navigationBarColor = android.graphics.Color.WHITE
+            val barColor = if (darkChrome) android.graphics.Color.BLACK else android.graphics.Color.WHITE
+            window?.statusBarColor = barColor
+            window?.navigationBarColor = barColor
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                window?.navigationBarDividerColor = android.graphics.Color.WHITE
+                window?.navigationBarDividerColor = barColor
             }
             window?.let {
                 WindowInsetsControllerCompat(it, it.decorView).apply {
-                    isAppearanceLightStatusBars = true
-                    isAppearanceLightNavigationBars = true
+                    isAppearanceLightStatusBars = !darkChrome
+                    isAppearanceLightNavigationBars = !darkChrome
                 }
             }
             onDispose {
@@ -359,7 +366,7 @@ fun ImageEditorDialog(
             Modifier.fillMaxSize().graphicsLayer {
                 alpha = editorAlpha.value
             },
-            color = Color.White.copy(alpha = if (enterFromViewer) editorImageProgress.value else 1f)
+            color = editorCanvas().copy(alpha = if (enterFromViewer) editorImageProgress.value else 1f)
         ) {
             Box(Modifier.fillMaxSize()) {
             Column(Modifier.fillMaxSize()) {
@@ -533,7 +540,7 @@ fun ImageEditorDialog(
                                 .zIndex(200f)
                                 .width(64.dp)
                                 .height(34.dp),
-                            shape = RoundedCornerShape(12.dp),
+                            shape = VaultShape.Large,
                             color = EditorAccent,
                             contentColor = MaterialTheme.colorScheme.onPrimary
                         ) {
@@ -554,7 +561,7 @@ fun ImageEditorDialog(
                     EditorPanel.Compose -> 188.dp
                     EditorPanel.Adjust -> 188.dp
                 }
-                Surface(color = Color.White, modifier = Modifier.fillMaxWidth().height(controlsHeight).zIndex(100f)) {
+                Surface(color = editorPanel(), modifier = Modifier.fillMaxWidth().height(controlsHeight).zIndex(100f)) {
                     when (panel) {
                         EditorPanel.Compose -> ComposeControls(
                             state = state,
@@ -622,8 +629,8 @@ fun ImageEditorDialog(
                         )
                     }
                 }
-                Box(Modifier.fillMaxWidth().background(Color.White).zIndex(100f)) {
-                    Column(Modifier.fillMaxWidth().background(Color.White)) {
+                Box(Modifier.fillMaxWidth().background(editorPanel()).zIndex(100f)) {
+                    Column(Modifier.fillMaxWidth().background(editorPanel())) {
                         EditorTabs(panel) {
                             panel = it
                             colorPicking = false
@@ -633,7 +640,7 @@ fun ImageEditorDialog(
                             Modifier
                                 .fillMaxWidth()
                                 .windowInsetsBottomHeight(WindowInsets.navigationBars)
-                                .background(Color.White)
+                                .background(editorPanel())
                         )
                     }
                 }
@@ -755,17 +762,17 @@ private fun EditorTopBar(
     val accent = MaterialTheme.colorScheme.primary
     val english = LocalAppEnglish.current
     Row(
-        Modifier.fillMaxWidth().statusBarsPadding().height(64.dp).background(Color.White).padding(horizontal = 12.dp),
+        Modifier.fillMaxWidth().statusBarsPadding().height(64.dp).background(editorPanel()).padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Surface(
             modifier = Modifier.size(48.dp).clickable(enabled = !saving, onClick = onClose),
-            color = Color(0xFFF4F4F2),
+            color = editorRaised(),
             shape = CircleShape
         ) {
             Box(contentAlignment = Alignment.Center) {
-                Icon(EditorPrototypeIcons.Close, appText("关闭", english), tint = Color(0xFF232727), modifier = Modifier.size(24.dp))
+                Icon(EditorPrototypeIcons.Close, appText("关闭", english), tint = EditorInk, modifier = Modifier.size(24.dp))
             }
         }
         Row(Modifier.width(114.dp), horizontalArrangement = Arrangement.spacedBy(0.dp)) {
@@ -776,27 +783,27 @@ private fun EditorTopBar(
         Spacer(Modifier.weight(1f))
         Surface(
             modifier = Modifier.height(32.dp).offset(x = (-8).dp).clickable(onClick = onResolution),
-            color = if (resolutionOpen) Color(0xFFE9E9E7) else Color(0xFFF4F4F2),
-            shape = RoundedCornerShape(16.dp)
+            color = if (resolutionOpen) editorRaised() else editorRaised(),
+            shape = VaultShape.XLarge
         ) {
             Row(
                 Modifier.padding(horizontal = 9.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                Text(appText("分辨率", english), color = Color(0xFF232727))
+                Text(appText("分辨率", english), color = EditorInk)
                 Icon(
                     if (resolutionOpen) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
                     contentDescription = null,
-                    tint = Color(0xFF232727),
+                    tint = EditorInk,
                     modifier = Modifier.size(16.dp)
                 )
             }
         }
         Surface(
             modifier = Modifier.width(50.dp).height(32.dp).clickable(enabled = saveEnabled && !saving, onClick = onSave),
-            color = if (saveEnabled && !saving) accent else Color(0xFFE9E9E7),
-            shape = RoundedCornerShape(16.dp)
+            color = if (saveEnabled && !saving) accent else editorRaised(),
+            shape = VaultShape.XLarge
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Text(
@@ -817,7 +824,7 @@ private fun EditorTopIcon(
     onClick: () -> Unit
 ) {
     IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(38.dp)) {
-        Icon(icon, label, tint = if (enabled) Color(0xFF232727) else Color(0xFFB9BCBA), modifier = Modifier.size(20.dp))
+        Icon(icon, label, tint = if (enabled) EditorInk else Color(0xFFB9BCBA), modifier = Modifier.size(20.dp))
     }
 }
 
@@ -846,7 +853,7 @@ private fun ResolutionOverlay(
         )
         Surface(
             modifier = Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top = 58.dp, end = 12.dp).widthIn(max = 358.dp),
-            color = Color.White,
+            color = editorPanel(),
             shape = RoundedCornerShape(20.dp),
             shadowElevation = 18.dp
         ) {
@@ -1857,7 +1864,7 @@ private fun EditorTabs(selected: EditorPanel, onSelect: (EditorPanel) -> Unit) {
     val accent = MaterialTheme.colorScheme.primary
     val english = LocalAppEnglish.current
     Row(
-        Modifier.fillMaxWidth().height(68.dp).background(Color.White),
+        Modifier.fillMaxWidth().height(68.dp).background(editorPanel()),
         verticalAlignment = Alignment.CenterVertically
     ) {
         EditorPanel.entries.forEach { panel ->
@@ -1875,10 +1882,10 @@ private fun EditorTabs(selected: EditorPanel, onSelect: (EditorPanel) -> Unit) {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                Icon(icon, appText(panel.label, english), tint = if (panel == selected) accent else Color(0xFF777B79), modifier = Modifier.size(24.dp))
+                Icon(icon, appText(panel.label, english), tint = if (panel == selected) accent else EditorMuted, modifier = Modifier.size(24.dp))
                 Text(
                     appText(panel.label, english),
-                    color = if (panel == selected) accent else Color(0xFF777B79),
+                    color = if (panel == selected) accent else EditorMuted,
                     textAlign = TextAlign.Center,
                     style = TextStyle(
                         fontSize = 14.sp,
@@ -1908,7 +1915,7 @@ private fun ComposeControls(
     )
     var presetOrder by remember { mutableStateOf(presets) }
     var presetOrderDialogOpen by remember { mutableStateOf(false) }
-    Box(Modifier.fillMaxSize().background(Color.White)) {
+    Box(Modifier.fillMaxSize().background(editorPanel())) {
         Column(Modifier.fillMaxSize()) {
         Row(
             Modifier.fillMaxWidth().height(78.dp).padding(horizontal = 14.dp),
@@ -2120,7 +2127,7 @@ private fun EditorRatioPopoverNew(
                     indication = null,
                     onClick = {}
                 ),
-            color = Color.White,
+            color = editorPanel(),
             shape = RoundedCornerShape(0.dp),
             shadowElevation = 0.dp
         ) {
@@ -2136,7 +2143,7 @@ private fun EditorRatioPopoverNew(
                     onValueChange = onWidthChange,
                     singleLine = true,
                     textStyle = TextStyle(color = EditorInk, fontSize = 15.sp, textAlign = TextAlign.Center),
-                    modifier = Modifier.width(82.dp).fillMaxHeight().background(Color(0xFFF4F4F2), RoundedCornerShape(5.dp)).border(1.dp, Color(0xFFD8DAD7), RoundedCornerShape(5.dp)).padding(horizontal = 8.dp, vertical = 7.dp)
+                    modifier = Modifier.width(82.dp).fillMaxHeight().background(editorRaised(), RoundedCornerShape(5.dp)).border(1.dp, EditorLine, RoundedCornerShape(5.dp)).padding(horizontal = 8.dp, vertical = 7.dp)
                 )
                 Text(":", color = EditorMuted)
                 BasicTextField(
@@ -2144,7 +2151,7 @@ private fun EditorRatioPopoverNew(
                     onValueChange = onHeightChange,
                     singleLine = true,
                     textStyle = TextStyle(color = EditorInk, fontSize = 15.sp, textAlign = TextAlign.Center),
-                    modifier = Modifier.width(82.dp).fillMaxHeight().background(Color(0xFFF4F4F2), RoundedCornerShape(5.dp)).border(1.dp, Color(0xFFD8DAD7), RoundedCornerShape(5.dp)).padding(horizontal = 8.dp, vertical = 7.dp)
+                    modifier = Modifier.width(82.dp).fillMaxHeight().background(editorRaised(), RoundedCornerShape(5.dp)).border(1.dp, EditorLine, RoundedCornerShape(5.dp)).padding(horizontal = 8.dp, vertical = 7.dp)
                 )
                 Text(
                     "✓",
@@ -2179,8 +2186,8 @@ private fun EditorRatioPopoverNew(
                             modifier = Modifier
                                 .width(82.dp)
                                 .height(36.dp)
-                                .background(Color(0xFFF4F4F2), RoundedCornerShape(5.dp))
-                                .border(1.dp, Color(0xFFD8DAD7), RoundedCornerShape(5.dp))
+                                .background(editorRaised(), RoundedCornerShape(5.dp))
+                                .border(1.dp, EditorLine, RoundedCornerShape(5.dp))
                                 .padding(horizontal = 8.dp, vertical = 7.dp)
                         )
                         Text(":", color = EditorMuted, modifier = Modifier.width(12.dp), textAlign = TextAlign.Center)
@@ -2192,8 +2199,8 @@ private fun EditorRatioPopoverNew(
                             modifier = Modifier
                                 .width(82.dp)
                                 .height(36.dp)
-                                .background(Color(0xFFF4F4F2), RoundedCornerShape(5.dp))
-                                .border(1.dp, Color(0xFFD8DAD7), RoundedCornerShape(5.dp))
+                                .background(editorRaised(), RoundedCornerShape(5.dp))
+                                .border(1.dp, EditorLine, RoundedCornerShape(5.dp))
                                 .padding(horizontal = 8.dp, vertical = 7.dp)
                         )
                     }
@@ -2222,14 +2229,14 @@ private fun EditorRoundAction(
 ) {
     Surface(
         modifier = Modifier.size(34.dp).clickable(onClick = onClick),
-        color = Color(0xFFF0F0EE),
+        color = EditorTile,
         shape = CircleShape
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(
                 icon,
                 label,
-                tint = Color(0xFF232727),
+                tint = EditorInk,
                 modifier = Modifier.size(18.dp).graphicsLayer { if (verticalFlip) rotationZ = 90f }
             )
         }
@@ -2240,13 +2247,13 @@ private fun EditorRoundAction(
 private fun EditorToolSettingsCard(selected: Boolean, onClick: () -> Unit) {
     Surface(
         modifier = Modifier.width(94.dp).height(98.dp).padding(3.dp).clickable(onClick = onClick),
-        color = if (selected) Color(0xFFF7FFF9) else EditorTile,
-        shape = RoundedCornerShape(8.dp)
+        color = if (selected) editorSelectedTile() else EditorTile,
+        shape = VaultShape.Medium
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Icon(Icons.Outlined.Settings, appText("设置工具顺序", LocalAppEnglish.current), tint = if (selected) EditorAccent else Color(0xFF777B79), modifier = Modifier.size(28.dp))
+            Icon(Icons.Outlined.Settings, appText("设置工具顺序", LocalAppEnglish.current), tint = if (selected) EditorAccent else EditorMuted, modifier = Modifier.size(28.dp))
             Spacer(Modifier.height(5.dp))
-            Text(appText("设置", LocalAppEnglish.current), color = if (selected) EditorAccent else Color(0xFF353937), style = MaterialTheme.typography.labelSmall)
+            Text(appText("设置", LocalAppEnglish.current), color = if (selected) EditorAccent else EditorInk, style = MaterialTheme.typography.labelSmall)
         }
     }
 }
@@ -2302,7 +2309,7 @@ private fun <T> EditorToolOrderDialog(
         confirmButton = {
             Button(
                 onClick = { onConfirm(clicked + items.filterNot { it in clicked }) },
-                shape = RoundedCornerShape(12.dp),
+                shape = VaultShape.Large,
                 modifier = Modifier.height(40.dp)
             ) {
                 Text(appText("确认", LocalAppEnglish.current), color = MaterialTheme.colorScheme.onPrimary)
@@ -2330,21 +2337,21 @@ private fun CropPresetCard(
     val iconHeight = if (ratio >= 1f) 28.dp / ratio else 28.dp
     Surface(
         modifier = Modifier.width(width).height(height).padding(3.dp).clickable(onClick = onClick),
-        color = if (selected) Color(0xFFF7FFF9) else EditorTile,
-        shape = RoundedCornerShape(8.dp)
+        color = if (selected) editorSelectedTile() else EditorTile,
+        shape = VaultShape.Medium
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             Box(
                 Modifier.width(iconWidth).height(iconHeight)
-                    .border(1.5.dp, if (selected) EditorAccent else Color(0xFF777B79), RoundedCornerShape(1.dp)),
+                    .border(1.5.dp, if (selected) EditorAccent else EditorMuted, RoundedCornerShape(1.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                if (preset == CropPreset.Custom) Text("+", color = if (selected) EditorAccent else Color(0xFF777B79))
+                if (preset == CropPreset.Custom) Text("+", color = if (selected) EditorAccent else EditorMuted)
             }
             Spacer(Modifier.height(5.dp))
             Text(
                 appText(preset.label, english),
-                color = if (selected) EditorAccent else Color(0xFF353937),
+                color = if (selected) EditorAccent else EditorInk,
                 style = MaterialTheme.typography.labelSmall,
                 maxLines = 1
             )
@@ -2425,7 +2432,7 @@ private fun AdjustControls(
         applyLive(reset)
         checkpoint(before)
     }
-    Column(Modifier.fillMaxSize().background(Color.White)) {
+    Column(Modifier.fillMaxSize().background(editorPanel())) {
         Box(Modifier.fillMaxWidth().height(78.dp), contentAlignment = Alignment.Center) {
             Column(Modifier.fillMaxWidth().height(64.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Box(
@@ -2511,8 +2518,8 @@ private fun AdjustControls(
                                 centerOnClick()
                                 if (isSelected) resetSelected() else selected = tool
                 },
-                color = if (isSelected) Color(0xFFF7FFF9) else EditorTile,
-                shape = RoundedCornerShape(8.dp)
+                color = if (isSelected) editorSelectedTile() else EditorTile,
+                shape = VaultShape.Medium
             ) {
                 Column(
                     Modifier.fillMaxSize().padding(horizontal = 2.dp),
@@ -2521,7 +2528,7 @@ private fun AdjustControls(
                 ) {
                     Text(
                         appText(tool, english),
-                        color = if (isSelected) EditorAccent else Color(0xFF353937),
+                        color = if (isSelected) EditorAccent else EditorInk,
                         style = MaterialTheme.typography.labelMedium.copy(
                             fontSize = 12.sp,
                             lineHeight = 14.sp,
@@ -2580,7 +2587,7 @@ private fun DoodleControls(
     }
     var brushOrder by remember { mutableStateOf(defaultBrushes) }
     var brushOrderDialogOpen by remember { mutableStateOf(false) }
-    Column(Modifier.fillMaxSize().background(Color.White).padding(horizontal = 12.dp, vertical = 5.dp)) {
+    Column(Modifier.fillMaxSize().background(editorPanel()).padding(horizontal = 12.dp, vertical = 5.dp)) {
         Row(
             Modifier.fillMaxWidth().height(40.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -2601,7 +2608,7 @@ private fun DoodleControls(
                             .background(
                                 when (brush) {
                                     EditorBrush.Mosaic -> Color.Black
-                                    EditorBrush.Eraser -> Color(0xFF777B79)
+                                    EditorBrush.Eraser -> EditorMuted
                                     else -> Color(color)
                                 }
                             )
@@ -2612,7 +2619,7 @@ private fun DoodleControls(
             val brushSize = (1f + brushWidthFraction * 99f).roundToInt().coerceIn(1, 100)
             Text(
                 brushSize.toString(),
-                color = Color(0xFF555957),
+                color = EditorMuted,
                 modifier = Modifier.width(24.dp),
                 textAlign = TextAlign.End,
                 style = MaterialTheme.typography.labelSmall
@@ -2660,13 +2667,13 @@ private fun DoodleControls(
                                 centerOnClick()
                                 onBrush(option)
                             },
-                        color = if (option == brush) Color(0xFFF7FFF9) else EditorTile,
-                        shape = RoundedCornerShape(8.dp)
+                        color = if (option == brush) editorSelectedTile() else EditorTile,
+                        shape = VaultShape.Medium
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                            EditorBrushMark(option, if (option == brush) accent else Color(0xFF777B79))
+                            EditorBrushMark(option, if (option == brush) accent else EditorMuted)
                             Spacer(Modifier.height(5.dp))
-                            Text(appText(option.label, english), color = if (option == brush) accent else Color(0xFF353937), style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                            Text(appText(option.label, english), color = if (option == brush) accent else EditorInk, style = MaterialTheme.typography.labelSmall, maxLines = 1)
                         }
                     }
                     }
@@ -2683,21 +2690,21 @@ private fun DoodleControls(
                     .border(
                         2.dp,
                         if (brush == EditorBrush.Eraser) accent else Color.Transparent,
-                        RoundedCornerShape(8.dp)
+                        VaultShape.Medium
                     )
                     .padding(3.dp),
-                color = if (brush == EditorBrush.Eraser) Color(0xFFF7FFF9) else EditorTile,
-                shape = RoundedCornerShape(8.dp)
+                color = if (brush == EditorBrush.Eraser) editorSelectedTile() else EditorTile,
+                shape = VaultShape.Medium
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    EditorBrushMark(EditorBrush.Eraser, if (brush == EditorBrush.Eraser) accent else Color(0xFF777B79))
+                    EditorBrushMark(EditorBrush.Eraser, if (brush == EditorBrush.Eraser) accent else EditorMuted)
                     Spacer(Modifier.height(5.dp))
                     Text(
                         appText("橡皮", english),
-                        color = if (brush == EditorBrush.Eraser) accent else Color(0xFF353937),
+                        color = if (brush == EditorBrush.Eraser) accent else EditorInk,
                         style = MaterialTheme.typography.labelSmall,
                         maxLines = 1
                     )
@@ -2822,7 +2829,7 @@ private fun TextControls(
     val fonts = remember { EditorFont.entries.toList() }
     var fontOrder by remember { mutableStateOf(fonts) }
     var fontOrderDialogOpen by remember { mutableStateOf(false) }
-    Column(Modifier.fillMaxSize().background(Color.White)) {
+    Column(Modifier.fillMaxSize().background(editorPanel())) {
         Column(Modifier.weight(1f).padding(horizontal = 14.dp, vertical = 4.dp)) {
             when (subtab) {
                 0 -> {
@@ -2907,8 +2914,8 @@ private fun TextControls(
                                     centerOnClick()
                                     selected?.let { onUpdate(it.copy(font = font)) }
                                 },
-                                color = if (selected?.font == font) Color(0xFFF7FFF9) else EditorTile,
-                                shape = RoundedCornerShape(8.dp)
+                                color = if (selected?.font == font) editorSelectedTile() else EditorTile,
+                                shape = VaultShape.Medium
                             ) {
                                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                     Text(
@@ -2943,7 +2950,7 @@ private fun TextControls(
                         displayValue = { ((it / .3f) * 12f).let { value -> "%.1f".format(value) }.removeSuffix(".0") },
                         preview = {
                             Box(
-                                Modifier.size(24.dp).clip(CircleShape).background(Color.White)
+                                Modifier.size(24.dp).clip(CircleShape).background(editorPanel())
                                     .border(1.dp, Color(0x22000000), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -3023,7 +3030,7 @@ private fun TextControls(
                 ) {
                     Text(
                         appText(label, english),
-                        color = if (subtab == index) accent else Color(0xFF777B79),
+                        color = if (subtab == index) accent else EditorMuted,
                         fontWeight = if (subtab == index) FontWeight.SemiBold else FontWeight.Normal,
                         textAlign = TextAlign.Center,
                         style = TextStyle(
@@ -3071,10 +3078,10 @@ private fun TextAlignmentCard(
 ) {
     Surface(
         modifier = modifier.fillMaxSize().padding(3.dp)
-            .border(2.dp, if (selected) EditorAccent else Color.Transparent, RoundedCornerShape(8.dp))
+            .border(2.dp, if (selected) EditorAccent else Color.Transparent, VaultShape.Medium)
             .clickable(enabled = enabled, onClick = onClick),
-        color = if (selected) Color(0xFFF7FFF9) else EditorTile.copy(alpha = if (enabled) 1f else .45f),
-        shape = RoundedCornerShape(8.dp)
+        color = if (selected) editorSelectedTile() else EditorTile.copy(alpha = if (enabled) 1f else .45f),
+        shape = VaultShape.Medium
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             val iconColor = if (selected) EditorAccent else EditorMuted
@@ -3317,7 +3324,7 @@ private fun EditorColorPickerDialog(
                         IconButton(onClick = { dismissAnimated() }) { Icon(EditorPrototypeIcons.Close, appText("关闭", LocalAppEnglish.current), tint = EditorInk) }
                     }
                     Canvas(
-                        Modifier.fillMaxWidth().height(220.dp).clip(RoundedCornerShape(12.dp))
+                        Modifier.fillMaxWidth().height(220.dp).clip(VaultShape.Large)
                             .pointerInput(Unit) {
                                 fun update(point: androidx.compose.ui.geometry.Offset) {
                                     saturation = (point.x / size.width).coerceIn(0f, 1f)
@@ -3342,6 +3349,7 @@ private fun EditorColorPickerDialog(
                         drawCircle(Color.Black.copy(alpha = .45f), 16.dp.toPx(), marker, style = androidx.compose.ui.graphics.drawscope.Stroke(1.dp.toPx()))
                     }
                     Spacer(Modifier.height(18.dp))
+                    val inkRing = EditorInk
                     Canvas(
                         Modifier.fillMaxWidth().height(38.dp)
                             .pointerInput(Unit) {
@@ -3368,7 +3376,7 @@ private fun EditorColorPickerDialog(
                         val x = hue / 360f * size.width
                         drawCircle(Color(selectedColor), 13.dp.toPx(), androidx.compose.ui.geometry.Offset(x, size.height / 2f))
                         drawCircle(Color.White, 13.dp.toPx(), androidx.compose.ui.geometry.Offset(x, size.height / 2f), style = androidx.compose.ui.graphics.drawscope.Stroke(5.dp.toPx()))
-                        drawCircle(EditorInk, 15.dp.toPx(), androidx.compose.ui.geometry.Offset(x, size.height / 2f), style = androidx.compose.ui.graphics.drawscope.Stroke(2.dp.toPx()))
+                        drawCircle(inkRing, 15.dp.toPx(), androidx.compose.ui.geometry.Offset(x, size.height / 2f), style = androidx.compose.ui.graphics.drawscope.Stroke(2.dp.toPx()))
                     }
                     Spacer(Modifier.height(22.dp))
                     TextButton(
@@ -3451,7 +3459,7 @@ private fun EditorVisualRange(
         )
         Text(
             displayValue(value),
-            color = if (enabled) Color(0xFF555957) else Color(0xFFB6B8B7),
+            color = if (enabled) EditorMuted else Color(0xFFB6B8B7),
             modifier = Modifier.width(24.dp),
             textAlign = TextAlign.End,
             style = MaterialTheme.typography.labelSmall
@@ -3475,7 +3483,7 @@ private fun EditorCompactRange(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label, color = if (enabled) Color(0xFF555957) else Color(0xFFB6B8B7), modifier = Modifier.width(38.dp), style = MaterialTheme.typography.labelSmall)
+        Text(label, color = if (enabled) EditorMuted else Color(0xFFB6B8B7), modifier = Modifier.width(38.dp), style = MaterialTheme.typography.labelSmall)
         EditorThinSlider(
             value = value,
             onValueChange = onValue,
@@ -3485,7 +3493,7 @@ private fun EditorCompactRange(
             onValueChangeFinished = onValueChangeFinished,
             modifier = Modifier.weight(1f).height(28.dp)
         )
-        Text(displayValue(value), color = Color(0xFF777B79), modifier = Modifier.width(34.dp), textAlign = TextAlign.End, style = MaterialTheme.typography.labelSmall)
+        Text(displayValue(value), color = EditorMuted, modifier = Modifier.width(34.dp), textAlign = TextAlign.End, style = MaterialTheme.typography.labelSmall)
     }
 }
 

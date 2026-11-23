@@ -133,6 +133,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import com.example.album.ui.theme.VaultChrome
+import com.example.album.ui.theme.isDarkUi
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
@@ -294,10 +296,13 @@ fun MediaViewer(
     var pagerDragging by remember { mutableStateOf(false) }
     var imageViewport by remember { mutableStateOf(IntSize.Zero) }
     var imageControlsVisible by remember { mutableStateOf(!startImmersive) }
+    // Dark chrome uses layered blacks instead of white so the controls remain
+    // legible without a bright flash in the dark theme.
+    val imageBackdrop = if (isDarkUi()) VaultChrome.DarkBackdrop else Color.White
     // Fade the background with the same timing as the controls so entering and
     // leaving full screen never looks out of step.
     val imageFullScreenBackground by androidx.compose.animation.animateColorAsState(
-        if (imageControlsVisible) Color.White else Color.Black,
+        if (imageControlsVisible) imageBackdrop else Color.Black,
         androidx.compose.animation.core.tween(220),
         label = "viewer-image-background"
     )
@@ -446,7 +451,7 @@ fun MediaViewer(
             Modifier.fillMaxSize(),
             color = when {
                 !current.isVideo && !imageControlsVisible -> imageFullScreenBackground
-                !current.isVideo -> Color.White.copy(alpha = viewerBackgroundAlpha.value)
+                !current.isVideo -> imageBackdrop.copy(alpha = viewerBackgroundAlpha.value)
                 videoMiniMode -> Color.Transparent
                 else -> Color.Black
             }
@@ -891,37 +896,39 @@ private fun ViewerTopBar(
     onImageSearch: ((ImageSearchSource) -> Unit)?
 ) {
     val english = LocalAppEnglish.current
-    val menuForeground = if (item.isVideo) Color.White else Color(0xFF1A1A1A)
+    val barColor = if (isDarkUi()) VaultChrome.DarkBar else Color.White
+    val contentColor = if (isDarkUi()) VaultChrome.DarkContent else Color(0xFF1A1A1A)
+    val menuForeground = if (item.isVideo) Color.White else contentColor
     Row(
         Modifier.fillMaxWidth()
             .height(68.dp)
-            .background(Color.White)
+            .background(barColor)
             .statusBarsPadding()
             .padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(2.dp)
     ) {
-        IconButton(onClick = onClose) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, appText("返回", english), tint = Color(0xFF1A1A1A)) }
+        IconButton(onClick = onClose) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, appText("返回", english), tint = contentColor) }
         Text(
             if (position.isEmpty()) item.name else "${item.name} · $position",
             modifier = Modifier.weight(1f),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            color = Color(0xFF1A1A1A),
+            color = contentColor,
             fontSize = 14.sp,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
-        IconButton(onClick = onFavorite) { Icon(if (favorite) Icons.Filled.Star else Icons.Outlined.StarBorder, appText("收藏", english), tint = if (favorite) Color(0xFFFFD60A) else Color(0xFF1A1A1A)) }
-        IconButton(onClick = onInfo) { Icon(Icons.Outlined.Info, appText("信息", english), tint = Color(0xFF1A1A1A)) }
+        IconButton(onClick = onFavorite) { Icon(if (favorite) Icons.Filled.Star else Icons.Outlined.StarBorder, appText("收藏", english), tint = if (favorite) Color(0xFFFFD60A) else contentColor) }
+        IconButton(onClick = onInfo) { Icon(Icons.Outlined.Info, appText("信息", english), tint = contentColor) }
         Box {
             IconButton(onClick = { onMenuExpanded(true) }) {
-                Icon(Icons.Outlined.MoreVert, appText("菜单", english), tint = Color(0xFF1A1A1A))
+                Icon(Icons.Outlined.MoreVert, appText("菜单", english), tint = contentColor)
             }
             DropdownMenu(
                 expanded = menuExpanded,
                 onDismissRequest = { onMenuExpanded(false) },
                 modifier = Modifier.width(190.dp).clip(RoundedCornerShape(topStart = 14.dp, bottomStart = 14.dp)),
-                containerColor = if (item.isVideo) Color.Black.copy(alpha = .20f) else Color.White
+                containerColor = if (item.isVideo) Color.Black.copy(alpha = .20f) else if (isDarkUi()) VaultChrome.DarkPanel else Color.White
             ) {
                 DropdownMenuItem(text = { Text(appText("分享", english), color = menuForeground, fontSize = 14.sp) }, leadingIcon = { Icon(Icons.Outlined.Share, null, tint = menuForeground) }, modifier = Modifier.height(52.dp), onClick = { onMenuExpanded(false); onShare() })
                 DropdownMenuItem(text = { Text(appText("复制", english), color = menuForeground, fontSize = 14.sp) }, leadingIcon = { Icon(Icons.Outlined.ContentCopy, null, tint = menuForeground) }, modifier = Modifier.height(52.dp), onClick = { onMenuExpanded(false); onCopy() })
@@ -968,7 +975,7 @@ private fun ViewerBottomBar(
     Row(
         modifier.fillMaxWidth()
             .height(76.dp)
-            .background(Color.White)
+            .background(if (isDarkUi()) VaultChrome.DarkBar else Color.White)
             .navigationBarsPadding()
             .padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -992,10 +999,11 @@ private fun ViewerAction(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
     onClick: () -> Unit,
-    tint: Color = Color(0xFF777B79)
+    tint: Color? = null
 ) {
+    val resolvedTint = tint ?: if (isDarkUi()) VaultChrome.DarkMuted else Color(0xFF777B79)
     IconButton(onClick = onClick, modifier = Modifier.height(56.dp).widthIn(min = 56.dp)) {
-        Icon(icon, label, tint = tint, modifier = Modifier.fillMaxSize(.48f))
+        Icon(icon, label, tint = resolvedTint, modifier = Modifier.fillMaxSize(.48f))
     }
 }
 
@@ -1186,6 +1194,7 @@ private fun ViewerEditAction(label: String, onClick: () -> Unit) {
 /** The viewer edit mark from the prototype: an open rounded frame with a diagonal stroke. */
 @Composable
 private fun ViewerEditIcon(contentDescription: String, modifier: Modifier = Modifier) {
+    val tint = if (isDarkUi()) VaultChrome.DarkContent else Color(0xFF777B79)
     Canvas(modifier) {
         val side = size.minDimension
         // Match the lighter stroke weight in the prototype icon.
@@ -1207,11 +1216,11 @@ private fun ViewerEditIcon(contentDescription: String, modifier: Modifier = Modi
         }
         drawPath(
             path = frame,
-            color = Color(0xFF777B79),
+            color = tint,
             style = Stroke(width = strokeWidth, cap = StrokeCap.Round, join = StrokeJoin.Round)
         )
         drawLine(
-            color = Color(0xFF777B79),
+            color = tint,
             start = Offset(size.width * 0.48f, size.height * 0.51f),
             end = Offset(size.width * 0.82f, size.height * 0.17f),
             strokeWidth = strokeWidth,
@@ -1380,7 +1389,7 @@ private fun MediaInfoPanel(item: MediaItem, modifier: Modifier = Modifier, playe
         modifier = modifier.width(228.dp),
         shape = RoundedCornerShape(14.dp),
         shadowElevation = 10.dp,
-        color = if (playerStyle) PlayerPopupSurface else Color.White,
+        color = if (playerStyle) PlayerPopupSurface else if (isDarkUi()) VaultChrome.DarkPanel else Color.White,
         border = if (playerStyle) androidx.compose.foundation.BorderStroke(1.dp, PlayerPopupBorder) else null
     ) {
         Text(
@@ -1398,7 +1407,7 @@ private fun MediaInfoPanel(item: MediaItem, modifier: Modifier = Modifier, playe
                 append(item.displayAddress())
             },
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
-            color = if (playerStyle) Color.White else Color(0xFF1C1C1E),
+            color = if (playerStyle) Color.White else if (isDarkUi()) VaultChrome.DarkContent else Color(0xFF1C1C1E),
             fontSize = 13.sp,
             lineHeight = 24.sp
         )

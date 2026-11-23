@@ -1,5 +1,7 @@
 package com.example.album.ui.components
 
+import com.example.album.ui.theme.VaultShape
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -137,7 +139,7 @@ private fun TitleSwitchMark(
             val active = itemIndex == index
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(VaultShape.Medium)
                     .background(
                         if (active) MaterialTheme.colorScheme.primary.copy(alpha = .14f)
                         else androidx.compose.ui.graphics.Color.Transparent
@@ -375,7 +377,7 @@ fun VaultTopBar(
             if (searching) {
                 Row(
                     modifier = Modifier.weight(1f).height(48.dp)
-                        .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(16.dp))
+                        .background(MaterialTheme.colorScheme.surface, VaultShape.XLarge)
                         .padding(
                             start = if (searchModeLabels.isNotEmpty()) 7.dp else 13.dp,
                             end = 13.dp

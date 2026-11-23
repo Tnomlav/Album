@@ -1,5 +1,7 @@
 package com.example.album.ui.components
 
+import com.example.album.ui.theme.VaultShape
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -129,7 +131,7 @@ fun SelectionTopBar(
             if (searchExpanded) {
                 Row(
                     modifier = Modifier.weight(1f).height(36.dp)
-                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant, VaultShape.XLarge)
                         .padding(horizontal = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {

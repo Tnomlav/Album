@@ -1,5 +1,7 @@
 package com.example.album.ui
 
+import com.example.album.ui.theme.VaultShape
+
 import android.Manifest
 import android.app.Activity
 import android.content.ContentValues
@@ -559,7 +561,7 @@ private fun ToolEntry(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+        shape = VaultShape.Medium,
         color = MaterialTheme.colorScheme.surfaceVariant
     ) {
         Row(
