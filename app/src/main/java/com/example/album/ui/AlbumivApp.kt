@@ -3315,7 +3315,7 @@ fun AlbumivApp(
                 tabs = enabledMainTabs(pixivTabEnabled),
                 tabOrder = tabOrder,
                 navReorderEnabled = navReorderEnabled,
-                selectionMode = selectionMode,
+                selectionMode = selectionMode || selectionGestureActive,
                 selectingFolders = selectingFolders,
                 selectedFolders = selectedFolders,
                 selectedUris = selectedUris,
