@@ -75,6 +75,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
@@ -299,13 +300,21 @@ fun VaultTopBar(
                 if (!searching) {
                     // Pages with a back arrow still want their type switch
                     // (static/live on the wallpaper manager); only the plain
-                    // pages fall back to the title text.
-                    Box(Modifier.weight(1f)) {
-                        if (titleSwitch != null && titleSwitch.isNotEmpty()) {
-                            TitleSwitchMark(titleSwitch, selectedSearchMode, onTitleSwitchChange, english)
-                        } else {
-                            Text(title, style = VaultText.TopBarTitle, maxLines = 1)
-                        }
+                    // pages fall back to the title text. The switch must not
+                    // sit inside a weight() box: the trailing Spacer(weight)
+                    // would split the remaining width with it and squeeze the
+                    // segments. The title keeps the weight so long names still
+                    // ellipsize instead of pushing the actions out.
+                    if (titleSwitch != null && titleSwitch.isNotEmpty()) {
+                        TitleSwitchMark(titleSwitch, selectedSearchMode, onTitleSwitchChange, english)
+                    } else {
+                        Text(
+                            title,
+                            style = VaultText.TopBarTitle,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
                     }
                 } else if (
                     titleSwitchWhileSearching &&

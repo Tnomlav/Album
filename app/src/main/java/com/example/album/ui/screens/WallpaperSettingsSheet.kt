@@ -242,7 +242,7 @@ fun WallpaperSettingsSheet(
 @Composable
 private fun RowScope.TypeChoice(label: String, selected: Boolean, onClick: () -> Unit) {
     Box(
-        Modifier.weight(1f).height(32.dp).then(
+        Modifier.weight(1f).height(40.dp).then(
             if (selected) Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
                 .background(androidx.compose.material3.MaterialTheme.colorScheme.primary.copy(alpha = .14f))
             else Modifier
