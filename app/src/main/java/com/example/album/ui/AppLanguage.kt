@@ -52,6 +52,7 @@ private val APP_ENGLISH = mapOf(
     "没有找到相关内容" to "No matching items", "这里还没有图片" to "No photos yet", "这里还没有视频" to "No videos yet", "此文件夹没有内容" to "This folder is empty",
     // Empty states use one voice: short, and the same shape everywhere.
     "还没有图片" to "No photos yet", "还没有视频" to "No videos yet",
+    "还没有收藏" to "No favorites yet", "查看全部" to "Show all",
     // Tools entries and the pieces that were added later.
     "壁纸队列" to "Wallpaper queue", "文件清理" to "File cleanup",
     "幻灯片播放" to "Slideshow", "幻灯片队列" to "Slideshow queue",

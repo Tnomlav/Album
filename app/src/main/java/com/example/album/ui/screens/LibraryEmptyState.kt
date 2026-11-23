@@ -38,7 +38,9 @@ fun LibraryEmptyState(
     onClearQuery: () -> Unit,
     onAddFolder: () -> Unit,
     onRescan: () -> Unit,
-    onRetry: () -> Unit
+    onRetry: () -> Unit,
+    favoritesOnly: Boolean = false,
+    onShowAll: () -> Unit = {}
 ) {
     val english = LocalAppEnglish.current
     val searching = query.isNotBlank()
@@ -71,6 +73,22 @@ fun LibraryEmptyState(
                 )
                 TextButton(onClick = onRetry, modifier = Modifier.padding(top = 8.dp)) {
                     Text(appText("重试", english))
+                }
+            }
+            favoritesOnly -> {
+                Text(
+                    appText("还没有收藏", english),
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    if (english) "Tap the star on any item to add it here."
+                    else "在任意图片或视频上点星标，收藏就会出现在这里。",
+                    modifier = Modifier.padding(top = 8.dp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+                TextButton(onClick = onShowAll, modifier = Modifier.padding(top = 8.dp)) {
+                    Text(appText("查看全部", english))
                 }
             }
             else -> {

@@ -774,9 +774,6 @@ fun AlbumivApp(
     var selectionMode by rememberSaveable { mutableStateOf(false) }
     var selectionGestureActive by remember { mutableStateOf(false) }
     var selectingFolders by rememberSaveable { mutableStateOf(false) }
-    var selectionMediaSort by rememberSaveable { mutableStateOf(initialSort) }
-    var selectionMediaSortDirection by rememberSaveable { mutableStateOf(SortDirection.Descending) }
-    var selectionMediaOrderUris by remember { mutableStateOf<List<String>>(emptyList()) }
     var selectionAnchorUri by remember { mutableStateOf<String?>(null) }
     var selectionAnchorFolder by remember { mutableStateOf<String?>(null) }
     var showWallpaperSortDialog by remember { mutableStateOf(false) }
@@ -914,7 +911,6 @@ fun AlbumivApp(
             selectedUris = emptySet()
             selectedFolders = emptySet()
             selectingFolders = false
-            selectionMediaOrderUris = emptyList()
         }
     }
     var selectionFolderFirstVisibleItem by remember { mutableIntStateOf(0) }
@@ -1394,25 +1390,6 @@ fun AlbumivApp(
         }
     } }
 
-    fun freezeSelectionSort() {
-        if (selectedTab == MainTab.Timeline) {
-            selectionMediaSort = MediaSort.Time
-            selectionMediaSortDirection = SortDirection.Descending
-        } else {
-            selectionMediaSort = activeViewPrefs.sort
-            selectionMediaSortDirection = activeViewPrefs.direction
-        }
-        // selectionMedia is already the exact list shown by the current
-        // folder, search, timeline, or Pixiv view. Re-sorting it here makes
-        // entering selection visibly reorder the grid when that view has a
-        // more specific display order than the global sort setting.
-        val ordered = if (selectedTab == MainTab.Timeline) {
-            sortMediaItems(selectionMedia, MediaSort.Time, SortDirection.Descending)
-        } else {
-            selectionMedia
-        }
-        selectionMediaOrderUris = ordered.map { it.uri.toString() }
-    }
     // Search is a view over the source; it must never become the source of
     // truth for a selection. Actions resolve selected keys from the complete
     // media set so items hidden by the current query remain actionable.
@@ -3192,7 +3169,6 @@ fun AlbumivApp(
                             // This is especially important inside a folder,
                             // where the selection screen replaces the folder
                             // content immediately.
-                            freezeSelectionSort()
                             selectionMode = true
                             selectingFolders = openedFolder == null && (tab == MainTab.Albums || (tab == MainTab.Pixiv && pixivSearchMode == PixivSearchMode.Artist))
                             val first = currentSelectionMedia.firstOrNull()
@@ -3553,16 +3529,14 @@ fun AlbumivApp(
                     },
                     onRequestPermission = requestPermission,
                     onOpenMedia = { item -> if (selectionMode) { val key = item.uri.toString(); selectedUris = if (key in selectedUris) selectedUris - key else selectedUris + key } else openMedia(item) },
-                    onLongPressMedia = { pressed -> freezeSelectionSort(); selectionMode = true; selectingFolders = false; selectedUris = selectedUris + pressed.uri.toString() },
+                    onLongPressMedia = { pressed -> selectionMode = true; selectingFolders = false; selectedUris = selectedUris + pressed.uri.toString() },
                     onBatchSelectMedia = { items ->
-                        freezeSelectionSort()
                         selectingFolders = false
                         selectedUris = selectedUris + items.map { it.uri.toString() }
                     },
-                    onSelectionGestureStartMedia = { pressed -> selectionGestureActive = true; freezeSelectionSort(); selectingFolders = false; selectedUris = selectedUris + pressed.uri.toString() },
+                    onSelectionGestureStartMedia = { pressed -> selectionGestureActive = true; selectingFolders = false; selectedUris = selectedUris + pressed.uri.toString() },
                     onSelectionGestureEnd = { selectionGestureActive = false; selectionMode = true },
                     onLongPressAlbum = { album, index, offset ->
-                        freezeSelectionSort()
                         albumFirstVisibleItem = index
                         albumFirstVisibleOffset = offset
                         selectionFolderFirstVisibleItem = index
@@ -3571,9 +3545,8 @@ fun AlbumivApp(
                         selectingFolders = true
                         selectedFolders = selectedFolders + album.key
                     },
-                    onSelectionGestureStartAlbum = { album -> selectionGestureActive = true; freezeSelectionSort(); selectingFolders = true; selectedFolders = selectedFolders + album.key },
+                    onSelectionGestureStartAlbum = { album -> selectionGestureActive = true; selectingFolders = true; selectedFolders = selectedFolders + album.key },
                     onBatchSelectAlbums = { albums ->
-                        freezeSelectionSort()
                         selectingFolders = true
                         selectedFolders = selectedFolders + albums.map { it.key }
                     },
@@ -3590,7 +3563,9 @@ fun AlbumivApp(
                     additionalAlbumNames = if (appliedQuery.isBlank()) emptySet() else library.searchableFolderNames + library.searchableFolderChildren.values.flatten(),
                     additionalFileNames = if (appliedQuery.isBlank()) emptyMap() else library.searchableFolderFiles,
                     additionalChildFolderNames = if (openedFolder == null) emptySet() else (library.searchableFolderChildren[openedFolder.orEmpty()] ?: library.searchableFolderChildren[com.example.album.data.albumDisplayName(openedFolder.orEmpty())]).orEmpty(),
-                    onClearQuery = { query = "" }
+                    onClearQuery = { query = "" },
+                    favoritesOnly = favoriteFilter,
+                    onShowAllFavorites = { favoriteFilter = false }
                     ,onOpenPixivArchive = {
                         openArchiveFromCurrentPage()
                     }
@@ -3630,7 +3605,6 @@ fun AlbumivApp(
                     onRequestPermission = requestPermission,
                     onOpenMedia = { item -> if (selectionMode) { val key = item.uri.toString(); selectedUris = if (key in selectedUris) selectedUris - key else selectedUris + key } else openMedia(item) },
                     onLongPressMedia = { pressed ->
-                        freezeSelectionSort()
                         selectionMediaFirstVisibleItem = timelineFirstVisibleItem
                         selectionMediaFirstVisibleOffset = timelineFirstVisibleOffset
                         selectionMode = true
@@ -3638,11 +3612,10 @@ fun AlbumivApp(
                         selectedUris = selectedUris + pressed.uri.toString()
                     },
                     onBatchSelectMedia = { items ->
-                        freezeSelectionSort()
                         selectingFolders = false
                         selectedUris = selectedUris + items.map { it.uri.toString() }
                     },
-                    onSelectionGestureStartMedia = { pressed -> selectionGestureActive = true; freezeSelectionSort(); selectingFolders = false; selectedUris = selectedUris + pressed.uri.toString() },
+                    onSelectionGestureStartMedia = { pressed -> selectionGestureActive = true; selectingFolders = false; selectedUris = selectedUris + pressed.uri.toString() },
                     onSelectionGestureEnd = { selectionGestureActive = false; selectionMode = true },
                     onRefresh = { refreshLibrary() },
                     sharedElementEnabled = tab == selectedTab,
@@ -3650,7 +3623,9 @@ fun AlbumivApp(
                     showFavoriteBadge = showFavoriteBadge,
                     selectionPreview = selectionMode || selectionGestureActive,
                     selectedUris = selectedUris,
-                    onClearQuery = { query = "" }
+                    onClearQuery = { query = "" },
+                    favoritesOnly = favoriteFilter,
+                    onShowAllFavorites = { favoriteFilter = false }
                 )
                 MainTab.Pixiv -> Column(Modifier.fillMaxSize()) {
                     if (openedFolder == null) {
@@ -3684,29 +3659,25 @@ fun AlbumivApp(
                     onRequestPermission = requestPermission,
                     onOpenMedia = { item -> if (selectionMode) { val key = item.uri.toString(); selectedUris = if (key in selectedUris) selectedUris - key else selectedUris + key } else openMedia(item) },
                     onLongPressMedia = { pressed ->
-                        freezeSelectionSort()
                         selectionMode = true
                         selectingFolders = false
                         selectedUris = setOf(pressed.uri.toString())
                     },
                     onBatchSelectMedia = { items ->
-                        freezeSelectionSort()
                         selectingFolders = false
                         selectedUris = selectedUris + items.map { it.uri.toString() }
                     },
-                    onSelectionGestureStartMedia = { pressed -> selectionGestureActive = true; freezeSelectionSort(); selectingFolders = false; selectedUris = selectedUris + pressed.uri.toString() },
+                    onSelectionGestureStartMedia = { pressed -> selectionGestureActive = true; selectingFolders = false; selectedUris = selectedUris + pressed.uri.toString() },
                     onSelectionGestureEnd = { selectionGestureActive = false; selectionMode = true },
                     onLongPressAlbum = { album, index, offset ->
-                        freezeSelectionSort()
                         selectionFolderFirstVisibleItem = index
                         selectionFolderFirstVisibleOffset = offset
                         selectionMode = true
                         selectingFolders = true
                         selectedFolders = selectedFolders + album.key
                     },
-                    onSelectionGestureStartAlbum = { album -> selectionGestureActive = true; freezeSelectionSort(); selectingFolders = true; selectedFolders = selectedFolders + album.key },
+                    onSelectionGestureStartAlbum = { album -> selectionGestureActive = true; selectingFolders = true; selectedFolders = selectedFolders + album.key },
                     onBatchSelectAlbums = { albums ->
-                        freezeSelectionSort()
                         selectingFolders = true
                         selectedFolders = selectedFolders + albums.map { it.key }
                     },
@@ -3739,9 +3710,13 @@ fun AlbumivApp(
                     showFavoriteBadge = showFavoriteBadge,
                     selectionPreview = selectionMode || selectionGestureActive,
                     selectedUris = selectedUris,
-                    emptyMessage = if (appliedQuery.isBlank()) {
+                    emptyMessage = if (favoriteFilter) {
+                        null
+                    } else if (appliedQuery.isBlank()) {
                         if (english) "Enter a tag to search images" else "输入 Tag 搜索图片"
-                    } else if (english) "No images match this tag" else "没有匹配该 Tag 的图片"
+                    } else if (english) "No images match this tag" else "没有匹配该 Tag 的图片",
+                    favoritesOnly = favoriteFilter,
+                    onShowAllFavorites = { favoriteFilter = false }
                 )
                     }
                 }

@@ -44,6 +44,8 @@ import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Wallpaper
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Info
 import com.example.album.ui.MainMenuAction
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -118,7 +120,9 @@ private fun menuIcon(item: String): ImageVector? = when (MainMenuAction.fromLabe
         "在 SauceNAO 搜索原图", "Find original on SauceNAO", "在 SauceNAO 搜原图" -> Icons.Outlined.Search
         "在 ascii2d 搜索原图", "Find original on ascii2d", "在 ascii2d 搜原图" -> Icons.Outlined.Search
         "详细信息", "Details", "信息", "Info" -> Icons.Outlined.Info
-        else -> null
+        "设置", "Settings" -> Icons.Outlined.Settings
+        "清空壁纸队列", "Clear wallpaper queue", "清空幻灯片队列", "Clear slideshow queue" -> Icons.Outlined.Delete
+        else -> if (item.startsWith("清空") || item.startsWith("Clear")) Icons.Outlined.Delete else null
     }
 }
 

@@ -107,7 +107,9 @@ fun TimelineScreen(
     scrollRequest: com.example.album.ui.PageScrollRequest? = null,
     /** See [com.example.album.ui.components.rememberPullToRefresh]. */
     pullRequestToken: Long = 0L,
-    onClearQuery: () -> Unit = {}
+    onClearQuery: () -> Unit = {},
+    favoritesOnly: Boolean = false,
+    onShowAllFavorites: () -> Unit = {}
 ) {
     // Only a finger pull shows the pull indicator; start-up and background
     // scans stay silent (see AlbumsScreen).
@@ -159,7 +161,9 @@ fun TimelineScreen(
             onClearQuery = onClearQuery,
             onAddFolder = onAddFolder,
             onRescan = onRescan,
-            onRetry = onRetry
+            onRetry = onRetry,
+            favoritesOnly = favoritesOnly,
+            onShowAll = onShowAllFavorites
         )
         return
     }

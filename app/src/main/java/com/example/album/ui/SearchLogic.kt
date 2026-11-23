@@ -18,13 +18,24 @@ internal fun sortMediaItems(
     sort: MediaSort,
     sortDirection: SortDirection
 ): List<MediaItem> {
-    val sorted = when (sort) {
-        MediaSort.Time, MediaSort.Count -> items.sortedBy { it.dateTaken }
-        MediaSort.Name -> items.sortedBy { it.name.lowercase() }
-        MediaSort.Size -> items.sortedBy { it.size }
-        MediaSort.Duration -> items.sortedBy { it.duration }
+    // Equal primary keys (same timestamp, same size, ...) used to keep the
+    // input order, and the album and P pages build their inputs differently,
+    // so the two pages could show the same sort in a subtly different order.
+    // Always break ties by name and URI so the order is deterministic.
+    val primary = when (sort) {
+        MediaSort.Time, MediaSort.Count -> compareBy<MediaItem> { it.dateTaken }
+        MediaSort.Name -> compareBy { it.name.lowercase() }
+        MediaSort.Size -> compareBy { it.size }
+        MediaSort.Duration -> compareBy { it.duration }
     }
-    return if (sortDirection == SortDirection.Descending) sorted.reversed() else sorted
+    val comparator = primary
+        .thenBy { it.name.lowercase() }
+        .thenBy { it.uri.toString() }
+    return if (sortDirection == SortDirection.Descending) {
+        items.sortedWith(comparator.reversed())
+    } else {
+        items.sortedWith(comparator)
+    }
 }
 
 internal fun folderMatchesSearch(

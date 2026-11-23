@@ -169,7 +169,9 @@ fun AlbumsScreen(
     onMediaScrollPositionChanged: (Int, Int) -> Unit = { _, _ -> },
     onAlbumScrollPositionChanged: (Int, Int) -> Unit = { _, _ -> },
     scrollRequest: com.example.album.ui.PageScrollRequest? = null,
-    onClearQuery: () -> Unit = {}
+    onClearQuery: () -> Unit = {},
+    favoritesOnly: Boolean = false,
+    onShowAllFavorites: () -> Unit = {}
 ) {
     // The pull-to-refresh indicator is only for refreshes the user asked for.
     // Startup scans, background observer reloads and post-operation reloads use
@@ -301,7 +303,9 @@ fun AlbumsScreen(
                 onClearQuery = onClearQuery,
                 onAddFolder = onAddFolder,
                 onRescan = onRescan,
-                onRetry = onRetry
+                onRetry = onRetry,
+                favoritesOnly = favoritesOnly,
+                onShowAll = onShowAllFavorites
             )
         } else {
             EmptyMessage(
