@@ -222,6 +222,7 @@ class MediaLibraryState(context: Context) {
         permissionGranted = granted
         loadState = loadState.copy(active = source, queued = null)
         val startedAt = android.os.SystemClock.elapsedRealtime()
+        android.util.Log.i("AlbumScan", "refresh start source=$source")
         refreshError = null
         try {
             // Show the previous snapshot immediately; MediaStore queries on a
@@ -407,6 +408,11 @@ class MediaLibraryState(context: Context) {
                     }
                 }
             }
+            android.util.Log.i(
+                "AlbumScan",
+                "refresh done source=$source ms=${android.os.SystemClock.elapsedRealtime() - startedAt} " +
+                    "images=${images.size} videos=${videos.size} local=${localImages.size + localVideos.size}"
+            )
             loadState = loadState.copy(active = null, initialScanComplete = true)
             // One cache-audit line per library scan, next to the per-200
             // progress lines: pulling to refresh on a big library is enough to
