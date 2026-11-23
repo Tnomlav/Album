@@ -57,7 +57,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
@@ -299,18 +298,14 @@ fun MediaThumbnail(
         value = ThumbnailRepository.load(context, item, quantizedSize, preferences)
     }
 
-    // A video without a thumbnail uses the same placeholder language as a
-    // folder cover (tone background + centered icon in the tone's ink color)
-    // instead of the colored gradient the image placeholders use.
+    // Every unloaded thumbnail uses the folder tone that folder covers use, so
+    // placeholders and the folder tile always come from the same palette.
     val darkTheme = MaterialTheme.colorScheme.surfaceVariant.luminance() < .45f
     val tone = remember(item.folder, darkTheme) { emptyFolderTone(item.folder, darkTheme) }
-    val placeholder = remember(item.id) { placeholderBrush(item.id) }
     val loaded = animatedDrawable != null || bitmap != null
-    val videoPlaceholder = item.isVideo && !loaded
     val backgroundModifier = when {
         backgroundColor != null -> modifier.background(backgroundColor)
-        videoPlaceholder -> modifier.background(tone.background)
-        else -> modifier.background(placeholder)
+        else -> modifier.background(tone.background)
     }
     BoxWithConstraints(modifier = backgroundModifier) {
         // Badges follow the tile size: 54dp list rows get a small mark, 120dp
@@ -406,16 +401,6 @@ private fun formatVideoDuration(durationMs: Long): String {
     } else {
         "%d:%02d".format(minutes, seconds)
     }
-}
-
-private fun placeholderBrush(seed: Long): Brush {
-    val palettes = listOf(
-        listOf(Color(0xFF9ED7D1), Color(0xFF315C69)),
-        listOf(Color(0xFFF4C27A), Color(0xFF9C5940)),
-        listOf(Color(0xFFAEC5EF), Color(0xFF596A9A)),
-        listOf(Color(0xFFC6D99A), Color(0xFF617348))
-    )
-    return Brush.linearGradient(palettes[(seed % palettes.size).toInt()])
 }
 
 /** One list-mode media row shared by Albums, Timeline and the P page. */

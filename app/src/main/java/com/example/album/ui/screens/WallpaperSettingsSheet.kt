@@ -135,10 +135,10 @@ fun WallpaperSettingsSheet(
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
                 Row(
-                    Modifier.fillMaxWidth().clip(VaultShape.Medium)
+                    Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
                         .background(androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant)
-                        .padding(3.dp),
-                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                        .padding(2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     TypeChoice(text("静态", "Static"), !isVideo) { isVideo = false }
                     TypeChoice(text("动态", "Live"), isVideo) { isVideo = true }
@@ -242,15 +242,21 @@ fun WallpaperSettingsSheet(
 @Composable
 private fun RowScope.TypeChoice(label: String, selected: Boolean, onClick: () -> Unit) {
     Box(
-        Modifier.weight(1f).heightIn(min = 40.dp).then(
-            if (selected) Modifier.shadow(2.dp, androidx.compose.foundation.shape.RoundedCornerShape(6.dp))
-                .clip(androidx.compose.foundation.shape.RoundedCornerShape(6.dp))
-                .background(androidx.compose.material3.MaterialTheme.colorScheme.surface)
+        Modifier.weight(1f).height(32.dp).then(
+            if (selected) Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                .background(androidx.compose.material3.MaterialTheme.colorScheme.primary.copy(alpha = .14f))
             else Modifier
         ).clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        Text(label, color = if (selected) androidx.compose.material3.MaterialTheme.colorScheme.onSurface else androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant, style = VaultText.RowValue, textAlign = TextAlign.Center)
+        Text(
+            label,
+            color = if (selected) androidx.compose.material3.MaterialTheme.colorScheme.primary
+            else androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
+            style = VaultText.TopBarSwitch,
+            textAlign = TextAlign.Center,
+            maxLines = 1
+        )
     }
 }
 
