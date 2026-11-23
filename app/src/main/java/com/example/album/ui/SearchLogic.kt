@@ -80,14 +80,19 @@ internal fun searchAlbums(
                 additionalFileNames[album.name].orEmpty()
             )
         }
-    val sorted = when (sort) {
-        MediaSort.Time -> albums.sortedBy { it.coverItem?.dateTaken ?: Long.MIN_VALUE }
-        MediaSort.Name -> albums.sortedBy { it.name.lowercase() }
-        MediaSort.Size -> albums.sortedBy { it.items.sumOf(MediaItem::size) }
-        MediaSort.Count -> albums.sortedBy { it.items.size }
-        MediaSort.Duration -> albums.sortedBy { it.items.sumOf(MediaItem::duration) }
+    val primary = when (sort) {
+        MediaSort.Time -> compareBy<MediaAlbum> { it.coverItem?.dateTaken ?: Long.MIN_VALUE }
+        MediaSort.Name -> compareBy { it.name.lowercase() }
+        MediaSort.Size -> compareBy { it.items.sumOf(MediaItem::size) }
+        MediaSort.Count -> compareBy { it.items.size }
+        MediaSort.Duration -> compareBy { it.items.sumOf(MediaItem::duration) }
     }
-    val ordered = if (sortDirection == SortDirection.Descending) sorted.reversed() else sorted
+    val comparator = primary.thenBy { it.name.lowercase() }.thenBy { it.key }
+    val ordered = if (sortDirection == SortDirection.Descending) {
+        albums.sortedWith(comparator.reversed())
+    } else {
+        albums.sortedWith(comparator)
+    }
     val pinnedOrdered = pinnedFolderName?.let { pinned ->
         val pinnedAlbum = ordered.firstOrNull { it.name.equals(pinned, ignoreCase = true) }
             ?: MediaAlbum(pinned, emptyList(), null)

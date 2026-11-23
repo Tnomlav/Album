@@ -45,11 +45,16 @@ fun <T> Modifier.batchSelectionGesture(
             if (!awaitLongPress(down)) return@awaitEachGesture
 
             val startPosition = down.position
+            // Build the key -> data index map once per gesture. The old code
+            // scanned the entire item list for every visible cell (and again
+            // for indexOfFirst), which made entering selection on the 50k-item
+            // timeline visibly slow.
+            val itemsSnapshot = latestItems
+            val keyOfSnapshot = latestKeyOf
+            val indexByKey = itemsSnapshot.mapIndexed { index, item -> keyOfSnapshot(item) to index }.toMap()
             fun itemAt(x: Float, y: Float): Int? {
-                val currentItems = latestItems
-                val currentKeyOf = latestKeyOf
-                val visible = state.layoutInfo.visibleItemsInfo
-                return visible.filter { info -> currentItems.any { currentKeyOf(it) == info.key } }.minByOrNull { info ->
+                val visible = state.layoutInfo.visibleItemsInfo.filter { it.key in indexByKey }
+                return visible.minByOrNull { info ->
                     val left = info.offset.x.toFloat()
                     val top = info.offset.y.toFloat()
                     val right = left + info.size.width
@@ -70,14 +75,14 @@ fun <T> Modifier.batchSelectionGesture(
                             dx * dx + dy * dy
                         }
                     }
-                }?.let { info -> latestItems.indexOfFirst { latestKeyOf(it) == info.key }.takeIf { it >= 0 } }
+                }?.let { info -> indexByKey[info.key] }
             }
 
             val startIndex = itemAt(startPosition.x, startPosition.y)
-            if (startIndex == null || startIndex !in latestItems.indices) return@awaitEachGesture
+            if (startIndex == null || startIndex !in itemsSnapshot.indices) return@awaitEachGesture
             var lastIndex = startIndex
             val visitedIndices = linkedSetOf(startIndex)
-            latestOnStart(latestItems[startIndex])
+            latestOnStart(itemsSnapshot[startIndex])
 
             while (true) {
                 val event = awaitPointerEvent(PointerEventPass.Initial)

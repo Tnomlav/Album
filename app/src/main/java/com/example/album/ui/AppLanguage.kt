@@ -112,6 +112,7 @@ private val APP_ENGLISH = mapOf(
     "幻灯片播放动画" to "Slideshow animation", "幻灯片随机播放" to "Shuffle slideshow",
     "列数" to "Columns", "排布方式" to "Layout", "排序方式" to "Sort",
     "进入多选" to "Select", "注意事项" to "Notes", "清空幻灯片队列" to "Clear slideshow queue",
+    "清空" to "Clear", "将移除当前队列中的所有项目。" to "This removes every item from the current queue.",
     "媒体" to "Media", "文件夹" to "Folders", "网格" to "Grid", "自适应" to "Adaptive",
     "应用" to "Apply", "取消" to "Cancel", "关闭" to "Close", "完成" to "Done",
     "禁止提示" to "Don't show again",

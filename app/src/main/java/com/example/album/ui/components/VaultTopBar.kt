@@ -526,7 +526,13 @@ fun VaultTopBar(
                         DropdownMenuItem(
                             text = { Text(item, style = VaultText.Body) },
                             leadingIcon = menuIcon(item)?.let { icon ->
-                                { Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+                                val destructive = item.startsWith("清空") || item.startsWith("Clear")
+                                val tint = if (destructive) Color(0xFFD32F2F)
+                                else MaterialTheme.colorScheme.onSurfaceVariant
+                                val content: @Composable () -> Unit = {
+                                    Icon(icon, contentDescription = null, tint = tint)
+                                }
+                                content
                             },
                             modifier = Modifier.height(52.dp),
                             onClick = {

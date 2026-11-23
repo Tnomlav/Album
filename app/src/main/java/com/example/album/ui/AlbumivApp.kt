@@ -780,6 +780,7 @@ fun AlbumivApp(
     var showWallpaperColumnDialog by remember { mutableStateOf(false) }
     var showWallpaperLayoutDialog by remember { mutableStateOf(false) }
     var showWallpaperSettings by remember { mutableStateOf(false) }
+    var showClearWallpaperConfirm by remember { mutableStateOf(false) }
     var wallpaperCropItem by remember { mutableStateOf<MediaItem?>(null) }
     var wallpaperChoiceItem by remember { mutableStateOf<MediaItem?>(null) }
     var wallpaperAppliedSignature by remember { mutableStateOf<String?>(null) }
@@ -896,6 +897,7 @@ fun AlbumivApp(
     // then opens in full screen and begins playing immediately.
     var slideshowStartImmersive by remember { mutableStateOf(false) }
     var showSlideshowSettings by remember { mutableStateOf(false) }
+    var showClearSlideshowConfirm by remember { mutableStateOf(false) }
     var showGestureHints by remember { mutableStateOf(false) }
     var showFirstRunIntro by remember { mutableStateOf(false) }
     // A refresh updates library.permissionGranted, which would restart the
@@ -1254,8 +1256,22 @@ fun AlbumivApp(
         // `any { equals(ignoreCase = true) }` lowercased nothing but walked the
         // whole folder list for every one of thousands of archive items.
         val allowedLower = allowedFolders.mapTo(HashSet()) { it.lowercase() }
+        // Archive entries come from a SAF directory walk and carry the file's
+        // modified time as dateTaken, while the same file appears in the album
+        // through MediaStore with its real capture time. Borrow the library
+        // timestamp so Time sort produces the same order on both pages.
+        val libraryByFolderAndName = (library.images + library.localImages)
+            .associateBy { it.folder.lowercase() + "/" + it.name.lowercase() }
         val archived = pixivImages.filter { item ->
             item.folder.lowercase() in allowedLower
+        }.map { item ->
+            libraryByFolderAndName[item.folder.lowercase() + "/" + item.name.lowercase()]
+                ?.let { libraryItem ->
+                    item.copy(
+                        dateTaken = libraryItem.dateTaken,
+                        dateModified = libraryItem.dateModified
+                    )
+                } ?: item
         }
         // The local Pixiv folder belongs on this page too: the pinned folder is
         // that folder, not whatever the archive's source directory points at.
@@ -2913,9 +2929,7 @@ fun AlbumivApp(
                         appText("排布方式", english) -> showSlideshowLayoutDialog = true
                         appText("排序方式", english) -> showSlideshowSortDialog = true
                         appText("清空幻灯片队列", english) -> {
-                            slideshowQueueUris = emptySet()
-                            slideshowQueueOrder = emptyList()
-                            persistSlideshowQueue(emptySet(), emptyList())
+                            showClearSlideshowConfirm = true
                         }
                     }
                 },
@@ -2975,10 +2989,7 @@ fun AlbumivApp(
                         appText("排布方式", english) -> showWallpaperLayoutDialog = true
                         appText("排序方式", english) -> showWallpaperSortDialog = true
                         appText("清空壁纸队列", english) -> {
-                            val currentTypeUris = wallpaperQueueMedia
-                                .filter { it.isVideo == wallpaperShowVideos }
-                                .mapTo(mutableSetOf()) { it.uri.toString() }
-                            wallpaperQueue.removeAll(currentTypeUris)
+                            showClearWallpaperConfirm = true
                         }
                     }
                 },
@@ -4119,6 +4130,37 @@ fun AlbumivApp(
         SlideshowSettingsSheet(
             preferences = albumSettings,
             onDismiss = { showSlideshowSettings = false }
+        )
+    }
+    if (showClearWallpaperConfirm) {
+        VaultConfirmationSheet(
+            title = appText("清空壁纸队列", english),
+            body = appText("将移除当前队列中的所有项目。", english),
+            confirmLabel = appText("清空", english),
+            danger = true,
+            onDismiss = { showClearWallpaperConfirm = false },
+            onConfirm = {
+                val currentTypeUris = wallpaperQueueMedia
+                    .filter { it.isVideo == wallpaperShowVideos }
+                    .mapTo(mutableSetOf()) { it.uri.toString() }
+                wallpaperQueue.removeAll(currentTypeUris)
+                showClearWallpaperConfirm = false
+            }
+        )
+    }
+    if (showClearSlideshowConfirm) {
+        VaultConfirmationSheet(
+            title = appText("清空幻灯片队列", english),
+            body = appText("将移除当前队列中的所有项目。", english),
+            confirmLabel = appText("清空", english),
+            danger = true,
+            onDismiss = { showClearSlideshowConfirm = false },
+            onConfirm = {
+                slideshowQueueUris = emptySet()
+                slideshowQueueOrder = emptyList()
+                persistSlideshowQueue(emptySet(), emptyList())
+                showClearSlideshowConfirm = false
+            }
         )
     }
     if (showGestureHints) {

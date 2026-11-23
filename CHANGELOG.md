@@ -1,5 +1,12 @@
 # Albumiv Changelog
 
+## v1.4.9 - 2026-11-23（清空确认、时间轴多选与排序一致性）
+
+- 菜单里的“清空…”图标改为红色，并在清空壁纸/幻灯片队列前弹出二次确认。
+- 时间轴进入多选不再对每个可见格扫描 5 万项：手势开始前一次性建立 key→index 索引，次底栏和选中计数即时出现。
+- P 页条目按“文件夹 + 文件名”对齐相册的 MediaStore 时间字段，并给相册文件夹排序补并列兜底；同一排序在两页的顺序一致。
+- 版本 1.4.9 / VERSION_CODE 365。
+
 ## v1.4.8 - 2026-11-23（基准可跑 + 交互一致性）
 
 - 接入 `androidx.profileinstaller`：安装时应用 baseline profile，并补上 Macrobenchmark 需要的 `DROP_SHADER_CACHE` 接收器。
