@@ -172,6 +172,9 @@ dependencies {
     implementation(libs.androidx.documentfile)
     implementation(libs.androidx.exifinterface)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    // Provides the DROP_SHADER_CACHE receiver Macrobenchmark needs, and installs
+    // the baseline profile on device.
+    implementation(libs.androidx.profileinstaller)
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.ui)
     implementation(libs.androidx.media3.transformer)

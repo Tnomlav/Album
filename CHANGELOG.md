@@ -1,5 +1,11 @@
 # Albumiv Changelog
 
+## v1.4.8 - 2026-11-23（基准可跑：接入 baseline profile）
+
+- 接入 `androidx.profileinstaller`：安装时应用 baseline profile，并补上 Macrobenchmark 需要的 `DROP_SHADER_CACHE` 接收器。
+- 真机（vivo V2254A / Android 16）复测：冷启动 5 次中位数 306ms；深色主题下相册/文件夹/查看器/编辑器/退出确认均正常。
+- 版本 1.4.8 / VERSION_CODE 364。
+
 ## v1.4.7 - 2026-11-23（全章收口：深色分层、登录清理、诊断与基准）
 
 - 深色主题下查看器/编辑器改用黑阶分层：画布纯黑、背景/顶底栏/面板逐级提亮，不再出现白色 chrome；系统栏图标跟随主题。
