@@ -73,7 +73,10 @@ def apk_version(apk, aapt2):
 
 
 def release_apks():
-    return sorted(RELEASE_DIR.glob("app-*-release.apk"))
+    # CI's build job has no signing secrets, so AGP names the release output
+    # app-<abi>-release-unsigned.apk. Accept both signed and unsigned outputs;
+    # the version metadata is identical.
+    return sorted(RELEASE_DIR.glob("app-*-release*.apk"))
 
 
 def main(argv):
