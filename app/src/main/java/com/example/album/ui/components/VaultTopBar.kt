@@ -364,24 +364,31 @@ fun VaultTopBar(
                         Box(
                             modifier = Modifier
                                 .padding(start = actionStartPadding)
-                                .height(SwitchSegmentHeight)
+                                .height(48.dp)
                                 .widthIn(min = SwitchSegmentWidth)
-                                .clip(RoundedCornerShape(9.dp))
-                                .background(
-                                    if (actionEnabled) actionColor.copy(alpha = if (destructiveAction) .14f else .12f)
-                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .55f)
-                                )
-                                .clickable(enabled = actionEnabled, onClick = onActionClick)
-                                .padding(horizontal = 8.dp),
+                                .clickable(enabled = actionEnabled, onClick = onActionClick),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                actionLabel,
-                                color = if (actionEnabled) actionColor else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .45f),
-                                style = VaultText.TopBarAction.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold),
-                                maxLines = 1,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .height(SwitchSegmentHeight)
+                                    .widthIn(min = SwitchSegmentWidth)
+                                    .clip(RoundedCornerShape(9.dp))
+                                    .background(
+                                        if (actionEnabled) actionColor.copy(alpha = if (destructiveAction) .14f else .12f)
+                                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .55f)
+                                    )
+                                    .padding(horizontal = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    actionLabel,
+                                    color = if (actionEnabled) actionColor else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .45f),
+                                    style = VaultText.TopBarAction.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold),
+                                    maxLines = 1,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                            }
                         }
                     } else {
                         Text(
@@ -441,7 +448,7 @@ fun VaultTopBar(
                         }
                     )
                     if (query.isNotEmpty()) {
-                        IconButton(onClick = { onQueryChange("") }, modifier = Modifier.width(30.dp).height(40.dp)) {
+                        IconButton(onClick = { onQueryChange("") }, modifier = Modifier.size(48.dp)) {
                             Icon(Icons.Outlined.Close, contentDescription = appText("清除搜索", english), modifier = Modifier.height(17.dp))
                         }
                     }
@@ -473,7 +480,12 @@ fun VaultTopBar(
             } else {
                 // Keep the actions anchored to the right when a search is
                 // collapsed, whether or not a back arrow occupies the left.
-                Spacer(Modifier.weight(1f))
+                // In selection mode the title already takes the free width;
+                // a second weight would split it in half and ellipsize the
+                // selected count.
+                if (!selectionMode) {
+                    Spacer(Modifier.weight(1f))
+                }
             }
             // The page action and the overflow menu form one trailing group
             // with a fixed gap and a fixed button size, so the action lands on
@@ -545,13 +557,6 @@ fun VaultTopBar(
                 }
             }
             Spacer(Modifier.height(1.dp))
-        }
-        if (selectionMode) {
-            SelectionSubBar(
-                selected = selectedCount,
-                total = selectionTotal,
-                onSelectAll = onSelectAll
-            )
         }
         }
     }

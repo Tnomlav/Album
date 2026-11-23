@@ -78,6 +78,7 @@ import com.example.album.data.MediaItem
 import com.example.album.data.ThumbnailRepository
 import java.io.File
 import com.example.album.ui.theme.VaultDimens
+import com.example.album.ui.theme.VaultText
 import com.example.album.ui.LocalAppEnglish
 import com.example.album.ui.appText
 import kotlinx.coroutines.Dispatchers
@@ -156,27 +157,27 @@ fun AlbumTile(
             }
             selected?.let { SelectionMark(selected = it, modifier = Modifier.align(Alignment.TopEnd).padding(6.dp)) }
         }
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(start = 2.dp, top = 7.dp, end = 2.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(start = 2.dp, top = 7.dp, end = 2.dp)
         ) {
-            Column(Modifier.weight(1f)) {
-                Text(album.name, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = VaultDimens.AlbumName)
-                if (showPath) {
-                    val parent = album.key.substringBeforeLast('/', "")
-                    if (parent.isNotBlank()) {
-                        Text(
-                            parent,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 10.sp
-                        )
-                    }
+            Text(album.name, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = VaultDimens.AlbumName)
+            Text(
+                if (english) album.items.size.toString() + " items" else album.items.size.toString() + " 项",
+                style = VaultText.Count,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            if (showPath) {
+                val parent = album.key.substringBeforeLast('/', "")
+                if (parent.isNotBlank()) {
+                    Text(
+                        parent,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 10.sp
+                    )
                 }
             }
-            Text(album.items.size.toString(), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = VaultDimens.AlbumCount)
         }
     }
 }
@@ -364,7 +365,7 @@ fun MediaThumbnail(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(end = 2.dp * badgeScale, bottom = 2.dp * badgeScale)
-                    .height(17.dp * badgeScale)
+                    .height((18.dp * badgeScale).coerceAtLeast(18.dp))
                     .wrapContentWidth(),
                 color = Color.Black.copy(alpha = .72f),
                 shape = RoundedCornerShape(8.5.dp * badgeScale)
@@ -378,11 +379,11 @@ fun MediaThumbnail(
                     Text(
                         formatVideoDuration(item.duration),
                         color = Color.White,
-                        fontSize = 9.sp * badgeScale,
+                        fontSize = (10f * badgeScale).coerceAtLeast(10f).sp,
                         modifier = Modifier
                             .offset(y = (-0.6f * badgeScale).dp)
                             .padding(horizontal = 5.dp * badgeScale),
-                        lineHeight = 9.sp * badgeScale,
+                        lineHeight = (10f * badgeScale).coerceAtLeast(10f).sp,
                         maxLines = 1
                     )
                 }

@@ -167,7 +167,6 @@ import com.example.album.ui.components.LocalMediaSharedTransitionScope
 import com.example.album.ui.components.LocalActiveSharedMediaKey
 import com.example.album.ui.components.VaultTopBar
 import com.example.album.ui.components.SelectionTopBar
-import com.example.album.ui.components.SelectionSubBar
 import com.example.album.ui.components.VaultOptionSheet
 import com.example.album.ui.components.VaultApplyChoiceSheet
 import com.example.album.ui.components.VaultSortChoiceSheet
@@ -3073,31 +3072,48 @@ fun AlbumivApp(
                 // The Tools and Settings pages have no search field, no page
                 // switch and no menu, so their top bar carried nothing: the
                 // Tools page drops it entirely.
+                val activeSelectedCount =
+                    if (selectingFolders) selectedFolders.size else selectedItemsForAction.size
+                val activeSelectionTotal =
+                    if (selectingFolders) selectionMedia.map { it.folder }.distinct().size else selectionMedia.size
+                val selectAllVisible: () -> Unit = {
+                    if (selectingFolders) {
+                        val all = selectionMedia.mapTo(mutableSetOf()) { it.folderKey() }
+                        selectedFolders = if (all.isNotEmpty() && all.all { it in selectedFolders }) {
+                            selectedFolders - all
+                        } else {
+                            selectedFolders + all
+                        }
+                    } else {
+                        val visible = selectionMedia.mapTo(mutableSetOf()) { it.uri.toString() }
+                        selectedUris = if (visible.isNotEmpty() && visible.all { it in selectedUris }) {
+                            selectedUris - visible
+                        } else {
+                            selectedUris + visible
+                        }
+                    }
+                }
                 if (tab != MainTab.Settings && tab != MainTab.Tools) VaultTopBar(
                 title = if (selectionMode || selectionGestureActive) {
-                    ""
+                    if (english) {
+                        "Selected " + activeSelectedCount + " / " + activeSelectionTotal
+                    } else {
+                        "已选 " + activeSelectedCount + " / " + activeSelectionTotal
+                    }
                 } else if (openedFolder != null) {
                     com.example.album.data.albumDisplayName(openedFolder.orEmpty())
                 } else if (tab == MainTab.Timeline) {
                     if (appLanguage == "English") "Timeline" else "时间轴"
                 } else tabLabel(tab),
                 query = query,
-                searchEnabled = true,
+                searchEnabled = !(selectionMode || selectionGestureActive),
                 onSearchClick = { resumeSearch() },
                 onSearchFocus = { resumeSearch() },
                 onSearchDismiss = { suspendSearch() },
                 selectionMode = selectionMode || selectionGestureActive,
-                selectedCount = if (selectingFolders) selectedFolders.size else selectedItemsForAction.size,
-                selectionTotal = if (selectingFolders) selectionMedia.map { it.folder }.distinct().size else selectionMedia.size,
-                onSelectAll = {
-                    if (selectingFolders) {
-                        val all = selectionMedia.mapTo(mutableSetOf()) { it.folderKey() }
-                        selectedFolders = if (all.isNotEmpty() && all.all { it in selectedFolders }) selectedFolders - all else selectedFolders + all
-                    } else {
-                        val visible = selectionMedia.mapTo(mutableSetOf()) { it.uri.toString() }
-                        selectedUris = if (visible.isNotEmpty() && visible.all { it in selectedUris }) selectedUris - visible else selectedUris + visible
-                    }
-                },
+                selectedCount = activeSelectedCount,
+                selectionTotal = activeSelectionTotal,
+                onSelectAll = selectAllVisible,
                 onQueryChange = {
                     suspendedSearchQuery = null
                     searchOpen = true
@@ -3115,8 +3131,11 @@ fun AlbumivApp(
                     }
                 },
                 favoriteActive = favoriteFilter,
-                favoriteVisible = selectedTab != MainTab.Tools,
+                favoriteVisible = !(selectionMode || selectionGestureActive) && selectedTab != MainTab.Tools,
                 onFavoriteClick = { favoriteFilter = !favoriteFilter },
+                actionLabel = if (selectionMode || selectionGestureActive) appText("全选", english) else null,
+                onActionClick = if (selectionMode || selectionGestureActive) selectAllVisible else null,
+                actionCapsule = selectionMode || selectionGestureActive,
                 menuItems = if (selectionMode || selectionGestureActive) selectionMenuItems(
                     isVideo = (tab == MainTab.Albums && albumShowsVideos) || (tab == MainTab.Timeline && timelineShowsVideos),
                     single = selectedItemsForAction.size == 1,
@@ -3906,7 +3925,8 @@ fun AlbumivApp(
                             slideshowQueueUris = uris
                             slideshowQueueOrder = order
                             persistSlideshowQueue(uris, order)
-                        }
+                        },
+                        onClose = { slideshowQueueOpen = false }
                     )
                 }
             }
@@ -3951,7 +3971,8 @@ fun AlbumivApp(
                         folderMode = wallpaperFolderMode,
                         openedFolder = wallpaperOpenedFolder,
                         onOpenFolder = { folder -> wallpaperOpenedFolder = folder },
-                        onCloseFolder = { wallpaperOpenedFolder = null }
+                        onCloseFolder = { wallpaperOpenedFolder = null },
+                        onClose = { wallpaperManagerOpen = false }
                     )
                 }
             }

@@ -12,9 +12,16 @@ import androidx.compose.animation.core.tween
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 
-private fun darkScheme(accent: Color, background: Color, surface: Color, onSurface: Color, onSurfaceVariant: Color) = darkColorScheme(
+private fun darkScheme(
+    accent: Color,
+    onAccent: Color,
+    background: Color,
+    surface: Color,
+    onSurface: Color,
+    onSurfaceVariant: Color
+) = darkColorScheme(
     primary = accent,
-    onPrimary = Color(0xFF101512),
+    onPrimary = onAccent,
     background = background,
     surface = surface,
     onBackground = onSurface,
@@ -23,42 +30,58 @@ private fun darkScheme(accent: Color, background: Color, surface: Color, onSurfa
     // Material's default here is a light grey-purple that turns every card into
     // a bright block. A surface one step above the vault background keeps the
     // same contrast order as the light theme (page < card < text).
-    surfaceVariant = Color(0xFF242B27)
+    surfaceVariant = VaultDarkRaised,
+    surfaceContainer = VaultDarkSurface,
+    surfaceContainerLow = VaultDarkBackground,
+    surfaceContainerHigh = VaultDarkRaised,
+    surfaceContainerHighest = VaultDarkRaised,
+    outline = VaultDarkLine
 )
 
-private fun lightScheme(accent: Color, background: Color, surface: Color, onSurface: Color, onSurfaceVariant: Color) = lightColorScheme(
+private fun lightScheme(
+    accent: Color,
+    onAccent: Color,
+    background: Color,
+    surface: Color,
+    onSurface: Color,
+    onSurfaceVariant: Color
+) = lightColorScheme(
     primary = accent,
-    onPrimary = Color.White,
+    onPrimary = onAccent,
     background = background,
     surface = surface,
     onBackground = onSurface,
     onSurface = onSurface,
     onSurfaceVariant = onSurfaceVariant,
-    surfaceVariant = Color(0xFFF4F5F4),
+    surfaceVariant = VaultSecondarySurface,
     surfaceContainer = VaultSurface,
     surfaceContainerLow = VaultSurface,
     surfaceContainerHigh = VaultSurface,
-    surfaceContainerHighest = Color(0xFFF4F5F4),
-    outline = Color(0xFFDDE1DE)
+    surfaceContainerHighest = VaultSecondarySurface,
+    outline = VaultLine
 )
 
 @Composable
 fun AlbumivTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    accent: Color = VaultBlue,
+    accent: ThemeAccent = ThemeAccent.Blue,
     content: @Composable () -> Unit
 ) {
     val duration = 200
-    val animatedAccent = animateColorAsState(accent, tween(duration), label = "theme-accent").value
+    val palette = accent.palette
+    val targetPrimary = if (darkTheme) palette.dark else palette.light
+    val targetOnPrimary = if (darkTheme) palette.onDark else palette.onLight
+    val animatedAccent = animateColorAsState(targetPrimary, tween(duration), label = "theme-accent").value
+    val animatedOnAccent = animateColorAsState(targetOnPrimary, tween(duration), label = "theme-on-accent").value
     val background = animateColorAsState(if (darkTheme) VaultDarkBackground else VaultBackground, tween(duration), label = "theme-background").value
     val surface = animateColorAsState(if (darkTheme) VaultDarkSurface else VaultSurface, tween(duration), label = "theme-surface").value
-    val onSurface = animateColorAsState(if (darkTheme) Color(0xFFF2F6F3) else VaultInk, tween(duration), label = "theme-on-surface").value
-    val onSurfaceVariant = animateColorAsState(if (darkTheme) Color(0xFFADB7B1) else VaultMuted, tween(duration), label = "theme-muted").value
+    val onSurface = animateColorAsState(if (darkTheme) Color(0xFFECEFEC) else VaultInk, tween(duration), label = "theme-on-surface").value
+    val onSurfaceVariant = animateColorAsState(if (darkTheme) Color(0xFFA6AEA9) else VaultMuted, tween(duration), label = "theme-muted").value
     MaterialTheme(
         colorScheme = if (darkTheme) {
-            darkScheme(animatedAccent, background, surface, onSurface, onSurfaceVariant)
+            darkScheme(animatedAccent, animatedOnAccent, background, surface, onSurface, onSurfaceVariant)
         } else {
-            lightScheme(animatedAccent, background, surface, onSurface, onSurfaceVariant)
+            lightScheme(animatedAccent, animatedOnAccent, background, surface, onSurface, onSurfaceVariant)
         },
         typography = Typography
     ) {

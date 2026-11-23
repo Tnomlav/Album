@@ -8,7 +8,6 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -19,17 +18,22 @@ import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
@@ -37,7 +41,6 @@ import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.TextFields
 import androidx.compose.material.icons.automirrored.outlined.DriveFileMove
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -58,6 +61,7 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -68,8 +72,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.example.album.data.MediaItem
 import com.example.album.data.folderKey
@@ -124,27 +127,43 @@ fun AppBottomBar(
     Column(Modifier.fillMaxWidth()) {
     if (selectionMode) {
         Surface(
-            color = com.example.album.ui.theme.VaultSecondarySurface
+            modifier = Modifier.alpha(chromeAlpha),
+            color = MaterialTheme.colorScheme.surface
         ) {
             Row(
-                Modifier.fillMaxWidth().height(36.dp).padding(horizontal = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceEvenly
+                Modifier.fillMaxWidth()
+                    .navigationBarsPadding()
+                    .heightIn(min = 56.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onDeleteSelected) {
-                    Icon(Icons.Outlined.Delete, contentDescription = if (english) "Delete" else "删除", tint = Color(0xFFD32F2F))
-                }
-                IconButton(onClick = onMoveSelected) {
-                    Icon(Icons.AutoMirrored.Outlined.DriveFileMove, contentDescription = if (english) "Move" else "移动")
-                }
-                IconButton(onClick = onCopySelected) {
-                    Icon(Icons.Outlined.ContentCopy, contentDescription = if (english) "Copy" else "复制")
-                }
-                IconButton(onClick = onRenameSelected, enabled = renameEnabled) {
-                    Icon(Icons.Outlined.TextFields, contentDescription = if (english) "Rename" else "重命名")
-                }
+                SelectionAction(
+                    Icons.Outlined.Delete,
+                    if (english) "Delete" else "删除",
+                    enabled = true,
+                    tint = MaterialTheme.colorScheme.error,
+                    onClick = onDeleteSelected
+                )
+                SelectionAction(
+                    Icons.AutoMirrored.Outlined.DriveFileMove,
+                    if (english) "Move" else "移动",
+                    enabled = true,
+                    onClick = onMoveSelected
+                )
+                SelectionAction(
+                    Icons.Outlined.ContentCopy,
+                    if (english) "Copy" else "复制",
+                    enabled = true,
+                    onClick = onCopySelected
+                )
+                SelectionAction(
+                    Icons.Outlined.TextFields,
+                    if (english) "Rename" else "重命名",
+                    enabled = renameEnabled,
+                    onClick = onRenameSelected
+                )
             }
         }
+        return
     }
     AnimatedVisibility(
         visible = barVisible,
@@ -184,8 +203,6 @@ fun AppBottomBar(
                 tween(180),
                 label = "nav-tint-${tab.name}"
             )
-            val iconOffset by animateDpAsState(if (selected) 0.dp else 6.dp, tween(240, easing = CubicBezierEasing(.22f, .8f, .28f, 1f)), label = "nav-offset-${tab.name}")
-            val labelAlpha by animateFloatAsState(if (selected) 1f else 0f, tween(140), label = "nav-label-${tab.name}")
             Column(
                 modifier = Modifier.fillMaxWidth(1f / tabs.size).fillMaxHeight()
                     .graphicsLayer {
@@ -229,57 +246,53 @@ fun AppBottomBar(
                             onDragCancel = { draggedNavTab = null }
                         )
                     }
-                    .semantics {
-                        stateDescription = if (selected) {
-                            if (english) "Selected" else "已选中"
-                        } else {
-                            if (english) "Not selected" else "未选中"
-                        }
-                    }
-                    .clickable(
+                    .selectable(
+                        selected = selected,
                         interactionSource = remember(tab) { MutableInteractionSource() },
-                        indication = null
-                    ) {
-                    if (android.os.SystemClock.elapsedRealtime() < suppressNavClickUntil) return@clickable
-                    if (tab != selectedTab) {
-                        onSelectTab(tab)
-                        return@clickable
-                    }
-                    onReselectTab(tab)
-                },
+                        indication = null,
+                        role = Role.Tab,
+                        onClick = {
+                            if (android.os.SystemClock.elapsedRealtime() < suppressNavClickUntil) return@selectable
+                            if (tab != selectedTab) {
+                                onSelectTab(tab)
+                                return@selectable
+                            }
+                            onReselectTab(tab)
+                        }
+                    ),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center
             ) {
                 if (tab == MainTab.Pixiv) {
                     Box(
-                        modifier = Modifier.height(24.dp).width(24.dp).offset { IntOffset(0, iconOffset.roundToPx()) }.background(Color.White),
+                        modifier = Modifier.height(24.dp).width(24.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             icon(tab),
-                            contentDescription = label(tab),
+                            contentDescription = null,
                             tint = navTint,
                             modifier = Modifier.fillMaxSize().graphicsLayer {
-                                scaleX = 1.45f
-                                scaleY = 1.45f
+                                scaleX = 1.35f
+                                scaleY = 1.35f
                             }
                         )
                     }
                 } else {
                     Icon(
                         icon(tab),
-                        contentDescription = label(tab),
+                        contentDescription = null,
                         tint = navTint,
-                        modifier = Modifier.height(24.dp).offset { IntOffset(0, iconOffset.roundToPx()) }
+                        modifier = Modifier.height(24.dp)
                     )
                 }
                 Text(
                     label(tab),
                     color = navTint,
                     fontSize = VaultDimens.BottomLabel,
+                    lineHeight = 14.sp,
                     maxLines = 1,
-                    softWrap = false,
-                    modifier = Modifier.padding(top = 2.dp).alpha(labelAlpha)
+                    modifier = Modifier.padding(top = 2.dp)
                 )
             }
         } }
@@ -329,3 +342,42 @@ fun AppBottomBar(
     }
 }
 
+
+/**
+ * One action in the contextual bar that replaces the navigation tabs while a
+ * selection is active. Visual target is 56dp, label included, so "delete" and
+ * "rename" are readable without relying on icon recognition.
+ */
+@Composable
+private fun RowScope.SelectionAction(
+    icon: ImageVector,
+    label: String,
+    enabled: Boolean,
+    tint: Color = Color.Unspecified,
+    onClick: () -> Unit
+) {
+    val colors = MaterialTheme.colorScheme
+    val resolvedTint = when {
+        !enabled -> colors.onSurfaceVariant.copy(alpha = .38f)
+        tint != Color.Unspecified -> tint
+        else -> colors.onSurface
+    }
+    Column(
+        modifier = Modifier
+            .weight(1f)
+            .height(56.dp)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .padding(vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center
+    ) {
+        Icon(icon, contentDescription = null, tint = resolvedTint, modifier = Modifier.size(22.dp))
+        Text(
+            label,
+            color = resolvedTint,
+            fontSize = 11.sp,
+            lineHeight = 14.sp,
+            maxLines = 1
+        )
+    }
+}

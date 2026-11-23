@@ -20,6 +20,6 @@ object VaultDimens {
 
     val SearchText = 13.sp
     val AlbumName = 13.sp
-    val AlbumCount = 10.sp
+    val AlbumCount = 11.sp
     val BottomLabel = 11.sp
 }

@@ -46,6 +46,7 @@ import com.example.album.data.displayAspectRatio
 import com.example.album.ui.MediaLayout
 import com.example.album.ui.LocalAppEnglish
 import com.example.album.ui.appText
+import com.example.album.ui.theme.VaultText
 import com.example.album.ui.searchTextMatches
 import com.example.album.ui.components.PressableMediaThumbnail
 import com.example.album.ui.components.LibrarySkeleton
@@ -310,7 +311,7 @@ private fun OptimizedTimelineGrid(
     LaunchedEffect(scrollToToken) {
         val uri = scrollToUri ?: return@LaunchedEffect
         if (uri.isBlank()) return@LaunchedEffect
-        var index = 1
+        var index = 0
         groupedDates.forEach { group ->
             index += 1
             val position = group.value.indexOfFirst { it.uri.toString() == uri }
@@ -367,7 +368,7 @@ private fun OptimizedTimelineGrid(
             )
         } ?: -1
         if (groupIndex >= 0) {
-            val targetIndex = 1 + groupedDates.take(groupIndex).sumOf { 1 + it.value.size }
+            val targetIndex = groupedDates.take(groupIndex).sumOf { 1 + it.value.size }
             state.animateScrollToItem(targetIndex)
         }
         onJumpConsumed()
@@ -392,15 +393,6 @@ private fun OptimizedTimelineGrid(
             horizontalArrangement = Arrangement.spacedBy(3.dp),
             verticalArrangement = Arrangement.spacedBy(3.dp)
         ) {
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                Text(
-                    itemCount.toString(),
-                    modifier = Modifier.fillMaxWidth().padding(start = 2.dp, top = 2.dp, end = 2.dp, bottom = 2.dp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.labelSmall,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.End
-                )
-            }
             groupedDates.forEach { group ->
                 item(key = "header-${group.key}", span = { GridItemSpan(maxLineSpan) }) {
                     Row(
@@ -414,9 +406,13 @@ private fun OptimizedTimelineGrid(
                             style = MaterialTheme.typography.bodyMedium
                         )
                         Text(
-                            group.value.size.toString(),
+                            if (english) {
+                                group.value.size.toString() + " items"
+                            } else {
+                                group.value.size.toString() + if (isVideo) " 个" else " 张"
+                            },
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.labelSmall
+                            style = VaultText.Count
                         )
                     }
                 }
@@ -505,7 +501,7 @@ private fun AdaptiveTimeline(
     LaunchedEffect(scrollToToken) {
         val uri = scrollToUri ?: return@LaunchedEffect
         if (uri.isBlank()) return@LaunchedEffect
-        var index = 1
+        var index = 0
         groupedDates.forEach { group ->
             index += 1
             val position = group.value.indexOfFirst { it.uri.toString() == uri }
@@ -554,7 +550,7 @@ private fun AdaptiveTimeline(
             else kotlin.math.abs((runCatching { parser.parse(groupedDates[index].key)?.time }.getOrNull() ?: Long.MAX_VALUE) - (selectedTime ?: 0L))
         } ?: -1
         if (groupIndex >= 0) {
-            val targetIndex = 1 + groupedDates.take(groupIndex).sumOf { 1 + it.value.size }
+            val targetIndex = groupedDates.take(groupIndex).sumOf { 1 + it.value.size }
             state.animateScrollToItem(targetIndex)
         }
         onJumpConsumed()
@@ -578,15 +574,6 @@ private fun AdaptiveTimeline(
             horizontalArrangement = Arrangement.spacedBy(3.dp),
             verticalItemSpacing = 3.dp
         ) {
-            item(span = StaggeredGridItemSpan.FullLine) {
-                Text(
-                    itemCount.toString(),
-                    modifier = Modifier.fillMaxWidth().padding(start = 2.dp, top = 2.dp, end = 2.dp, bottom = 2.dp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.labelSmall,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.End
-                )
-            }
             groupedDates.forEach { group ->
                 item(key = "header-${group.key}", span = StaggeredGridItemSpan.FullLine) {
                     Row(
@@ -595,7 +582,7 @@ private fun AdaptiveTimeline(
                         verticalAlignment = Alignment.Bottom
                     ) {
                         Text(timelineDateLabel(group.value.first().dateTaken, english), style = MaterialTheme.typography.bodyMedium)
-                        Text(group.value.size.toString(), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                        Text(if (english) group.value.size.toString() + " items" else group.value.size.toString() + if (isVideo) " 个" else " 张", color = MaterialTheme.colorScheme.onSurfaceVariant, style = VaultText.Count)
                     }
                 }
                 group.value.forEach { mediaItem ->

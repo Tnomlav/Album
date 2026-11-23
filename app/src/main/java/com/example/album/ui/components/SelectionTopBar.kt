@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -44,6 +46,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.Composable
@@ -230,67 +233,36 @@ fun SelectionTopBar(
     }
 }
 
+/**
+ * Count plus a 48dp "select all" for pages whose selection lives in a top bar
+ * (the cleanup pages). It is deliberately not a second action strip: the only
+ * actions here are the count and the bulk toggle.
+ */
 @Composable
-fun SelectionSubBar(
+fun SelectionCountBar(
     selected: Int,
     total: Int,
     onSelectAll: () -> Unit,
     chromeAlpha: Float = 1f
 ) {
+    val english = LocalAppEnglish.current
+    val allSelected = total > 0 && selected == total
     Surface(
         modifier = Modifier.fillMaxWidth().alpha(chromeAlpha),
-        color = com.example.album.ui.theme.VaultSecondarySurface
+        color = MaterialTheme.colorScheme.surface
     ) {
-        Box(
-            modifier = Modifier.fillMaxWidth().height(36.dp)
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Layout(
-                modifier = Modifier.fillMaxWidth().height(36.dp).align(Alignment.Center),
-                content = {
-                    Text(selected.toString(), style = MaterialTheme.typography.titleMedium.copy(fontSize = 17.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, lineHeight = 22.sp))
-                    Text("/", style = MaterialTheme.typography.labelSmall.copy(lineHeight = 20.sp))
-                    Text(total.toString(), style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp, lineHeight = 20.sp))
-                }
-            ) { measurables, constraints ->
-                val placeables = measurables.map { it.measure(constraints.copy(minWidth = 0, minHeight = 0)) }
-                val left = placeables[0]
-                val slash = placeables[1]
-                val right = placeables[2]
-                val centerX = constraints.maxWidth / 2
-                val gap = 4.dp.roundToPx()
-                val slashLeft = centerX - slash.width / 2
-                val leftX = slashLeft - gap - left.width
-                val rightX = slashLeft + slash.width + gap
-                val height = placeables.maxOf { it.height }.coerceAtMost(constraints.maxHeight)
-                layout(constraints.maxWidth, height) {
-                    left.place(leftX, (height - left.height) / 2)
-                    slash.place(slashLeft, (height - slash.height) / 2)
-                    right.place(rightX, (height - right.height) / 2)
-                }
-            }
-            IconButton(
-                onClick = onSelectAll,
-                modifier = Modifier.align(Alignment.CenterEnd).padding(end = 6.dp).size(40.dp)
-            ) {
-                Box(
-                    Modifier.size(16.dp)
-                        .background(
-                            if (selected == total && total > 0) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.surface,
-                            CircleShape
-                        )
-                        .border(
-                            1.5.dp,
-                            if (selected == total && total > 0) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.outline,
-                            CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (selected == total && total > 0) {
-                        Icon(Icons.Outlined.Check, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(11.dp))
-                    }
-                }
+            Text(
+                selected.toString() + " / " + total.toString(),
+                style = MaterialTheme.typography.titleMedium.copy(fontSize = 17.sp),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(Modifier.weight(1f))
+            TextButton(onClick = onSelectAll, modifier = Modifier.height(48.dp)) {
+                Text(appText(if (allSelected) "取消全选" else "全选", english))
             }
         }
     }

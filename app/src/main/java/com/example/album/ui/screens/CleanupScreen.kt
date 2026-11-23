@@ -50,6 +50,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.example.album.ui.components.batchSelectionListGesture
 import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -91,6 +93,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -131,7 +134,8 @@ import com.example.album.ui.components.VaultChoiceConfirmationSheet
 import com.example.album.ui.components.VaultTextInputDialog
 import com.example.album.ui.components.VaultInfoSheet
 import com.example.album.ui.components.SelectionTopBar
-import com.example.album.ui.components.SelectionSubBar
+import com.example.album.ui.components.SelectionCountBar
+import com.example.album.ui.components.VaultEmptyState
 import com.example.album.ui.components.ListScrollHandle
 import java.io.File
 import java.text.SimpleDateFormat
@@ -405,7 +409,8 @@ fun CleanupScreen(
                 onDeleteAll = {
                     val selected = recycleEntries.filter { it.id in selectedRecycleIds }
                     if (selected.isNotEmpty()) confirmDelete = selected else confirmEmptyRecycle = true
-                }
+                },
+                onOpenDuplicates = { selectedTab = CleanupTab.Duplicates; onTabSelected(CleanupTab.Duplicates.ordinal) }
             )
             CleanupTab.Excluded -> ExcludedContent(
                 excludedMedia,
@@ -413,7 +418,8 @@ fun CleanupScreen(
                 onToggleFolder = { folder -> selectedExcludedFolders = if (folder in selectedExcludedFolders) selectedExcludedFolders - folder else selectedExcludedFolders + folder },
                 onOpenFolder = { folder, isVideo -> onOpenExcludedFolder(folder, isVideo) },
                 onRestore = onRestoreExcluded,
-                onRestoreSelected = { selectedExcludedFolders.forEach(onRestoreExcluded); selectedExcludedFolders = emptySet() }
+                onRestoreSelected = { selectedExcludedFolders.forEach(onRestoreExcluded); selectedExcludedFolders = emptySet() },
+                onOpenDuplicates = { selectedTab = CleanupTab.Duplicates; onTabSelected(CleanupTab.Duplicates.ordinal) }
             )
         }
     }
@@ -652,7 +658,7 @@ fun PixivArchiveScreen(
             }
         }
         if (selectionMode) {
-            SelectionSubBar(
+            SelectionCountBar(
                 selected = selectedUris.size,
                 total = selectableUris.size,
                 onSelectAll = {
@@ -872,7 +878,19 @@ private fun DuplicateContent(
                 }
             }
         } else if (liveGroups.isEmpty()) {
-            item { CleanupEmpty("没有发现重复图片") }
+            item {
+                CleanupEmpty(
+                    icon = Icons.Outlined.ContentCopy,
+                    title = if (english) "No scan yet" else "还没有扫描",
+                    body = if (english) {
+                        "After a scan, duplicate photos are grouped and the best copy is suggested."
+                    } else {
+                        "扫描后，重复照片会按组列出，并标出建议保留的一张。"
+                    },
+                    action = if (english) "Start scan" else "开始扫描",
+                    onAction = onScan
+                )
+            }
         }
         liveGroups.forEachIndexed { groupIndex, group ->
             val collapsed = group.hash in collapsedGroups
@@ -1104,14 +1122,20 @@ private fun CleanupCommand(
 }
 
 @Composable
-private fun CleanupEmpty(label: String) {
-    val english = LocalAppEnglish.current
-    Text(
-        appText(label, english),
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 72.dp),
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        fontSize = 13.sp,
-        textAlign = TextAlign.Center
+private fun CleanupEmpty(
+    icon: ImageVector,
+    title: String,
+    body: String,
+    action: String,
+    onAction: () -> Unit
+) {
+    VaultEmptyState(
+        icon = icon,
+        title = title,
+        body = body,
+        primaryLabel = action,
+        onPrimary = onAction,
+        compact = true
     )
 }
 
@@ -1184,7 +1208,8 @@ private fun RecycleContent(
     onRestore: (RecycleEntry) -> Unit,
     onDelete: (RecycleEntry) -> Unit,
     onRestoreAll: () -> Unit,
-    onDeleteAll: () -> Unit
+    onDeleteAll: () -> Unit,
+    onOpenDuplicates: () -> Unit
 ) {
     val english = LocalAppEnglish.current
     var collapsed by remember { mutableStateOf(false) }
@@ -1241,7 +1266,19 @@ private fun RecycleContent(
             }
         }
         if (entries.isEmpty()) {
-            item { CleanupEmpty("回收站为空") }
+            item {
+                CleanupEmpty(
+                    icon = Icons.Outlined.DeleteForever,
+                    title = if (english) "Trash is empty" else "回收站是空的",
+                    body = if (english) {
+                        "Deleted photos and videos stay here for 30 days and can be restored."
+                    } else {
+                        "删除的图片和视频会在这里保留 30 天，可随时还原。"
+                    },
+                    action = if (english) "Review duplicates" else "去清理重复图片",
+                    onAction = onOpenDuplicates
+                )
+            }
         } else if (collapsed) {
             items(entries.chunked(4), key = { row -> row.joinToString { it.id } }) { rowEntries ->
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -1314,7 +1351,8 @@ private fun ExcludedContent(
     onToggleFolder: (String) -> Unit,
     onOpenFolder: (String, Boolean) -> Unit,
     onRestore: (String) -> Unit,
-    onRestoreSelected: () -> Unit
+    onRestoreSelected: () -> Unit,
+    onOpenDuplicates: () -> Unit
 ) {
     val english = LocalAppEnglish.current
     val folders = remember(media) { media.groupBy { it.folder } }
@@ -1351,7 +1389,21 @@ private fun ExcludedContent(
                 }
             }
         }
-        if (folders.isEmpty()) item { CleanupEmpty("没有已排除文件夹") }
+        if (folders.isEmpty()) {
+            item {
+                CleanupEmpty(
+                    icon = Icons.Outlined.VisibilityOff,
+                    title = if (english) "No excluded folders" else "没有已排除文件夹",
+                    body = if (english) {
+                        "Excluded folders do not appear in Albums or Timeline."
+                    } else {
+                        "被排除的文件夹不会出现在相册和时间轴里。"
+                    },
+                    action = if (english) "Review duplicates" else "去清理重复图片",
+                    onAction = onOpenDuplicates
+                )
+            }
+        }
         items(folders.entries.toList(), key = { it.key }) { (folder, items) ->
             Row(Modifier.fillMaxWidth().heightIn(min = 72.dp).combinedClickable(onClick = { onOpenFolder(folder, items.all(MediaItem::isVideo)) }, onLongClick = {}), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(72.dp).clickable { onToggleFolder(folder) }) {
@@ -2502,12 +2554,12 @@ private fun ArchiveStageGrid(phase: PixivArchivePhase) {
                         else -> MaterialTheme.colorScheme.onSurfaceVariant
                     }
                     Box(
-                        Modifier.weight(1f).heightIn(min = 28.dp)
+                        Modifier.weight(1f).heightIn(min = 32.dp)
                             .clip(VaultShape.Small)
                             .background(color.copy(alpha = if (done) .12f else .07f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(label, color = color, fontSize = 9.sp, maxLines = 1)
+                        Text(label, color = color, fontSize = 11.sp, maxLines = 1)
                     }
                 }
             }

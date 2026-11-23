@@ -207,7 +207,7 @@ class PixivWebActivity : ComponentActivity() {
                     "浅色" -> false
                     else -> systemDark
                 },
-                accent = themeAccent.color
+                accent = themeAccent
             ) {
                 PixivBrowser(
                     webView = webView,

@@ -35,6 +35,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -1166,8 +1167,9 @@ private fun SettingsCategoryCard(category: SettingsCategory, onClick: () -> Unit
     val english = LocalSettingsEnglish.current
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(VaultDimens.AlbumRadius),
-        color = MaterialTheme.colorScheme.surfaceVariant
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
     ) {
         Row(
             Modifier.fillMaxWidth()
@@ -1223,8 +1225,9 @@ private fun SettingsCard(title: String? = null, content: @Composable ColumnScope
         }
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(VaultDimens.AlbumRadius),
-            color = MaterialTheme.colorScheme.surfaceVariant
+            shape = RoundedCornerShape(12.dp),
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
         ) {
             Column(content = content)
         }
@@ -1344,7 +1347,11 @@ private fun ThemeColorRow(value: String, onClick: () -> Unit) {
         Text(settingsText("主题颜色", english), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
         Text(settingsText(value, english), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(end = 10.dp))
         androidx.compose.foundation.layout.Box(
-            Modifier.size(28.dp).background(MaterialTheme.colorScheme.primary, CircleShape)
+            Modifier.size(32.dp).background(
+                ThemeAccent.entries.firstOrNull { it.label == value }?.color
+                    ?: MaterialTheme.colorScheme.primary,
+                CircleShape
+            )
         )
     }
 }

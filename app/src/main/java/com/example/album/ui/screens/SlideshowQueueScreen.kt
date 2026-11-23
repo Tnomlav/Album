@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.Slideshow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -47,6 +48,7 @@ import com.example.album.ui.LocalAppEnglish
 import com.example.album.ui.appText
 import com.example.album.ui.components.MediaThumbnail
 import com.example.album.ui.components.MediaListRow
+import com.example.album.ui.components.VaultEmptyState
 
 /** Slideshow queue: the images that will be played, managed like the wallpaper queue. */
 @Composable
@@ -59,7 +61,8 @@ fun SlideshowQueueScreen(
     onOpenFolder: (String) -> Unit = {},
     onCloseFolder: () -> Unit = {},
     onOpenMedia: (MediaItem) -> Unit,
-    onRemove: (MediaItem) -> Unit
+    onRemove: (MediaItem) -> Unit,
+    onClose: () -> Unit = {}
 ) {
     val english = LocalAppEnglish.current
     val visibleItems = remember(items, folderMode, openedFolder) {
@@ -69,12 +72,17 @@ fun SlideshowQueueScreen(
         if (folderMode) items.groupBy { it.folder }.toSortedMap() else emptyMap()
     }
     if (items.isEmpty()) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(
-                appText("幻灯片队列为空", english),
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
+        VaultEmptyState(
+            icon = Icons.Outlined.Slideshow,
+            title = if (english) "Slideshow queue is empty" else "幻灯片队列还是空的",
+            body = if (english) {
+                "Add pictures, then play them full screen and control timing and order."
+            } else {
+                "加入图片后，可以全屏轮播并控制时长与顺序。"
+            },
+            primaryLabel = if (english) "Choose from library" else "去相册挑选",
+            onPrimary = onClose
+        )
         return
     }
     if (folderMode && openedFolder == null) {
@@ -118,7 +126,7 @@ fun SlideshowQueueScreen(
         ) {
             item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
                 Text(
-                    if (english) "${folders.size} folder(s)" else "${folders.size} 个文件夹",
+                    if (english) folders.size.toString() + " folders" else folders.size.toString() + " 个文件夹",
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp, vertical = 2.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.labelSmall,
@@ -167,7 +175,7 @@ fun SlideshowQueueScreen(
         ) {
             item {
                 Text(
-                    if (english) "${visibleItems.size} item(s)" else "${visibleItems.size} 项",
+                    if (english) visibleItems.size.toString() + " items" else visibleItems.size.toString() + " 项",
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.labelSmall
@@ -198,7 +206,7 @@ fun SlideshowQueueScreen(
         ) {
             item(span = StaggeredGridItemSpan.FullLine) {
                 Text(
-                    if (english) "${visibleItems.size} item(s)" else "${visibleItems.size} 项",
+                    if (english) visibleItems.size.toString() + " items" else visibleItems.size.toString() + " 项",
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp, vertical = 2.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.labelSmall,

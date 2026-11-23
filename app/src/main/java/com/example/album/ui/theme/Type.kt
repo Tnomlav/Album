@@ -49,5 +49,6 @@ object VaultText {
     val RowValue = TextStyle(fontSize = 12.sp, lineHeight = 16.sp)
     val Caption = TextStyle(fontSize = 11.sp, fontWeight = FontWeight.Medium, lineHeight = 14.sp)
     val Badge = TextStyle(fontSize = 10.sp, lineHeight = 13.sp)
+    val Count = TextStyle(fontSize = 11.sp, fontWeight = FontWeight.Medium, lineHeight = 14.sp, fontFeatureSettings = "tnum")
     val Button = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.SemiBold, lineHeight = 18.sp)
 }

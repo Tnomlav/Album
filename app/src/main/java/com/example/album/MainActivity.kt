@@ -12,12 +12,14 @@ import android.util.Rational
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.core.view.WindowCompat
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
 import com.example.album.ui.AlbumivApp
 import com.example.album.ui.LocalAppEnglish
 import com.example.album.ui.PrototypeViewport
@@ -101,14 +103,24 @@ class MainActivity : ComponentActivity() {
             }
             var appLanguage by remember { mutableStateOf(preferences.getString("language", "简体中文") ?: "简体中文") }
             val systemDark = isSystemInDarkTheme()
+            val darkTheme = when (themeMode) {
+                "深色" -> true
+                "浅色" -> false
+                else -> systemDark
+            }
+            // The in-app theme can be forced independently of the system, so
+            // the window has to be told which way the bars should go instead
+            // of deriving it from the system configuration in enableEdgeToEdge.
+            SideEffect {
+                WindowCompat.getInsetsController(window, window.decorView).apply {
+                    isAppearanceLightStatusBars = !darkTheme
+                    isAppearanceLightNavigationBars = !darkTheme
+                }
+            }
             CompositionLocalProvider(LocalAppEnglish provides (appLanguage == "English")) {
                 AlbumivTheme(
-                    darkTheme = when (themeMode) {
-                        "深色" -> true
-                        "浅色" -> false
-                        else -> systemDark
-                    },
-                    accent = themeAccent.color
+                    darkTheme = darkTheme,
+                    accent = themeAccent
                 ) {
                     // Keep the prototype viewport stable even if the emulator
                     // reports landscape. The HTML player rotates its own

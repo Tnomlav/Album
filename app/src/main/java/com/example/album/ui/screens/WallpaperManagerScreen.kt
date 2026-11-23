@@ -35,6 +35,7 @@ import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.Wallpaper
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -59,8 +60,10 @@ import com.example.album.ui.MediaSort
 import com.example.album.ui.SortDirection
 import com.example.album.ui.components.MediaThumbnail
 import com.example.album.ui.components.MediaListRow
+import com.example.album.ui.components.VaultEmptyState
 import com.example.album.ui.searchTextMatches
 import com.example.album.ui.theme.VaultDimens
+import com.example.album.ui.theme.VaultText
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -112,7 +115,8 @@ fun WallpaperManagerScreen(
     folderMode: Boolean = false,
     openedFolder: String? = null,
     onOpenFolder: (String) -> Unit = {},
-    onCloseFolder: () -> Unit = {}
+    onCloseFolder: () -> Unit = {},
+    onClose: () -> Unit = {}
 ) {
     val english = LocalAppEnglish.current
     val formatter = remember { SimpleDateFormat("yyyy年M月d日", Locale.CHINA) }
@@ -147,18 +151,39 @@ fun WallpaperManagerScreen(
 
     val showFolderTiles = folderMode && openedFolder == null
     if (showFolderTiles && folderQueue.isEmpty()) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(appText("壁纸队列为空", english), color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+        VaultEmptyState(
+            icon = Icons.Outlined.Wallpaper,
+            title = if (english) "Wallpaper queue is empty" else "壁纸队列还是空的",
+            body = if (english) {
+                "Add the pictures you like to the queue; applying it plays them in order."
+            } else {
+                "把喜欢的图片加入队列，应用后会按顺序轮播。"
+            },
+            primaryLabel = if (english) "Choose from library" else "去相册挑选",
+            onPrimary = onClose
+        )
         return
     }
     if (!showFolderTiles && visibleMedia.isEmpty() && folders.isEmpty()) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(
-                if (query.isBlank()) appText("壁纸队列为空", english) else appText("没有匹配的内容", english),
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
+        VaultEmptyState(
+            icon = Icons.Outlined.Wallpaper,
+            title = if (query.isBlank()) {
+                if (english) "Wallpaper queue is empty" else "壁纸队列还是空的"
+            } else {
+                if (english) "No matching content" else "没有匹配的内容"
+            },
+            body = if (query.isBlank()) {
+                if (english) {
+                    "Add the pictures you like to the queue; applying it plays them in order."
+                } else {
+                    "把喜欢的图片加入队列，应用后会按顺序轮播。"
+                }
+            } else {
+                if (english) "Try another keyword, or clear the filter." else "换个关键词，或清除筛选后再试。"
+            },
+            primaryLabel = if (english) "Choose from library" else "去相册挑选",
+            onPrimary = onClose
+        )
         return
     }
 
@@ -327,11 +352,16 @@ fun WallpaperManagerScreen(
 @Composable
 private fun WallpaperResultCount(count: Int, query: String, english: Boolean) {
     Text(
-        if (query.isBlank()) count.toString()
-        else if (english) "Search results: $count" else "搜索结果 $count 项",
+        if (query.isBlank()) {
+            if (english) count.toString() + " items" else count.toString() + " 项"
+        } else if (english) {
+            "Search results: " + count
+        } else {
+            "搜索结果 " + count + " 项"
+        },
         modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp, vertical = 2.dp),
         color = MaterialTheme.colorScheme.onSurfaceVariant,
-        style = MaterialTheme.typography.labelSmall,
+        style = VaultText.Count,
         textAlign = TextAlign.End
     )
 }
@@ -400,7 +430,7 @@ private fun WallpaperFolderSection(
                                 fontSize = VaultDimens.AlbumName
                             )
                             counts[folder]?.let { count ->
-                                Text(count.toString(), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = VaultDimens.AlbumCount)
+                                Text(if (english) count.toString() + " items" else count.toString() + " 项", color = MaterialTheme.colorScheme.onSurfaceVariant, style = VaultText.Count)
                             }
                         }
                     }
@@ -444,11 +474,16 @@ private fun WallpaperMediaCell(
                 }
             } else {
                 Box(
-                    Modifier.align(Alignment.TopEnd).padding(4.dp).size(26.dp)
+                    Modifier.align(Alignment.TopEnd).padding(2.dp).size(48.dp)
                         .clickable { onRemove(item) },
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Outlined.Close, appText("移出壁纸队列", english), tint = Color.White, modifier = Modifier.size(20.dp))
+                    Box(
+                        Modifier.size(32.dp).background(Color.Black.copy(alpha = .55f), RoundedCornerShape(50)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Outlined.Close, appText("移出壁纸队列", english), tint = Color.White, modifier = Modifier.size(18.dp))
+                    }
                 }
             }
         }

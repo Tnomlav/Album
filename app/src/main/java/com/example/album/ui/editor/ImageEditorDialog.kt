@@ -762,9 +762,9 @@ private fun EditorTopBar(
     val accent = MaterialTheme.colorScheme.primary
     val english = LocalAppEnglish.current
     Row(
-        Modifier.fillMaxWidth().statusBarsPadding().height(64.dp).background(editorPanel()).padding(horizontal = 12.dp),
+        Modifier.fillMaxWidth().statusBarsPadding().height(64.dp).background(editorPanel()).padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
+        horizontalArrangement = Arrangement.spacedBy(2.dp)
     ) {
         Surface(
             modifier = Modifier.size(48.dp).clickable(enabled = !saving, onClick = onClose),
@@ -775,42 +775,56 @@ private fun EditorTopBar(
                 Icon(EditorPrototypeIcons.Close, appText("关闭", english), tint = EditorInk, modifier = Modifier.size(24.dp))
             }
         }
-        Row(Modifier.width(114.dp), horizontalArrangement = Arrangement.spacedBy(0.dp)) {
+        Row(Modifier.width(144.dp), horizontalArrangement = Arrangement.spacedBy(0.dp)) {
             EditorTopIcon(EditorPrototypeIcons.Undo, appText("撤回", english), undoEnabled, onUndo)
             EditorTopIcon(EditorPrototypeIcons.Redo, appText("重做", english), redoEnabled, onRedo)
             EditorTopIcon(EditorPrototypeIcons.Repeat, resetLabel, resetEnabled, onReset)
         }
         Spacer(Modifier.weight(1f))
-        Surface(
-            modifier = Modifier.height(32.dp).offset(x = (-8).dp).clickable(onClick = onResolution),
-            color = if (resolutionOpen) editorRaised() else editorRaised(),
-            shape = VaultShape.XLarge
+        Box(
+            modifier = Modifier.height(48.dp).clickable(onClick = onResolution),
+            contentAlignment = Alignment.Center
         ) {
-            Row(
-                Modifier.padding(horizontal = 9.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(2.dp)
+            Surface(
+                color = editorRaised(),
+                shape = VaultShape.XLarge
             ) {
-                Text(appText("分辨率", english), color = EditorInk)
-                Icon(
-                    if (resolutionOpen) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
-                    contentDescription = null,
-                    tint = EditorInk,
-                    modifier = Modifier.size(16.dp)
-                )
+                Row(
+                    Modifier.height(32.dp).padding(horizontal = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Text(appText("分辨率", english), color = EditorInk, fontSize = 12.sp)
+                    Icon(
+                        if (resolutionOpen) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = EditorInk,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
             }
         }
-        Surface(
-            modifier = Modifier.width(50.dp).height(32.dp).clickable(enabled = saveEnabled && !saving, onClick = onSave),
-            color = if (saveEnabled && !saving) accent else editorRaised(),
-            shape = VaultShape.XLarge
+        Box(
+            modifier = Modifier
+                .width(60.dp)
+                .height(48.dp)
+                .clickable(enabled = saveEnabled && !saving, onClick = onSave),
+            contentAlignment = Alignment.Center
         ) {
-            Box(contentAlignment = Alignment.Center) {
-                Text(
-                    appText(if (saving) "保存中" else "完成", english),
-                    color = if (saveEnabled && !saving) MaterialTheme.colorScheme.onPrimary else Color(0xFF9A9D9B),
-                    fontWeight = FontWeight.SemiBold
-                )
+            Surface(
+                modifier = Modifier.width(58.dp).height(36.dp),
+                color = if (saveEnabled && !saving) accent else editorRaised(),
+                shape = VaultShape.XLarge
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        appText(if (saving) "保存中" else "完成", english),
+                        color = if (saveEnabled && !saving) MaterialTheme.colorScheme.onPrimary else Color(0xFF9A9D9B),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1
+                    )
+                }
             }
         }
     }
@@ -823,7 +837,7 @@ private fun EditorTopIcon(
     enabled: Boolean,
     onClick: () -> Unit
 ) {
-    IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(38.dp)) {
+    IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(48.dp)) {
         Icon(icon, label, tint = if (enabled) EditorInk else Color(0xFFB9BCBA), modifier = Modifier.size(20.dp))
     }
 }

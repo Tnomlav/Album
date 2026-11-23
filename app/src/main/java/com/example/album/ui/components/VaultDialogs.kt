@@ -303,7 +303,7 @@ fun VaultColorSheet(
                     ) {}
                     Text(
                         optionLabel(option),
-                        style = VaultText.RowValue.copy(fontSize = 9.sp, lineHeight = 12.sp),
+                        style = VaultText.RowValue.copy(fontSize = 11.sp, lineHeight = 14.sp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         softWrap = false,

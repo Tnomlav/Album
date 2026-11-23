@@ -246,7 +246,7 @@ class ImageSearchActivity : ComponentActivity() {
                     "浅色" -> false
                     else -> systemDark
                 },
-                accent = themeAccent.color
+                accent = themeAccent
             ) {
                 androidx.compose.runtime.CompositionLocalProvider(
                     LocalAppEnglish provides english
