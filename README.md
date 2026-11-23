@@ -116,6 +116,7 @@ Pixiv 归档是可选功能：只有主动使用时会连接 Pixiv 读取公开�
 ## 项目状态
 
 - v1.2.1 历史功能范围与短板见 [产品成熟度复盘（历史快照）](docs/product-readiness-review.md)；当前状态见 [产品优化与调整指南](docs/产品优化与调整指南-2026-11.md)
+- 视觉语言、交互语法、动效与可访问性专项见 [美术与交互统一性调优稿](docs/美术与交互统一性调优稿-2026-11.md)
 - 分层结构、分阶段重建记录与真机验收清单见 [重建状态](docs/rebuild-status.md)
 - 每个版本的改动记录见 [CHANGELOG.md](CHANGELOG.md)
 - 第三方组件与许可证见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
