@@ -43,7 +43,7 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Run lint, unit tests, and Debug/Release builds
-        run: ./gradlew clean lintDebug testDebugUnitTest assembleDebug assembleRelease --stacktrace
+        run: ./gradlew clean --no-build-cache lintDebug testDebugUnitTest assembleDebug assembleRelease --stacktrace
 
       # version.properties is the single source of the build's version. The
       # packaging task no longer advances it, so this catches a mismatch before
