@@ -11,7 +11,7 @@ exifinterface = "1.4.2"
 media3 = "1.6.1"
 libvlc = "3.7.5"
 kotlin = "2.2.10"
-composeBom = "2026.02.01"
+composeBom = "2026.11.01"
 orgJson = "20240303"
 profileinstaller = "1.4.1"
 
